@@ -1,6 +1,6 @@
 ## go-client-api
 
-> java-tron gRPC client for golang
+> The Golang java-tron gRPC client
 
 ## Requirements
 
