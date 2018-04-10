@@ -15,23 +15,23 @@ go run program/client.go
 
 ## TODO
 
-[] GetAccount
-[] CreateTransaction
-[] BroadcastTransaction
-[x] ListAccounts
-[] UpdateAccount
-[] CreateAccount
-[] VoteWitnessAccount
-[] CreateAssetIssue
-[] ListWitnesses
-[] UpdateWitness
-[] CreateWitness
-[] TransferAsset
-[] ParticipateAssetIssue
-[] ListNodes
-[] GetAssetIssueList
-[] GetAssetIssueByAccount
-[] GetAssetIssueByName
-[] GetNowBlock
-[] GetBlockByNum
-[] TotalTransaction
+- [ ] GetAccount
+- [ ] CreateTransaction
+- [ ] BroadcastTransaction
+- [x] ListAccounts
+- [ ] UpdateAccount
+- [ ] CreateAccount
+- [ ] VoteWitnessAccount
+- [ ] CreateAssetIssue
+- [ ] ListWitnesses
+- [ ] UpdateWitness
+- [ ] CreateWitness
+- [ ] TransferAsset
+- [ ] ParticipateAssetIssue
+- [ ] ListNodes
+- [ ] GetAssetIssueList
+- [ ] GetAssetIssueByAccount
+- [ ] GetAssetIssueByName
+- [ ] GetNowBlock
+- [ ] GetBlockByNum
+- [ ] TotalTransaction
