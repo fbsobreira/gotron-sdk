@@ -1,0 +1,2 @@
+protoc -I=./protocol --go_out=plugins=grpc:../ ./protocol/api/*.proto
+protoc -I=./protocol --go_out=plugins=grpc:../ ./protocol/core/*.proto
