@@ -9,7 +9,7 @@
 ## Quick Start
 
 ```shell
-go get -u github.com/sasaxie/go-client-api
+go get -u github.com/tronprotocol/go-client-api
 go run program/client.go
 ```
 
