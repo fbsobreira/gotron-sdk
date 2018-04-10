@@ -4,26 +4,37 @@ import (
 	"google.golang.org/grpc"
 	"log"
 	"context"
-	"fmt"
 	"github.com/tronprotocol/go-client-api/api"
 )
 
-const address = "47.91.216.69:50051"
+type GrpcClient struct {
+	Address string
+	Client api.WalletClient
+}
 
-func StartClient() {
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+func NewGrpcClient(address string) (*GrpcClient) {
+	client := new(GrpcClient)
+	client.Address = address
+	return client
+}
+
+func (g *GrpcClient) Start() {
+	conn, err := grpc.Dial(g.Address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
-	defer conn.Close()
 
-	client := api.NewWalletClient(conn)
+	// TODO: defer conn.Close()
 
-	accountList, err := client.ListAccounts(context.Background(),
+	g.Client = api.NewWalletClient(conn)
+}
+
+func (g *GrpcClient) ListAccounts() (*api.AccountList) {
+	accountList, err := g.Client.ListAccounts(context.Background(),
 		new(api.EmptyMessage))
 	if err != nil {
 		log.Fatalf("get accounts error: %v", err)
 	}
 
-	fmt.Printf("accounts: %v", accountList)
+	return accountList
 }
