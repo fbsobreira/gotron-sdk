@@ -5,7 +5,7 @@ import (
 	"log"
 	"context"
 	"fmt"
-	"go-client-api/api"
+	"github.com/tronprotocol/go-client-api/api"
 )
 
 const address = "47.91.216.69:50051"

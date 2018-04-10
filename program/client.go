@@ -1,6 +1,6 @@
 package main
 
-import "go-client-api/service"
+import "github.com/tronprotocol/go-client-api/service"
 
 func main() {
 	service.StartClient()
