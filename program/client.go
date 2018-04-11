@@ -14,6 +14,7 @@ func main() {
 	accounts := client.ListAccounts()
 
 	for i, v := range accounts.Accounts {
-		fmt.Printf("index: %d, account: %v\n", i, v)
+		fmt.Printf("index: %d, account: address: %x, balance: %d\n", i,
+			v.GetAddress(), v.Balance)
 	}
 }
