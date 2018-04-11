@@ -11,6 +11,7 @@ const address = "47.91.216.69:50051"
 func main() {
 	client := service.NewGrpcClient(address)
 	client.Start()
+	defer client.Conn.Close()
 
 	accounts := client.ListAccounts()
 

@@ -9,6 +9,7 @@ import (
 
 type GrpcClient struct {
 	Address string
+	Conn *grpc.ClientConn
 	Client api.WalletClient
 }
 
@@ -19,14 +20,13 @@ func NewGrpcClient(address string) (*GrpcClient) {
 }
 
 func (g *GrpcClient) Start() {
-	conn, err := grpc.Dial(g.Address, grpc.WithInsecure())
+	var err error
+	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 
-	// TODO: defer conn.Close()
-
-	g.Client = api.NewWalletClient(conn)
+	g.Client = api.NewWalletClient(g.Conn)
 }
 
 func (g *GrpcClient) ListAccounts() (*api.AccountList) {
