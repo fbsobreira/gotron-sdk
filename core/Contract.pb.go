@@ -39,6 +39,7 @@ It has these top-level messages:
 	BlockInventory
 	Inventory
 	Items
+	DynamicProperties
 	DisconnectMessage
 	HelloMessage
 	InventoryItems
