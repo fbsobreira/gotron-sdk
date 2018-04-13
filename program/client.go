@@ -38,4 +38,12 @@ func main() {
 			addr, u,
 			totalProduced, totalMissed, latestBlockNum, latestSlotNum, isJobs)
 	}
+
+	nodes := client.ListNodes()
+
+	for i, v := range nodes.Nodes {
+		host := string(v.Address.Host)
+		port := v.Address.Port
+		fmt.Printf("index: %d, node: host: %v, port: %d\n", i, host, port)
+	}
 }

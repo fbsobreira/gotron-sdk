@@ -32,6 +32,7 @@ func (g *GrpcClient) Start() {
 func (g *GrpcClient) ListAccounts() (*api.AccountList) {
 	accountList, err := g.Client.ListAccounts(context.Background(),
 		new(api.EmptyMessage))
+
 	if err != nil {
 		log.Fatalf("get accounts error: %v", err)
 	}
@@ -48,4 +49,15 @@ func (g *GrpcClient) ListWitnesses() (*api.WitnessList) {
 	}
 
 	return witnessList
+}
+
+func (g *GrpcClient) ListNodes() (*api.NodeList) {
+	nodeList, err := g.Client.ListNodes(context.Background(),
+		new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("get nodes error: %v", err)
+	}
+
+	return nodeList
 }

@@ -28,7 +28,7 @@ go run program/client.go
 - [ ] CreateWitness
 - [ ] TransferAsset
 - [ ] ParticipateAssetIssue
-- [ ] ListNodes
+- [x] ListNodes
 - [ ] GetAssetIssueList
 - [ ] GetAssetIssueByAccount
 - [ ] GetAssetIssueByName
