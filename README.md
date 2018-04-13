@@ -15,7 +15,7 @@ go run program/client.go
 
 ## TODO
 
-- [ ] GetAccount
+- [x] GetAccount
 - [ ] CreateTransaction
 - [ ] BroadcastTransaction
 - [x] ListAccounts

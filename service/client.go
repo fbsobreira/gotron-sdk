@@ -5,6 +5,8 @@ import (
 	"log"
 	"context"
 	"github.com/tronprotocol/go-client-api/api"
+	"github.com/tronprotocol/go-client-api/core"
+	"github.com/tronprotocol/go-client-api/common/hexutil"
 )
 
 type GrpcClient struct {
@@ -60,4 +62,23 @@ func (g *GrpcClient) ListNodes() (*api.NodeList) {
 	}
 
 	return nodeList
+}
+
+func (g *GrpcClient) GetAccount(address string) (*core.Account) {
+	account := new(core.Account)
+
+	var err error
+	account.Address, err = hexutil.Decode(address)
+
+	if err != nil {
+		log.Fatalf("get account error: %v", err)
+	}
+
+	result, err := g.Client.GetAccount(context.Background(), account)
+
+	if err != nil {
+		log.Fatalf("get account error: %v", err)
+	}
+
+	return result
 }
