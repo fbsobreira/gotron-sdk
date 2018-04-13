@@ -23,7 +23,7 @@ go run program/client.go
 - [ ] CreateAccount
 - [ ] VoteWitnessAccount
 - [ ] CreateAssetIssue
-- [ ] ListWitnesses
+- [x] ListWitnesses
 - [ ] UpdateWitness
 - [ ] CreateWitness
 - [ ] TransferAsset

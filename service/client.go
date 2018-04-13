@@ -38,3 +38,14 @@ func (g *GrpcClient) ListAccounts() (*api.AccountList) {
 
 	return accountList
 }
+
+func (g *GrpcClient) ListWitnesses() (*api.WitnessList) {
+	witnessList, err := g.Client.ListWitnesses(context.Background(),
+		new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("get witnesses error: %v", err)
+	}
+
+	return witnessList
+}
