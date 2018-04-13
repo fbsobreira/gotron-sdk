@@ -25,7 +25,7 @@ func (g *GrpcClient) Start() {
 	var err error
 	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		log.Fatalf("did not connect: %v\n", err)
 	}
 
 	g.Client = api.NewWalletClient(g.Conn)
@@ -36,7 +36,7 @@ func (g *GrpcClient) ListAccounts() (*api.AccountList) {
 		new(api.EmptyMessage))
 
 	if err != nil {
-		log.Fatalf("get accounts error: %v", err)
+		log.Fatalf("get accounts error: %v\n", err)
 	}
 
 	return accountList
@@ -47,7 +47,7 @@ func (g *GrpcClient) ListWitnesses() (*api.WitnessList) {
 		new(api.EmptyMessage))
 
 	if err != nil {
-		log.Fatalf("get witnesses error: %v", err)
+		log.Fatalf("get witnesses error: %v\n", err)
 	}
 
 	return witnessList
@@ -58,7 +58,7 @@ func (g *GrpcClient) ListNodes() (*api.NodeList) {
 		new(api.EmptyMessage))
 
 	if err != nil {
-		log.Fatalf("get nodes error: %v", err)
+		log.Fatalf("get nodes error: %v\n", err)
 	}
 
 	return nodeList
@@ -71,13 +71,13 @@ func (g *GrpcClient) GetAccount(address string) (*core.Account) {
 	account.Address, err = hexutil.Decode(address)
 
 	if err != nil {
-		log.Fatalf("get account error: %v", err)
+		log.Fatalf("get account error: %v\n", err)
 	}
 
 	result, err := g.Client.GetAccount(context.Background(), account)
 
 	if err != nil {
-		log.Fatalf("get account error: %v", err)
+		log.Fatalf("get account error: %v\n", err)
 	}
 
 	return result
