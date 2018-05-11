@@ -1,2 +1,2 @@
-protoc -I=./protocol --go_out=plugins=grpc:../../../ ./protocol/api/*.proto
-protoc -I=./protocol --go_out=plugins=grpc:../../../ ./protocol/core/*.proto
+protoc -I=./protocol -I$GOPATH/src/github.com/tronprotocol/go-client-api/third_party/googleapis --go_out=plugins=grpc:../../../ ./protocol/api/*.proto
+protoc -I=./protocol -I$GOPATH/src/github.com/tronprotocol/go-client-api/third_party/googleapis --go_out=plugins=grpc:../../../ ./protocol/core/*.proto
