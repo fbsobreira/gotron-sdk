@@ -33,14 +33,14 @@ const (
 	initialWindowSize             = defaultWindowSize // for an RPC
 	infinity                      = time.Duration(math.MaxInt64)
 	defaultClientKeepaliveTime    = infinity
-	defaultClientKeepaliveTimeout = time.Duration(20 * time.Second)
+	defaultClientKeepaliveTimeout = 20 * time.Second
 	defaultMaxStreamsClient       = 100
 	defaultMaxConnectionIdle      = infinity
 	defaultMaxConnectionAge       = infinity
 	defaultMaxConnectionAgeGrace  = infinity
-	defaultServerKeepaliveTime    = time.Duration(2 * time.Hour)
-	defaultServerKeepaliveTimeout = time.Duration(20 * time.Second)
-	defaultKeepalivePolicyMinTime = time.Duration(5 * time.Minute)
+	defaultServerKeepaliveTime    = 2 * time.Hour
+	defaultServerKeepaliveTimeout = 20 * time.Second
+	defaultKeepalivePolicyMinTime = 5 * time.Minute
 	// max window limit set by HTTP2 Specs.
 	maxWindowSize = math.MaxInt32
 	// defaultWriteQuota is the default value for number of data
@@ -96,13 +96,15 @@ func (w *writeQuota) replenish(n int) {
 }
 
 type trInFlow struct {
-	limit   uint32
-	unacked uint32
+	limit               uint32
+	unacked             uint32
+	effectiveWindowSize uint32
 }
 
 func (f *trInFlow) newLimit(n uint32) uint32 {
 	d := n - f.limit
 	f.limit = n
+	f.updateEffectiveWindowSize()
 	return d
 }
 
@@ -111,15 +113,26 @@ func (f *trInFlow) onData(n uint32) uint32 {
 	if f.unacked >= f.limit/4 {
 		w := f.unacked
 		f.unacked = 0
+		f.updateEffectiveWindowSize()
 		return w
 	}
+	f.updateEffectiveWindowSize()
 	return 0
 }
 
 func (f *trInFlow) reset() uint32 {
 	w := f.unacked
 	f.unacked = 0
+	f.updateEffectiveWindowSize()
 	return w
+}
+
+func (f *trInFlow) updateEffectiveWindowSize() {
+	atomic.StoreUint32(&f.effectiveWindowSize, f.limit-f.unacked)
+}
+
+func (f *trInFlow) getSize() uint32 {
+	return atomic.LoadUint32(&f.effectiveWindowSize)
 }
 
 // TODO(mmukhi): Simplify this code.

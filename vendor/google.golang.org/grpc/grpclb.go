@@ -58,7 +58,7 @@ func (c *loadBalancerClient) BalanceLoad(ctx context.Context, opts ...CallOption
 		ServerStreams: true,
 		ClientStreams: true,
 	}
-	stream, err := NewClientStream(ctx, desc, c.cc, "/grpc.lb.v1.LoadBalancer/BalanceLoad", opts...)
+	stream, err := c.cc.NewStream(ctx, desc, "/grpc.lb.v1.LoadBalancer/BalanceLoad", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +220,6 @@ func (lb *lbBalancer) regeneratePicker() {
 		subConns:   readySCs,
 		stats:      lb.clientStats,
 	}
-	return
 }
 
 func (lb *lbBalancer) HandleSubConnStateChange(sc balancer.SubConn, s connectivity.State) {
@@ -257,7 +256,6 @@ func (lb *lbBalancer) HandleSubConnStateChange(sc balancer.SubConn, s connectivi
 	}
 
 	lb.cc.UpdateBalancerState(lb.state, lb.picker)
-	return
 }
 
 // fallbackToBackendsAfter blocks for fallbackTimeout and falls back to use

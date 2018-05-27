@@ -131,6 +131,7 @@ func isReservedHeader(hdr string) bool {
 	}
 	switch hdr {
 	case "content-type",
+		"user-agent",
 		"grpc-message-type",
 		"grpc-encoding",
 		"grpc-message",
@@ -144,11 +145,11 @@ func isReservedHeader(hdr string) bool {
 	}
 }
 
-// isWhitelistedPseudoHeader checks whether hdr belongs to HTTP2 pseudoheaders
-// that should be propagated into metadata visible to users.
-func isWhitelistedPseudoHeader(hdr string) bool {
+// isWhitelistedHeader checks whether hdr should be propagated
+// into metadata visible to users.
+func isWhitelistedHeader(hdr string) bool {
 	switch hdr {
-	case ":authority":
+	case ":authority", "user-agent":
 		return true
 	default:
 		return false
@@ -261,9 +262,9 @@ func (d *decodeState) decodeResponseHeader(frame *http2.MetaHeadersFrame) error 
 	// gRPC status doesn't exist and http status is OK.
 	// Set rawStatusCode to be unknown and return nil error.
 	// So that, if the stream has ended this Unknown status
-	// will be propogated to the user.
+	// will be propagated to the user.
 	// Otherwise, it will be ignored. In which case, status from
-	// a later trailer, that has StreamEnded flag set, is propogated.
+	// a later trailer, that has StreamEnded flag set, is propagated.
 	code := int(codes.Unknown)
 	d.rawStatusCode = &code
 	return nil
@@ -339,7 +340,7 @@ func (d *decodeState) processHeaderField(f hpack.HeaderField) error {
 		d.statsTrace = v
 		d.addMetadata(f.Name, string(v))
 	default:
-		if isReservedHeader(f.Name) && !isWhitelistedPseudoHeader(f.Name) {
+		if isReservedHeader(f.Name) && !isWhitelistedHeader(f.Name) {
 			break
 		}
 		v, err := decodeMetadataHeader(f.Name, f.Value)
@@ -347,7 +348,7 @@ func (d *decodeState) processHeaderField(f hpack.HeaderField) error {
 			errorf("Failed to decode metadata header (%q, %q): %v", f.Name, f.Value, err)
 			return nil
 		}
-		d.addMetadata(f.Name, string(v))
+		d.addMetadata(f.Name, v)
 	}
 	return nil
 }
