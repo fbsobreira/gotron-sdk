@@ -46,7 +46,6 @@ go run program/client.go
 - [x] GetAccount
 - [ ] CreateTransaction
 - [ ] BroadcastTransaction
-- [x] ListAccounts
 - [ ] UpdateAccount
 - [ ] CreateAccount
 - [ ] VoteWitnessAccount
