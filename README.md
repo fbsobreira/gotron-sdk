@@ -28,6 +28,12 @@ Then, `go get -u` as usual the following packages:
 go get -u github.com/golang/protobuf/protoc-gen-go
 ```
 
+Update protocol:
+
+```sh
+git submodule update --remote
+```
+
 Example:
 
 ```sh
