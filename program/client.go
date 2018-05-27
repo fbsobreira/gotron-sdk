@@ -38,7 +38,7 @@ func main() {
 		fmt.Printf("index: %d, node: host: %v, port: %d\n", i, host, port)
 	}
 
-	account := client.GetAccount("a00a9309758508413039e4bc5a3d113f3ecc55031d")
+	account := client.GetAccount("A099357684BC659F5166046B56C95A0E99F1265CBD")
 
 	fmt.Printf("account: type: %s, address: %s, balance: %d\n", account.Type,
 		hexutil.Encode(account.Address), account.Balance)
