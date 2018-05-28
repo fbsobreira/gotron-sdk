@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/service"
+	"github.com/tronprotocol/go-client-api/util"
 )
 
-const address = "47.91.216.69:50051"
+const address = "18.182.51.36:50051"
 
 func main() {
 	client := service.NewGrpcClient(address)
@@ -42,4 +43,12 @@ func main() {
 
 	fmt.Printf("account: type: %s, address: %s, balance: %d\n", account.Type,
 		hexutil.Encode(account.Address), account.Balance)
+
+	block := client.GetNowBlock()
+
+	blockHash := util.GetBlockHash(*block)
+
+
+	fmt.Printf("now block: block number: %v, hash: %v\n",
+		block.BlockHeader.RawData.Number, hexutil.Encode(blockHash))
 }

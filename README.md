@@ -59,6 +59,6 @@ go run program/client.go
 - [ ] GetAssetIssueList
 - [ ] GetAssetIssueByAccount
 - [ ] GetAssetIssueByName
-- [ ] GetNowBlock
+- [x] GetNowBlock
 - [ ] GetBlockByNum
 - [ ] TotalTransaction

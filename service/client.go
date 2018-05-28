@@ -71,3 +71,13 @@ func (g *GrpcClient) GetAccount(address string) *core.Account {
 
 	return result
 }
+
+func (g *GrpcClient) GetNowBlock() *core.Block {
+	result, err := g.Client.GetNowBlock(context.Background(), new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("get now block error: %v\n", err)
+	}
+
+	return result
+}
