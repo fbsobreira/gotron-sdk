@@ -5,12 +5,22 @@ import (
 	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/service"
 	"github.com/tronprotocol/go-client-api/util"
+	"flag"
+	"strings"
+	"log"
 )
 
-const address = "18.182.51.36:50051"
-
 func main() {
-	client := service.NewGrpcClient(address)
+	address := flag.String("address", "",
+		"gRPC address: localhost:50051")
+
+	flag.Parse()
+
+	if strings.EqualFold("", *address) && len(*address) == 0 {
+		log.Fatalln("go run client -address localhost:50051")
+	}
+
+	client := service.NewGrpcClient(*address)
 	client.Start()
 	defer client.Conn.Close()
 
