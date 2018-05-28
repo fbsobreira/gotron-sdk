@@ -4,319 +4,130 @@
 
 // +build ignore
 
-// gen runs go generate on Unicode- and CLDR-related package in the text
-// repositories, taking into account dependencies and versions.
 package main
 
 import (
-	"bytes"
 	"flag"
-	"fmt"
-	"go/build"
-	"go/format"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-	"path/filepath"
-	"regexp"
-	"runtime"
-	"strings"
-	"sync"
-	"unicode"
+	"log"
 
-	"golang.org/x/text/collate"
 	"golang.org/x/text/internal/gen"
-	"golang.org/x/text/language"
+	"golang.org/x/text/internal/triegen"
+	"golang.org/x/text/internal/ucd"
 )
 
-var (
-	verbose     = flag.Bool("v", false, "verbose output")
-	force       = flag.Bool("force", false, "ignore failing dependencies")
-	doCore      = flag.Bool("core", false, "force an update to core")
-	excludeList = flag.String("exclude", "",
-		"comma-separated list of packages to exclude")
-
-	// The user can specify a selection of packages to build on the command line.
-	args []string
-)
-
-func exclude(pkg string) bool {
-	if len(args) > 0 {
-		return !contains(args, pkg)
-	}
-	return contains(strings.Split(*excludeList, ","), pkg)
-}
-
-// TODO:
-// - Better version handling.
-// - Generate tables for the core unicode package?
-// - Add generation for encodings. This requires some retooling here and there.
-// - Running repo-wide "long" tests.
-
-var vprintf = fmt.Printf
+var outputFile = flag.String("out", "tables.go", "output file")
 
 func main() {
 	gen.Init()
-	args = flag.Args()
-	if !*verbose {
-		// Set vprintf to a no-op.
-		vprintf = func(string, ...interface{}) (int, error) { return 0, nil }
+	gen.Repackage("gen_trieval.go", "trieval.go", "bidi")
+	gen.Repackage("gen_ranges.go", "ranges_test.go", "bidi")
+
+	genTables()
+}
+
+// bidiClass names and codes taken from class "bc" in
+// http://www.unicode.org/Public/8.0.0/ucd/PropertyValueAliases.txt
+var bidiClass = map[string]Class{
+	"AL":  AL,  // ArabicLetter
+	"AN":  AN,  // ArabicNumber
+	"B":   B,   // ParagraphSeparator
+	"BN":  BN,  // BoundaryNeutral
+	"CS":  CS,  // CommonSeparator
+	"EN":  EN,  // EuropeanNumber
+	"ES":  ES,  // EuropeanSeparator
+	"ET":  ET,  // EuropeanTerminator
+	"L":   L,   // LeftToRight
+	"NSM": NSM, // NonspacingMark
+	"ON":  ON,  // OtherNeutral
+	"R":   R,   // RightToLeft
+	"S":   S,   // SegmentSeparator
+	"WS":  WS,  // WhiteSpace
+
+	"FSI": Control,
+	"PDF": Control,
+	"PDI": Control,
+	"LRE": Control,
+	"LRI": Control,
+	"LRO": Control,
+	"RLE": Control,
+	"RLI": Control,
+	"RLO": Control,
+}
+
+func genTables() {
+	if numClass > 0x0F {
+		log.Fatalf("Too many Class constants (%#x > 0x0F).", numClass)
 	}
+	w := gen.NewCodeWriter()
+	defer w.WriteVersionedGoFile(*outputFile, "bidi")
 
-	// TODO: create temporary cache directory to load files and create and set
-	// a "cache" option if the user did not specify the UNICODE_DIR environment
-	// variable. This will prevent duplicate downloads and also will enable long
-	// tests, which really need to be run after each generated package.
+	gen.WriteUnicodeVersion(w)
 
-	updateCore := *doCore
-	if gen.UnicodeVersion() != unicode.Version {
-		fmt.Printf("Requested Unicode version %s; core unicode version is %s.\n",
-			gen.UnicodeVersion(),
-			unicode.Version)
-		c := collate.New(language.Und, collate.Numeric)
-		if c.CompareString(gen.UnicodeVersion(), unicode.Version) < 0 && !*force {
-			os.Exit(2)
+	t := triegen.NewTrie("bidi")
+
+	// Build data about bracket mapping. These bits need to be or-ed with
+	// any other bits.
+	orMask := map[rune]uint64{}
+
+	xorMap := map[rune]int{}
+	xorMasks := []rune{0} // First value is no-op.
+
+	ucd.Parse(gen.OpenUCDFile("BidiBrackets.txt"), func(p *ucd.Parser) {
+		r1 := p.Rune(0)
+		r2 := p.Rune(1)
+		xor := r1 ^ r2
+		if _, ok := xorMap[xor]; !ok {
+			xorMap[xor] = len(xorMasks)
+			xorMasks = append(xorMasks, xor)
 		}
-		updateCore = true
-		goroot := os.Getenv("GOROOT")
-		appendToFile(
-			filepath.Join(goroot, "api", "except.txt"),
-			fmt.Sprintf("pkg unicode, const Version = %q\n", unicode.Version),
-		)
-		const lines = `pkg unicode, const Version = %q
-// TODO: add a new line of the following form for each new script and property.
-pkg unicode, var <new script or property> *RangeTable
-`
-		appendToFile(
-			filepath.Join(goroot, "api", "next.txt"),
-			fmt.Sprintf(lines, gen.UnicodeVersion()),
-		)
+		entry := uint64(xorMap[xor]) << xorMaskShift
+		switch p.String(2) {
+		case "o":
+			entry |= openMask
+		case "c", "n":
+		default:
+			log.Fatalf("Unknown bracket class %q.", p.String(2))
+		}
+		orMask[r1] = entry
+	})
+
+	w.WriteComment(`
+	xorMasks contains masks to be xor-ed with brackets to get the reverse
+	version.`)
+	w.WriteVar("xorMasks", xorMasks)
+
+	done := map[rune]bool{}
+
+	insert := func(r rune, c Class) {
+		if !done[r] {
+			t.Insert(r, orMask[r]|uint64(c))
+			done[r] = true
+		}
 	}
 
-	var unicode = &dependency{}
-	if updateCore {
-		fmt.Printf("Updating core to version %s...\n", gen.UnicodeVersion())
-		unicode = generate("unicode")
+	// Insert the derived BiDi properties.
+	ucd.Parse(gen.OpenUCDFile("extracted/DerivedBidiClass.txt"), func(p *ucd.Parser) {
+		r := p.Rune(0)
+		class, ok := bidiClass[p.String(1)]
+		if !ok {
+			log.Fatalf("%U: Unknown BiDi class %q", r, p.String(1))
+		}
+		insert(r, class)
+	})
+	visitDefaults(insert)
 
-		// Test some users of the unicode packages, especially the ones that
-		// keep a mirrored table. These may need to be corrected by hand.
-		generate("regexp", unicode)
-		generate("strconv", unicode) // mimics Unicode table
-		generate("strings", unicode)
-		generate("testing", unicode) // mimics Unicode table
-	}
+	// TODO: use sparse blocks. This would reduce table size considerably
+	// from the looks of it.
 
-	var (
-		cldr       = generate("./unicode/cldr", unicode)
-		compact    = generate("./internal/language/compact", cldr)
-		language   = generate("./language", cldr, compact)
-		internal   = generate("./internal", unicode, language)
-		norm       = generate("./unicode/norm", unicode)
-		rangetable = generate("./unicode/rangetable", unicode)
-		cases      = generate("./cases", unicode, norm, language, rangetable)
-		width      = generate("./width", unicode)
-		bidi       = generate("./unicode/bidi", unicode, norm, rangetable)
-		mib        = generate("./encoding/internal/identifier", unicode)
-		number     = generate("./internal/number", unicode, cldr, language, internal)
-		cldrtree   = generate("./internal/cldrtree", language, internal)
-		_          = generate("./unicode/runenames", unicode)
-		_          = generate("./encoding/htmlindex", unicode, language, mib)
-		_          = generate("./encoding/ianaindex", unicode, language, mib)
-		_          = generate("./secure/precis", unicode, norm, rangetable, cases, width, bidi)
-		_          = generate("./currency", unicode, cldr, language, internal, number)
-		_          = generate("./feature/plural", unicode, cldr, language, internal, number)
-		_          = generate("./internal/export/idna", unicode, bidi, norm)
-		_          = generate("./language/display", unicode, cldr, language, internal, number)
-		_          = generate("./collate", unicode, norm, cldr, language, rangetable)
-		_          = generate("./search", unicode, norm, cldr, language, rangetable)
-		_          = generate("./date", cldr, language, cldrtree)
-	)
-	all.Wait()
-
-	// Copy exported packages to the destination golang.org repo.
-	copyExported("golang.org/x/net/idna")
-
-	if updateCore {
-		copyVendored()
-	}
-
-	if hasErrors {
-		fmt.Println("FAIL")
-		os.Exit(1)
-	}
-	vprintf("SUCCESS\n")
-}
-
-func appendToFile(file, text string) {
-	fmt.Println("Augmenting", file)
-	w, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0600)
+	sz, err := t.Gen(w)
 	if err != nil {
-		fmt.Println("Failed to open file:", err)
-		os.Exit(1)
+		log.Fatal(err)
 	}
-	defer w.Close()
-	if _, err := w.WriteString(text); err != nil {
-		fmt.Println("Failed to write to file:", err)
-		os.Exit(1)
-	}
+	w.Size += sz
 }
 
+// dummy values to make methods in gen_common compile. The real versions
+// will be generated by this file to tables.go.
 var (
-	all       sync.WaitGroup
-	hasErrors bool
+	xorMasks []rune
 )
-
-type dependency struct {
-	sync.WaitGroup
-	hasErrors bool
-}
-
-func generate(pkg string, deps ...*dependency) *dependency {
-	var wg dependency
-	if exclude(pkg) {
-		return &wg
-	}
-	wg.Add(1)
-	all.Add(1)
-	go func() {
-		defer wg.Done()
-		defer all.Done()
-		// Wait for dependencies to finish.
-		for _, d := range deps {
-			d.Wait()
-			if d.hasErrors && !*force {
-				fmt.Printf("--- ABORT: %s\n", pkg)
-				wg.hasErrors = true
-				return
-			}
-		}
-		vprintf("=== GENERATE %s\n", pkg)
-		args := []string{"generate"}
-		if *verbose {
-			args = append(args, "-v")
-		}
-		args = append(args, pkg)
-		cmd := exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), args...)
-		w := &bytes.Buffer{}
-		cmd.Stderr = w
-		cmd.Stdout = w
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("--- FAIL: %s:\n\t%v\n\tError: %v\n", pkg, indent(w), err)
-			hasErrors = true
-			wg.hasErrors = true
-			return
-		}
-
-		vprintf("=== TEST %s\n", pkg)
-		args[0] = "test"
-		cmd = exec.Command(filepath.Join(runtime.GOROOT(), "bin", "go"), args...)
-		wt := &bytes.Buffer{}
-		cmd.Stderr = wt
-		cmd.Stdout = wt
-		if err := cmd.Run(); err != nil {
-			fmt.Printf("--- FAIL: %s:\n\t%v\n\tError: %v\n", pkg, indent(wt), err)
-			hasErrors = true
-			wg.hasErrors = true
-			return
-		}
-		vprintf("--- SUCCESS: %s\n\t%v\n", pkg, indent(w))
-		fmt.Print(wt.String())
-	}()
-	return &wg
-}
-
-// copyExported copies a package in x/text/internal/export to the
-// destination repository.
-func copyExported(p string) {
-	copyPackage(
-		filepath.Join("internal", "export", path.Base(p)),
-		filepath.Join("..", filepath.FromSlash(p[len("golang.org/x"):])),
-		"golang.org/x/text/internal/export/"+path.Base(p),
-		p)
-}
-
-// copyVendored copies packages used by Go core into the vendored directory.
-func copyVendored() {
-	root := filepath.Join(build.Default.GOROOT, filepath.FromSlash("src/vendor/golang_org/x"))
-
-	err := filepath.Walk(root, func(dir string, info os.FileInfo, err error) error {
-		if err != nil || !info.IsDir() || root == dir {
-			return err
-		}
-		src := dir[len(root)+1:]
-		const slash = string(filepath.Separator)
-		if c := strings.Split(src, slash); c[0] == "text" {
-			// Copy a text repo package from its normal location.
-			src = strings.Join(c[1:], slash)
-		} else {
-			// Copy the vendored package if it exists in the export directory.
-			src = filepath.Join("internal", "export", filepath.Base(src))
-		}
-		copyPackage(src, dir, "golang.org", "golang_org")
-		return nil
-	})
-	if err != nil {
-		fmt.Printf("Seeding directory %s has failed %v:", root, err)
-		os.Exit(1)
-	}
-}
-
-// goGenRE is used to remove go:generate lines.
-var goGenRE = regexp.MustCompile("//go:generate[^\n]*\n")
-
-// copyPackage copies relevant files from a directory in x/text to the
-// destination package directory. The destination package is assumed to have
-// the same name. For each copied file go:generate lines are removed and
-// and package comments are rewritten to the new path.
-func copyPackage(dirSrc, dirDst, search, replace string) {
-	err := filepath.Walk(dirSrc, func(file string, info os.FileInfo, err error) error {
-		base := filepath.Base(file)
-		if err != nil || info.IsDir() ||
-			!strings.HasSuffix(base, ".go") ||
-			strings.HasSuffix(base, "_test.go") ||
-			// Don't process subdirectories.
-			filepath.Dir(file) != dirSrc {
-			return nil
-		}
-		b, err := ioutil.ReadFile(file)
-		if err != nil || bytes.Contains(b, []byte("\n// +build ignore")) {
-			return err
-		}
-		// Fix paths.
-		b = bytes.Replace(b, []byte(search), []byte(replace), -1)
-		// Remove go:generate lines.
-		b = goGenRE.ReplaceAllLiteral(b, nil)
-		comment := "// Code generated by running \"go generate\" in golang.org/x/text. DO NOT EDIT.\n\n"
-		if *doCore {
-			comment = "// Code generated by running \"go run gen.go -core\" in golang.org/x/text. DO NOT EDIT.\n\n"
-		}
-		if !bytes.HasPrefix(b, []byte(comment)) {
-			b = append([]byte(comment), b...)
-		}
-		if b, err = format.Source(b); err != nil {
-			fmt.Println("Failed to format file:", err)
-			os.Exit(1)
-		}
-		file = filepath.Join(dirDst, base)
-		vprintf("=== COPY %s\n", file)
-		return ioutil.WriteFile(file, b, 0666)
-	})
-	if err != nil {
-		fmt.Println("Copying exported files failed:", err)
-		os.Exit(1)
-	}
-}
-
-func contains(a []string, s string) bool {
-	for _, e := range a {
-		if s == e {
-			return true
-		}
-	}
-	return false
-}
-
-func indent(b *bytes.Buffer) string {
-	return strings.Replace(strings.TrimSpace(b.String()), "\n", "\n\t", -1)
-}

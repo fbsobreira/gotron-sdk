@@ -1,11 +1,12 @@
 hash: 10c74c7b70873698e28c93fbeccdf17f055e541d5a83459438807af50132c239
-updated: 2018-05-27T18:38:30.93422+08:00
+updated: 2018-05-28T17:39:40.580567+08:00
 imports:
 - name: github.com/golang/protobuf
   version: 3a3da3a4e26776cc22a79ef46d5d58477532dede
   subpackages:
   - proto
   - protoc-gen-go
+  - protoc-gen-go/descriptor
   - ptypes
   - ptypes/any
   - ptypes/duration
@@ -22,16 +23,18 @@ imports:
   - idna
   - internal/timeseries
   - trace
-- name: golang.org/x/text/secure/bidirule
+- name: golang.org/x/text
   version: 5c1cf69b5978e5a34c5f9ba09a83e56acc4b7877
-- name: golang.org/x/text/unicode/bidi
-  version: 5c1cf69b5978e5a34c5f9ba09a83e56acc4b7877
-- name: golang.org/x/text/unicode/norm
-  version: 5c1cf69b5978e5a34c5f9ba09a83e56acc4b7877
-- name: google.golang.org/genproto/googleapis/api/annotations
+  subpackages:
+  - secure/bidirule
+  - transform
+  - unicode/bidi
+  - unicode/norm
+- name: google.golang.org/genproto
   version: 694d95ba50e67b2e363f3483057db5d4910c18f9
-- name: google.golang.org/genproto/googleapis/rpc/status
-  version: 694d95ba50e67b2e363f3483057db5d4910c18f9
+  subpackages:
+  - googleapis/api/annotations
+  - googleapis/rpc/status
 - name: google.golang.org/grpc
   version: 1fa3750c9a209f5efbdc2722d40f2657885af5e5
   subpackages:
