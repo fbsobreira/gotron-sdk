@@ -58,7 +58,6 @@ func main() {
 
 	blockHash := util.GetBlockHash(*block)
 
-
 	fmt.Printf("now block: block number: %v, hash: %v\n",
 		block.BlockHeader.RawData.Number, hexutil.Encode(blockHash))
 }
