@@ -47,18 +47,28 @@ go run program/client.go
 - [ ] CreateTransaction
 - [ ] BroadcastTransaction
 - [ ] UpdateAccount
-- [ ] CreateAccount
 - [ ] VoteWitnessAccount
 - [ ] CreateAssetIssue
-- [x] ListWitnesses
 - [ ] UpdateWitness
 - [ ] CreateWitness
 - [ ] TransferAsset
 - [ ] ParticipateAssetIssue
+- [ ] FreezeBalance
+- [ ] UnfreezeBalance
+- [ ] UnfreezeAsset
+- [ ] WithdrawBalance
+- [ ] UpdateAsset
 - [x] ListNodes
-- [ ] GetAssetIssueList
 - [ ] GetAssetIssueByAccount
+- [ ] GetAccountNet
 - [ ] GetAssetIssueByName
 - [x] GetNowBlock
 - [ ] GetBlockByNum
+- [ ] GetBlockById
+- [ ] GetBlockByLimitNext
+- [ ] GetBlockByLatestNum
+- [ ] GetTransactionById
+- [x] ListWitnesses
+- [ ] GetAssetIssueList
 - [ ] TotalTransaction
+- [ ] GetNextMaintenanceTime
