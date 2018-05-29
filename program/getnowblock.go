@@ -1,13 +1,13 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/service"
 	"github.com/tronprotocol/go-client-api/util"
-	"flag"
-	"strings"
 	"log"
+	"strings"
 )
 
 func main() {

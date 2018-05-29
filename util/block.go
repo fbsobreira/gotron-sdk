@@ -1,10 +1,10 @@
 package util
 
 import (
-	"github.com/tronprotocol/go-client-api/core"
-	"log"
 	"crypto/sha256"
 	"github.com/golang/protobuf/proto"
+	"github.com/tronprotocol/go-client-api/core"
+	"log"
 )
 
 func GetBlockHash(block core.Block) []byte {

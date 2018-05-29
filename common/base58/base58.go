@@ -1,9 +1,9 @@
 package base58
 
 import (
+	"crypto/sha256"
 	"github.com/shengdoushi/base58"
 	"log"
-	"crypto/sha256"
 )
 
 var tronAlphabet = base58.NewAlphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")

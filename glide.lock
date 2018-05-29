@@ -1,6 +1,10 @@
-hash: 10c74c7b70873698e28c93fbeccdf17f055e541d5a83459438807af50132c239
-updated: 2018-05-28T17:39:40.580567+08:00
+hash: d09a306b1b02e50a5813b4b1bca585b9512696ddd627b492824519d0fbfb0585
+updated: 2018-05-29T15:39:40.714786+08:00
 imports:
+- name: github.com/ethereum/go-ethereum
+  version: ccc0debb63124ee99906c2cfff6125de30e8c62f
+  subpackages:
+  - crypto
 - name: github.com/golang/protobuf
   version: 3a3da3a4e26776cc22a79ef46d5d58477532dede
   subpackages:
