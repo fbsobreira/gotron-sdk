@@ -11,16 +11,16 @@ import (
 )
 
 func main() {
-	address := flag.String("address", "18.182.51.36:50051",
+	grpcAddress := flag.String("grpcAddress", "18.182.51.36:50051",
 		"gRPC address: localhost:50051")
 
 	flag.Parse()
 
-	if strings.EqualFold("", *address) && len(*address) == 0 {
-		log.Fatalln("./get-now-block -address localhost:50051")
+	if strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0 {
+		log.Fatalln("./get-now-block -grpcAddress localhost:50051")
 	}
 
-	client := service.NewGrpcClient(*address)
+	client := service.NewGrpcClient(*grpcAddress)
 	client.Start()
 	defer client.Conn.Close()
 
