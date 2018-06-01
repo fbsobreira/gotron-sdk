@@ -40,36 +40,3 @@ Example:
 go get -u github.com/tronprotocol/go-client-api
 go run program/getnowblock.go -grpcAddress 47.254.16.55:50051
 ```
-
-## TODO
-
-- [x] GetAccount
-- [ ] CreateTransaction
-- [ ] BroadcastTransaction
-- [ ] UpdateAccount
-- [ ] VoteWitnessAccount
-- [ ] CreateAssetIssue
-- [ ] UpdateWitness
-- [ ] CreateWitness
-- [ ] TransferAsset
-- [ ] ParticipateAssetIssue
-- [ ] FreezeBalance
-- [ ] UnfreezeBalance
-- [ ] UnfreezeAsset
-- [ ] WithdrawBalance
-- [ ] UpdateAsset
-- [x] ListNodes
-- [x] GetAssetIssueByAccount
-- [ ] GetAccountNet
-- [ ] GetAssetIssueByName
-- [x] GetNowBlock
-- [ ] GetBlockByNum
-- [ ] GetBlockById
-- [ ] GetBlockByLimitNext
-- [ ] GetBlockByLatestNum
-- [ ] GetTransactionById
-- [x] ListWitnesses
-- [ ] GetAssetIssueList
-- [ ] TotalTransaction
-- [ ] GetNextMaintenanceTime
-- [ ] CreateAccount
