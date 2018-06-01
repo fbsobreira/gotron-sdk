@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	grpcAddress := flag.String("grpcAddress", "18.182.51.36:50051",
+	grpcAddress := flag.String("grpcAddress", "",
 		"gRPC address: localhost:50051")
 
 	flag.Parse()
