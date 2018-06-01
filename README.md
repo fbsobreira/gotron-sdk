@@ -72,3 +72,4 @@ go run program/getnowblock.go -grpcAddress 47.254.16.55:50051
 - [ ] GetAssetIssueList
 - [ ] TotalTransaction
 - [ ] GetNextMaintenanceTime
+- [ ] CreateAccount
