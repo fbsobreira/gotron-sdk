@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/service"
 	"log"
 	"strings"
@@ -18,7 +19,7 @@ func main() {
 	flag.Parse()
 
 	if (strings.EqualFold("", *address) && len(*address) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
-		log.Fatalln("./get-asset-issue-by-account -grpcAddress localhost" +
+		log.Fatalln("./get-account-by-address -grpcAddress localhost" +
 			":50051 -address TH4MqfHpmKFpdtvPaeYufXHiPyxLvmJWP6")
 	}
 
@@ -26,8 +27,8 @@ func main() {
 	client.Start()
 	defer client.Conn.Close()
 
-	assetIssueList := client.GetAssetIssueByAccount(*address)
+	account := client.GetAccount(*address)
 
-	fmt.Printf("asset issue list: %v\n",
-		assetIssueList)
+	fmt.Printf("account: type: %s, address: %s, balance: %d\n", account.Type,
+		hexutil.Encode(account.Address), account.Balance)
 }
