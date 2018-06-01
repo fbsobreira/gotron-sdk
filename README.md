@@ -38,7 +38,7 @@ Example:
 
 ```sh
 go get -u github.com/tronprotocol/go-client-api
-go run program/client.go
+go run program/getnowblock.go -grpcAddress 47.254.16.55:50051
 ```
 
 ## TODO
