@@ -24,14 +24,6 @@ func main() {
 	client.Start()
 	defer client.Conn.Close()
 
-	nodes := client.ListNodes()
-
-	for i, v := range nodes.Nodes {
-		host := string(v.Address.Host)
-		port := v.Address.Port
-		fmt.Printf("index: %d, node: host: %v, port: %d\n", i, host, port)
-	}
-
 	account := client.GetAccount("A099357684BC659F5166046B56C95A0E99F1265CBD")
 
 	fmt.Printf("account: type: %s, address: %s, balance: %d\n", account.Type,
