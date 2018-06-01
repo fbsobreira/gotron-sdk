@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"github.com/tronprotocol/go-client-api/api"
+	"github.com/tronprotocol/go-client-api/common/base58"
 	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/core"
 	"google.golang.org/grpc"
@@ -77,6 +78,22 @@ func (g *GrpcClient) GetNowBlock() *core.Block {
 
 	if err != nil {
 		log.Fatalf("get now block error: %v\n", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList {
+	account := new(core.Account)
+
+	account.Address = base58.DecodeCheck(address)
+
+	var err error
+	result, err := g.Client.GetAssetIssueByAccount(context.Background(),
+		account)
+
+	if err != nil {
+		log.Fatalf("get asset issue by account error: %v", err)
 	}
 
 	return result
