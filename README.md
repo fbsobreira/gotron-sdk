@@ -59,7 +59,7 @@ go run program/getnowblock.go -grpcAddress 47.254.16.55:50051
 - [ ] WithdrawBalance
 - [ ] UpdateAsset
 - [x] ListNodes
-- [ ] GetAssetIssueByAccount
+- [x] GetAssetIssueByAccount
 - [ ] GetAccountNet
 - [ ] GetAssetIssueByName
 - [x] GetNowBlock
