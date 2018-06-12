@@ -201,3 +201,22 @@ func (g *GrpcClient) GetBlockByLimitNext(start, end int64) *api.BlockList {
 
 	return result
 }
+
+func (g *GrpcClient) GetTransactionById(id string) *core.Transaction {
+	transactionId := new(api.BytesMessage)
+	var err error
+
+	transactionId.Value, err = hexutil.Decode(id)
+
+	if err != nil {
+		log.Fatalf("get transaction by id error: %v", err)
+	}
+
+	result, err := g.Client.GetTransactionById(context.Background(), transactionId)
+
+	if err != nil {
+		log.Fatalf("get transaction by limit next error: %v", err)
+	}
+
+	return result
+}

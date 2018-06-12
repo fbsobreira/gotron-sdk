@@ -14,20 +14,20 @@ func main() {
 
 	hash := flag.String("hash",
 		"",
-		"hash: <block hash>")
+		"hash: <transaction hash>")
 
 	flag.Parse()
 
 	if (strings.EqualFold("", *hash) && len(*hash) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
-		log.Fatalln("./get-block-by-id -grpcAddress localhost" +
-			":50051 -hash 00000000000000F8E7B8B200907932D74DCC2195FB673CE6E5C194B7382BF64A")
+		log.Fatalln("./get-transaction-by-id -grpcAddress localhost" +
+			":50051 -hash 6c7e1104a824aaba0a8fba5497b35d7f2b5b3032ec833bd3bfcb5e9a938a4dc8")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)
 	client.Start()
 	defer client.Conn.Close()
 
-	block := client.GetBlockById(*hash)
+	transaction := client.GetTransactionById(*hash)
 
-	fmt.Printf("block: %v\n", block)
+	fmt.Printf("transaction: %v\n", transaction)
 }
