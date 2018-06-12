@@ -148,3 +148,17 @@ func (g *GrpcClient) GetAssetIssueByName(name string) *core.AssetIssueContract {
 
 	return result
 }
+
+func (g *GrpcClient) GetBlockByNum(num int64) *core.Block {
+	numMessage := new(api.NumberMessage)
+	numMessage.Num = num
+
+	var err error
+	result, err := g.Client.GetBlockByNum(context.Background(), numMessage)
+
+	if err != nil {
+		log.Fatalf("get asset issue by name error: %v", err)
+	}
+
+	return result
+}
