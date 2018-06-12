@@ -187,3 +187,17 @@ func (g *GrpcClient) GetAssetIssueList() *api.AssetIssueList {
 
 	return result
 }
+
+func (g *GrpcClient) GetBlockByLimitNext(start, end int64) *api.BlockList {
+	blockLimit := new(api.BlockLimit)
+	blockLimit.StartNum = start
+	blockLimit.EndNum = end
+
+	result, err := g.Client.GetBlockByLimitNext(context.Background(), blockLimit)
+
+	if err != nil {
+		log.Fatalf("get block by limit next error: %v", err)
+	}
+
+	return result
+}
