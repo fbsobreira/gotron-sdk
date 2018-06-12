@@ -83,7 +83,6 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList 
 
 	account.Address = base58.DecodeCheck(address)
 
-	var err error
 	result, err := g.Client.GetAssetIssueByAccount(context.Background(),
 		account)
 
@@ -96,7 +95,6 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList 
 
 func (g *GrpcClient) GetNextMaintenanceTime() *api.NumberMessage {
 
-	var err error
 	result, err := g.Client.GetNextMaintenanceTime(context.Background(),
 		new(api.EmptyMessage))
 
@@ -109,7 +107,6 @@ func (g *GrpcClient) GetNextMaintenanceTime() *api.NumberMessage {
 
 func (g *GrpcClient) TotalTransaction() *api.NumberMessage {
 
-	var err error
 	result, err := g.Client.TotalTransaction(context.Background(),
 		new(api.EmptyMessage))
 
@@ -125,7 +122,6 @@ func (g *GrpcClient) GetAccountNet(address string) *api.AccountNetMessage {
 
 	account.Address = base58.DecodeCheck(address)
 
-	var err error
 	result, err := g.Client.GetAccountNet(context.Background(), account)
 
 	if err != nil {
@@ -140,7 +136,6 @@ func (g *GrpcClient) GetAssetIssueByName(name string) *core.AssetIssueContract {
 	assetName := new(api.BytesMessage)
 	assetName.Value = []byte(name)
 
-	var err error
 	result, err := g.Client.GetAssetIssueByName(context.Background(), assetName)
 
 	if err != nil {
@@ -154,7 +149,6 @@ func (g *GrpcClient) GetBlockByNum(num int64) *core.Block {
 	numMessage := new(api.NumberMessage)
 	numMessage.Num = num
 
-	var err error
 	result, err := g.Client.GetBlockByNum(context.Background(), numMessage)
 
 	if err != nil {
@@ -178,6 +172,17 @@ func (g *GrpcClient) GetBlockById(id string) *core.Block {
 
 	if err != nil {
 		log.Fatalf("get block by id error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) GetAssetIssueList() *api.AssetIssueList {
+
+	result, err := g.Client.GetAssetIssueList(context.Background(), new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("get asset issue list error: %v", err)
 	}
 
 	return result
