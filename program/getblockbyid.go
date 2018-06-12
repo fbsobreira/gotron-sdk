@@ -12,21 +12,22 @@ func main() {
 	grpcAddress := flag.String("grpcAddress", "",
 		"gRPC address: <IP:port> example: -grpcAddress localhost:50051")
 
-	num := flag.Int64("number", 0,
-		"number: <block number>")
+	hash := flag.String("hash",
+		"",
+		"id: <block hash>")
 
 	flag.Parse()
 
-	if (*num < 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
-		log.Fatalln("./get-block-by-num -grpcAddress localhost" +
-			":50051 -number 0")
+	if (strings.EqualFold("", *hash) && len(*hash) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
+		log.Fatalln("./get-block-by-id -grpcAddress localhost" +
+			":50051 -id 00000000000000F8E7B8B200907932D74DCC2195FB673CE6E5C194B7382BF64A")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)
 	client.Start()
 	defer client.Conn.Close()
 
-	block := client.GetBlockByNum(*num)
+	block := client.GetBlockById(*hash)
 
 	fmt.Printf("block: %v\n", block)
 }

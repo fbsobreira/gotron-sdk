@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/tronprotocol/go-client-api/api"
 	"github.com/tronprotocol/go-client-api/common/base58"
+	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/core"
 	"google.golang.org/grpc"
 	"log"
@@ -157,7 +158,26 @@ func (g *GrpcClient) GetBlockByNum(num int64) *core.Block {
 	result, err := g.Client.GetBlockByNum(context.Background(), numMessage)
 
 	if err != nil {
-		log.Fatalf("get asset issue by name error: %v", err)
+		log.Fatalf("get block by num error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) GetBlockById(id string) *core.Block {
+	blockId := new(api.BytesMessage)
+	var err error
+
+	blockId.Value, err = hexutil.Decode(id)
+
+	if err != nil {
+		log.Fatalf("get block by id error: %v", err)
+	}
+
+	result, err := g.Client.GetBlockById(context.Background(), blockId)
+
+	if err != nil {
+		log.Fatalf("get block by id error: %v", err)
 	}
 
 	return result
