@@ -118,3 +118,18 @@ func (g *GrpcClient) TotalTransaction() *api.NumberMessage {
 
 	return result
 }
+
+func (g *GrpcClient) GetAccountNet(address string) *api.AccountNetMessage {
+	account := new(core.Account)
+
+	account.Address = base58.DecodeCheck(address)
+
+	var err error
+	result, err := g.Client.GetAccountNet(context.Background(), account)
+
+	if err != nil {
+		log.Fatalf("total transaction error: %v", err)
+	}
+
+	return result
+}
