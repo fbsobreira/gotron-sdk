@@ -92,3 +92,17 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList 
 
 	return result
 }
+
+func (g *GrpcClient) GetNextMaintenanceTime() *api.
+	NumberMessage {
+
+	var err error
+	result, err := g.Client.GetNextMaintenanceTime(context.Background(),
+		new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("get next maintenance time error: %v", err)
+	}
+
+	return result
+}
