@@ -128,7 +128,22 @@ func (g *GrpcClient) GetAccountNet(address string) *api.AccountNetMessage {
 	result, err := g.Client.GetAccountNet(context.Background(), account)
 
 	if err != nil {
-		log.Fatalf("total transaction error: %v", err)
+		log.Fatalf("get account net error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) GetAssetIssueByName(name string) *core.AssetIssueContract {
+
+	assetName := new(api.BytesMessage)
+	assetName.Value = []byte(name)
+
+	var err error
+	result, err := g.Client.GetAssetIssueByName(context.Background(), assetName)
+
+	if err != nil {
+		log.Fatalf("get asset issue by name error: %v", err)
 	}
 
 	return result
