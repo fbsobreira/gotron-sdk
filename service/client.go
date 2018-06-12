@@ -93,8 +93,7 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList 
 	return result
 }
 
-func (g *GrpcClient) GetNextMaintenanceTime() *api.
-	NumberMessage {
+func (g *GrpcClient) GetNextMaintenanceTime() *api.NumberMessage {
 
 	var err error
 	result, err := g.Client.GetNextMaintenanceTime(context.Background(),
@@ -102,6 +101,19 @@ func (g *GrpcClient) GetNextMaintenanceTime() *api.
 
 	if err != nil {
 		log.Fatalf("get next maintenance time error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) TotalTransaction() *api.NumberMessage {
+
+	var err error
+	result, err := g.Client.TotalTransaction(context.Background(),
+		new(api.EmptyMessage))
+
+	if err != nil {
+		log.Fatalf("total transaction error: %v", err)
 	}
 
 	return result
