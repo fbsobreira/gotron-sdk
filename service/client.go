@@ -220,3 +220,16 @@ func (g *GrpcClient) GetTransactionById(id string) *core.Transaction {
 
 	return result
 }
+
+func (g *GrpcClient) GetBlockByLatestNum(num int64) *api.BlockList {
+	numMessage := new(api.NumberMessage)
+	numMessage.Num = num
+
+	result, err := g.Client.GetBlockByLatestNum(context.Background(), numMessage)
+
+	if err != nil {
+		log.Fatalf("get block by latest num error: %v", err)
+	}
+
+	return result
+}
