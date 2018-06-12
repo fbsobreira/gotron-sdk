@@ -1,4 +1,4 @@
-package: go-client-api
+package: github.com/tronprotocol/go-client-api
 import:
 - package: github.com/golang/protobuf
   subpackages:
@@ -6,3 +6,7 @@ import:
   - proto
 - package: google.golang.org/grpc
 - package: golang.org/x/net
+- package: github.com/shengdoushi/base58
+- package: github.com/ethereum/go-ethereum
+  subpackages:
+  - crypto

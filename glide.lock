@@ -1,38 +1,46 @@
-hash: 5e64956fa94e6bfb886499a52ebe3ccfb816b6170294a353fde1f80c23813c2a
-updated: 2018-04-10T15:35:40.503369+08:00
+hash: d09a306b1b02e50a5813b4b1bca585b9512696ddd627b492824519d0fbfb0585
+updated: 2018-05-29T15:39:40.714786+08:00
 imports:
+- name: github.com/ethereum/go-ethereum
+  version: ccc0debb63124ee99906c2cfff6125de30e8c62f
+  subpackages:
+  - crypto
 - name: github.com/golang/protobuf
-  version: e09c5db296004fbe3f74490e84dcd62c3c5ddb1b
+  version: 3a3da3a4e26776cc22a79ef46d5d58477532dede
   subpackages:
   - proto
   - protoc-gen-go
+  - protoc-gen-go/descriptor
   - ptypes
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
+- name: github.com/shengdoushi/base58
+  version: c2e5dd9cebf91f86ab174cf5fd8bdb66d99c9e22
 - name: golang.org/x/net
-  version: 61147c48b25b599e5b561d2e9c4f3e1ef489ca41
+  version: dfa909b99c79129e1100513e5cd36307665e5723
   subpackages:
   - context
+  - http/httpguts
   - http2
   - http2/hpack
   - idna
   - internal/timeseries
-  - lex/httplex
   - trace
 - name: golang.org/x/text
-  version: 367d765ae293e2b5781a597dd9d433117e82fc51
+  version: 5c1cf69b5978e5a34c5f9ba09a83e56acc4b7877
   subpackages:
   - secure/bidirule
   - transform
   - unicode/bidi
   - unicode/norm
 - name: google.golang.org/genproto
-  version: 51d0944304c3cbce4afe9e5247e21100037bff78
+  version: 694d95ba50e67b2e363f3483057db5d4910c18f9
   subpackages:
+  - googleapis/api/annotations
   - googleapis/rpc/status
 - name: google.golang.org/grpc
-  version: 7f73c863c0d52a3900bdd76ccaf08191ed51b714
+  version: 1fa3750c9a209f5efbdc2722d40f2657885af5e5
   subpackages:
   - balancer
   - balancer/base

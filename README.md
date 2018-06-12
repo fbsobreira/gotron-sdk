@@ -28,32 +28,15 @@ Then, `go get -u` as usual the following packages:
 go get -u github.com/golang/protobuf/protoc-gen-go
 ```
 
+Update protocol:
+
+```sh
+git submodule update --remote
+```
+
 Example:
 
 ```sh
 go get -u github.com/tronprotocol/go-client-api
-go run program/client.go
+go run program/getnowblock.go -grpcAddress 47.254.16.55:50051
 ```
-
-## TODO
-
-- [x] GetAccount
-- [ ] CreateTransaction
-- [ ] BroadcastTransaction
-- [x] ListAccounts
-- [ ] UpdateAccount
-- [ ] CreateAccount
-- [ ] VoteWitnessAccount
-- [ ] CreateAssetIssue
-- [x] ListWitnesses
-- [ ] UpdateWitness
-- [ ] CreateWitness
-- [ ] TransferAsset
-- [ ] ParticipateAssetIssue
-- [x] ListNodes
-- [ ] GetAssetIssueList
-- [ ] GetAssetIssueByAccount
-- [ ] GetAssetIssueByName
-- [ ] GetNowBlock
-- [ ] GetBlockByNum
-- [ ] TotalTransaction

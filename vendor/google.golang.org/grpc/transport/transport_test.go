@@ -478,7 +478,7 @@ func TestMaxConnectionIdle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Client failed to create RPC request: %v", err)
 	}
-	client.(*http2Client).closeStream(stream, io.EOF, true, http2.ErrCodeCancel, nil, nil)
+	client.(*http2Client).closeStream(stream, io.EOF, true, http2.ErrCodeCancel, nil, nil, false)
 	// wait for server to see that closed stream and max-age logic to send goaway after no new RPCs are mode
 	timeout := time.NewTimer(time.Second * 4)
 	select {
@@ -1640,13 +1640,6 @@ func TestInvalidHeaderField(t *testing.T) {
 	if err != nil {
 		return
 	}
-	opts := Options{
-		Last:  true,
-		Delay: false,
-	}
-	if err := ct.Write(s, nil, expectedRequest, &opts); err != nil && err != io.EOF {
-		t.Fatalf("Failed to write the request: %v", err)
-	}
 	p := make([]byte, http2MaxFrameLen)
 	_, err = s.trReader.(*transportReader).Read(p)
 	if se, ok := err.(StreamError); !ok || se.Code != codes.Internal || !strings.Contains(err.Error(), expectedInvalidHeaderField) {
@@ -1664,6 +1657,8 @@ func TestIsReservedHeader(t *testing.T) {
 		{"", false}, // but should be rejected earlier
 		{"foo", false},
 		{"content-type", true},
+		{"user-agent", true},
+		{":anything", true},
 		{"grpc-message-type", true},
 		{"grpc-encoding", true},
 		{"grpc-message", true},
@@ -1915,7 +1910,7 @@ func (s *httpServer) start(t *testing.T, lis net.Listener) {
 		}
 		// Read preface sent by client.
 		if _, err = io.ReadFull(s.conn, make([]byte, len(http2.ClientPreface))); err != nil {
-			t.Errorf("Error at server-side while reading preface from cleint. Err: %v", err)
+			t.Errorf("Error at server-side while reading preface from client. Err: %v", err)
 			return
 		}
 		reader := bufio.NewReaderSize(s.conn, defaultWriteBufSize)
@@ -2152,5 +2147,115 @@ func runPingPongTest(t *testing.T, msgSize int) {
 				t.Fatalf("Error on client while reading data. Err: %v", err)
 			}
 		}
+	}
+}
+
+type tableSizeLimit struct {
+	mu     sync.Mutex
+	limits []uint32
+}
+
+func (t *tableSizeLimit) add(limit uint32) {
+	t.mu.Lock()
+	t.limits = append(t.limits, limit)
+	t.mu.Unlock()
+}
+
+func (t *tableSizeLimit) getLen() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return len(t.limits)
+}
+
+func (t *tableSizeLimit) getIndex(i int) uint32 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return t.limits[i]
+}
+
+func TestHeaderTblSize(t *testing.T) {
+	limits := &tableSizeLimit{}
+	updateHeaderTblSize = func(e *hpack.Encoder, v uint32) {
+		e.SetMaxDynamicTableSizeLimit(v)
+		limits.add(v)
+	}
+	defer func() {
+		updateHeaderTblSize = func(e *hpack.Encoder, v uint32) {
+			e.SetMaxDynamicTableSizeLimit(v)
+		}
+	}()
+
+	server, ct := setUp(t, 0, math.MaxUint32, normal)
+	defer ct.Close()
+	defer server.stop()
+	_, err := ct.NewStream(context.Background(), &CallHdr{})
+	if err != nil {
+		t.Fatalf("failed to open stream: %v", err)
+	}
+
+	var svrTransport ServerTransport
+	var i int
+	for i = 0; i < 1000; i++ {
+		server.mu.Lock()
+		if len(server.conns) != 0 {
+			server.mu.Unlock()
+			break
+		}
+		server.mu.Unlock()
+		time.Sleep(10 * time.Millisecond)
+		continue
+	}
+	if i == 1000 {
+		t.Fatalf("unable to create any server transport after 10s")
+	}
+
+	for st := range server.conns {
+		svrTransport = st
+		break
+	}
+	svrTransport.(*http2Server).controlBuf.put(&outgoingSettings{
+		ss: []http2.Setting{
+			{
+				ID:  http2.SettingHeaderTableSize,
+				Val: uint32(100),
+			},
+		},
+	})
+
+	for i = 0; i < 1000; i++ {
+		if limits.getLen() != 1 {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		if val := limits.getIndex(0); val != uint32(100) {
+			t.Fatalf("expected limits[0] = 100, got %d", val)
+		}
+		break
+	}
+	if i == 1000 {
+		t.Fatalf("expected len(limits) = 1 within 10s, got != 1")
+	}
+
+	ct.(*http2Client).controlBuf.put(&outgoingSettings{
+		ss: []http2.Setting{
+			{
+				ID:  http2.SettingHeaderTableSize,
+				Val: uint32(200),
+			},
+		},
+	})
+
+	for i := 0; i < 1000; i++ {
+		if limits.getLen() != 2 {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		if val := limits.getIndex(1); val != uint32(200) {
+			t.Fatalf("expected limits[1] = 200, got %d", val)
+		}
+		break
+	}
+	if i == 1000 {
+		t.Fatalf("expected len(limits) = 2 within 10s, got != 2")
 	}
 }

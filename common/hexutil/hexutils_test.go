@@ -1,8 +1,8 @@
 package hexutil
 
 import (
-	"testing"
 	"bytes"
+	"testing"
 )
 
 type marshalTest struct {
