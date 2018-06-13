@@ -1,5 +1,8 @@
 ## go-client-api
 
+<strong style="color: #F00;">**WARNING: The project is not finished
+yet**</strong>
+
 > The Golang java-tron gRPC client
 
 ## Requirements
