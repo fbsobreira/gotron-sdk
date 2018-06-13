@@ -300,3 +300,31 @@ func (g *GrpcClient) UpdateAccount(ownerKey *ecdsa.PrivateKey,
 
 	return result
 }
+
+func (g *GrpcClient) Transfer(ownerKey *ecdsa.PrivateKey, toAddress string,
+	amount int64) *api.Return {
+
+	transferContract := new(core.TransferContract)
+	transferContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
+		PublicKey).Bytes()
+	transferContract.ToAddress = base58.DecodeCheck(toAddress)
+	transferContract.Amount = amount
+
+	transferTransaction, err := g.Client.CreateTransaction(context.
+		Background(), transferContract)
+
+	if err != nil {
+		log.Fatalf("transfer error: %v", err)
+	}
+
+	util.SignTransaction(transferTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		transferTransaction)
+
+	if err != nil {
+		log.Fatalf("transfer error: %v", err)
+	}
+
+	return result
+}
