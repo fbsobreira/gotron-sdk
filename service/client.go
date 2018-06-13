@@ -328,3 +328,30 @@ func (g *GrpcClient) Transfer(ownerKey *ecdsa.PrivateKey, toAddress string,
 
 	return result
 }
+
+func (g *GrpcClient) FreezeBalance(ownerKey *ecdsa.PrivateKey,
+	frozenBalance, frozenDuration int64) *api.Return {
+	freezeBalanceContract := new(core.FreezeBalanceContract)
+	freezeBalanceContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
+		PublicKey).Bytes()
+	freezeBalanceContract.FrozenBalance = frozenBalance
+	freezeBalanceContract.FrozenDuration = frozenDuration
+
+	freezeBalanceTransaction, err := g.Client.FreezeBalance(context.
+		Background(), freezeBalanceContract)
+
+	if err != nil {
+		log.Fatalf("freeze balance error: %v", err)
+	}
+
+	util.SignTransaction(freezeBalanceTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		freezeBalanceTransaction)
+
+	if err != nil {
+		log.Fatalf("freeze balance error: %v", err)
+	}
+
+	return result
+}
