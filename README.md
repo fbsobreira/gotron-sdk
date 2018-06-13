@@ -1,4 +1,4 @@
-## go-client-api
+## go-client-api ![Progress](http://progressed.io/bar/21?title=progress)
 
 <strong style="color: red;">**WARNING: The project is not finished
 yet**</strong>
