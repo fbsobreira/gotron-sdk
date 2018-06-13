@@ -267,3 +267,36 @@ func (g *GrpcClient) CreateAccount(ownerKey *ecdsa.PrivateKey,
 
 	return result
 }
+
+func (g *GrpcClient) UpdateAccount(ownerKey *ecdsa.PrivateKey,
+	accountName string) *api.Return {
+
+	var err error
+	accountUpdateContract := new(core.AccountUpdateContract)
+	accountUpdateContract.AccountName = []byte(accountName)
+	accountUpdateContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
+		PublicKey).Bytes()
+
+	accountUpdateTransaction, err := g.Client.UpdateAccount(context.
+		Background(), accountUpdateContract)
+
+	if err != nil {
+		log.Fatalf("update account error: %v", err)
+	}
+
+	if accountUpdateTransaction == nil || len(accountUpdateTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("update account error: transaction update failed")
+	}
+
+	util.SignTransaction(accountUpdateTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		accountUpdateTransaction)
+
+	if err != nil {
+		log.Fatalf("update account error: %v", err)
+	}
+
+	return result
+}
