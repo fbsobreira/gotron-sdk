@@ -1,6 +1,6 @@
 ## go-client-api
 
-<strong style="color: red;">**WARNING: The project is not finished
+<p style="color: red;">**WARNING: The project is not finished
 yet**</strong>
 
 > The Golang java-tron gRPC client
