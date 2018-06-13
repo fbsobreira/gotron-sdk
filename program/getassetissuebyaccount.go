@@ -19,7 +19,7 @@ func main() {
 
 	if (strings.EqualFold("", *address) && len(*address) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
 		log.Fatalln("./get-asset-issue-by-account -grpcAddress localhost" +
-			":50051 -address TH4MqfHpmKFpdtvPaeYufXHiPyxLvmJWP6")
+			":50051 -address <account address>")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)

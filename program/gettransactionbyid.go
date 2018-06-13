@@ -20,7 +20,7 @@ func main() {
 
 	if (strings.EqualFold("", *hash) && len(*hash) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
 		log.Fatalln("./get-transaction-by-id -grpcAddress localhost" +
-			":50051 -hash 6c7e1104a824aaba0a8fba5497b35d7f2b5b3032ec833bd3bfcb5e9a938a4dc8")
+			":50051 -hash <transaction hash>")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)

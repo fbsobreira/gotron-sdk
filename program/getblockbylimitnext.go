@@ -23,7 +23,7 @@ func main() {
 	if (*start < 0) || (*end < 0) || (strings.EqualFold("",
 		*grpcAddress) && len(*grpcAddress) == 0) {
 		log.Fatalln("./get-block-by-limit-next -grpcAddress localhost" +
-			":50051 -start 0 -end 0")
+			":50051 -start <start block number> -end <end block number>")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)

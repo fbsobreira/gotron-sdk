@@ -2,10 +2,13 @@ package service
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"github.com/tronprotocol/go-client-api/api"
 	"github.com/tronprotocol/go-client-api/common/base58"
+	"github.com/tronprotocol/go-client-api/common/crypto"
 	"github.com/tronprotocol/go-client-api/common/hexutil"
 	"github.com/tronprotocol/go-client-api/core"
+	"github.com/tronprotocol/go-client-api/util"
 	"google.golang.org/grpc"
 	"log"
 )
@@ -229,6 +232,37 @@ func (g *GrpcClient) GetBlockByLatestNum(num int64) *api.BlockList {
 
 	if err != nil {
 		log.Fatalf("get block by latest num error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) CreateAccount(ownerKey *ecdsa.PrivateKey,
+	accountAddress string) *api.Return {
+
+	accountCreateContract := new(core.AccountCreateContract)
+	accountCreateContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.PublicKey).Bytes()
+	accountCreateContract.AccountAddress = base58.DecodeCheck(accountAddress)
+
+	accountCreateTransaction, err := g.Client.CreateAccount(context.
+		Background(), accountCreateContract)
+
+	if err != nil {
+		log.Fatalf("create account error: %v", err)
+	}
+
+	if accountCreateTransaction == nil || len(accountCreateTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("create account error: transaction create failed")
+	}
+
+	util.SignTransaction(accountCreateTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		accountCreateTransaction)
+
+	if err != nil {
+		log.Fatalf("create account error: %v", err)
 	}
 
 	return result

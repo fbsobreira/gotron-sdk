@@ -19,7 +19,7 @@ func main() {
 
 	if (*num < 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
 		log.Fatalln("./get-block-by-latest-num -grpcAddress localhost" +
-			":50051 -number 0")
+			":50051 -number <block number>")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)

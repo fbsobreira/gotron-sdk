@@ -20,7 +20,7 @@ func main() {
 
 	if (strings.EqualFold("", *hash) && len(*hash) == 0) || (strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) {
 		log.Fatalln("./get-block-by-id -grpcAddress localhost" +
-			":50051 -hash 00000000000000F8E7B8B200907932D74DCC2195FB673CE6E5C194B7382BF64A")
+			":50051 -hash <block hash>")
 	}
 
 	client := service.NewGrpcClient(*grpcAddress)
