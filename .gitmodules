@@ -1,4 +1,4 @@
 [submodule "protocol"]
 	path = protocol
-	url = https://github.com/tronprotocol/protocol.git
+	url = https://github.com/sasaxie/protocol.git
 	branch = go-client-api
