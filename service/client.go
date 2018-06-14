@@ -253,7 +253,7 @@ func (g *GrpcClient) CreateAccount(ownerKey *ecdsa.PrivateKey,
 
 	if accountCreateTransaction == nil || len(accountCreateTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("create account error: transaction create failed")
+		log.Fatalf("create account error: invalid transaction")
 	}
 
 	util.SignTransaction(accountCreateTransaction, ownerKey)
@@ -286,7 +286,7 @@ func (g *GrpcClient) UpdateAccount(ownerKey *ecdsa.PrivateKey,
 
 	if accountUpdateTransaction == nil || len(accountUpdateTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("update account error: transaction update failed")
+		log.Fatalf("update account error: invalid transaction")
 	}
 
 	util.SignTransaction(accountUpdateTransaction, ownerKey)
@@ -317,6 +317,11 @@ func (g *GrpcClient) Transfer(ownerKey *ecdsa.PrivateKey, toAddress string,
 		log.Fatalf("transfer error: %v", err)
 	}
 
+	if transferTransaction == nil || len(transferTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("transfer error: invalid transaction")
+	}
+
 	util.SignTransaction(transferTransaction, ownerKey)
 
 	result, err := g.Client.BroadcastTransaction(context.Background(),
@@ -344,6 +349,11 @@ func (g *GrpcClient) FreezeBalance(ownerKey *ecdsa.PrivateKey,
 		log.Fatalf("freeze balance error: %v", err)
 	}
 
+	if freezeBalanceTransaction == nil || len(freezeBalanceTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("freeze balance error: invalid transaction")
+	}
+
 	util.SignTransaction(freezeBalanceTransaction, ownerKey)
 
 	result, err := g.Client.BroadcastTransaction(context.Background(),
@@ -351,6 +361,34 @@ func (g *GrpcClient) FreezeBalance(ownerKey *ecdsa.PrivateKey,
 
 	if err != nil {
 		log.Fatalf("freeze balance error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) *api.Return {
+	unfreezeBalanceContract := new(core.UnfreezeBalanceContract)
+	unfreezeBalanceContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.PublicKey).Bytes()
+
+	unfreezeBalanceTransaction, err := g.Client.UnfreezeBalance(context.
+		Background(), unfreezeBalanceContract)
+
+	if err != nil {
+		log.Fatalf("unfreeze balance error: %v", err)
+	}
+
+	if unfreezeBalanceTransaction == nil || len(unfreezeBalanceTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("unfreeze balance error: invalid transaction")
+	}
+
+	util.SignTransaction(unfreezeBalanceTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		unfreezeBalanceTransaction)
+
+	if err != nil {
+		log.Fatalf("unfreeze balance error: %v", err)
 	}
 
 	return result
