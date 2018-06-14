@@ -469,7 +469,7 @@ func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
 		Background(), assetIssueContract)
 
 	if err != nil {
-		log.Fatalf("create asset issue error: %v", assetIssueTransaction)
+		log.Fatalf("create asset issue error: %v", err)
 	}
 
 	if assetIssueTransaction == nil || len(assetIssueTransaction.
@@ -484,6 +484,44 @@ func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
 
 	if err != nil {
 		log.Fatalf("create asset issue error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) UpdateAssetIssue(ownerKey *ecdsa.PrivateKey,
+	description, urlStr string,
+	newLimit, newPublicLimit int64) *api.Return {
+
+	updateAssetContract := new(core.UpdateAssetContract)
+
+	updateAssetContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
+		PublicKey).Bytes()
+
+	updateAssetContract.Description = []byte(description)
+	updateAssetContract.Url = []byte(urlStr)
+	updateAssetContract.NewLimit = newLimit
+	updateAssetContract.NewPublicLimit = newPublicLimit
+
+	updateAssetTransaction, err := g.Client.UpdateAsset(context.
+		Background(), updateAssetContract)
+
+	if err != nil {
+		log.Fatalf("update asset issue error: %v", err)
+	}
+
+	if updateAssetTransaction == nil || len(updateAssetTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("update asset issue error: invalid transaction")
+	}
+
+	util.SignTransaction(updateAssetTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		updateAssetTransaction)
+
+	if err != nil {
+		log.Fatalf("update asset issue error: %v", err)
 	}
 
 	return result
