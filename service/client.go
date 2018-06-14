@@ -11,6 +11,8 @@ import (
 	"github.com/tronprotocol/go-client-api/util"
 	"google.golang.org/grpc"
 	"log"
+	"strconv"
+	"time"
 )
 
 type GrpcClient struct {
@@ -389,6 +391,99 @@ func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) *api.Return {
 
 	if err != nil {
 		log.Fatalf("unfreeze balance error: %v", err)
+	}
+
+	return result
+}
+
+func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
+	name, description, urlStr string, totalSupply, startTime, endTime,
+	FreeAssetNetLimit,
+	PublicFreeAssetNetLimit int64, trxNum,
+	icoNum, voteScore int32, frozenSupply map[string]string) *api.Return {
+	assetIssueContract := new(core.AssetIssueContract)
+
+	assetIssueContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
+		PublicKey).Bytes()
+
+	assetIssueContract.Name = []byte(name)
+
+	if totalSupply <= 0 {
+		log.Fatalf("create asset issue error: total supply <= 0")
+	}
+	assetIssueContract.TotalSupply = totalSupply
+
+	if trxNum <= 0 {
+		log.Fatalf("create asset issue error: trxNum <= 0")
+	}
+	assetIssueContract.TrxNum = trxNum
+
+	if icoNum <= 0 {
+		log.Fatalf("create asset issue error: num <= 0")
+	}
+	assetIssueContract.Num = icoNum
+
+	now := time.Now().UnixNano() / 1000000
+	if startTime <= now {
+		log.Fatalf("create asset issue error: start time <= current time")
+	}
+	assetIssueContract.StartTime = startTime
+
+	if endTime <= startTime {
+		log.Fatalf("create asset issue error: end time <= start time")
+	}
+	assetIssueContract.EndTime = endTime
+
+	if FreeAssetNetLimit < 0 {
+		log.Fatalf("create asset issue error: free asset net limit < 0")
+	}
+	assetIssueContract.FreeAssetNetLimit = FreeAssetNetLimit
+
+	if PublicFreeAssetNetLimit < 0 {
+		log.Fatalf("create asset issue error: public free asset net limit < 0")
+	}
+	assetIssueContract.PublicFreeAssetNetLimit = PublicFreeAssetNetLimit
+
+	assetIssueContract.VoteScore = voteScore
+	assetIssueContract.Description = []byte(description)
+	assetIssueContract.Url = []byte(urlStr)
+
+	for key, value := range frozenSupply {
+		amount, err := strconv.ParseInt(value, 10, 64)
+		if err != nil {
+			log.Fatalf("create asset issue error: convert error: %v", err)
+		}
+		days, err := strconv.ParseInt(key, 10, 64)
+		if err != nil {
+			log.Fatalf("create asset issue error: convert error: %v", err)
+		}
+		assetIssueContractFrozenSupply := new(core.
+			AssetIssueContract_FrozenSupply)
+		assetIssueContractFrozenSupply.FrozenAmount = amount
+		assetIssueContractFrozenSupply.FrozenDays = days
+		assetIssueContract.FrozenSupply = append(assetIssueContract.
+			FrozenSupply, assetIssueContractFrozenSupply)
+	}
+
+	assetIssueTransaction, err := g.Client.CreateAssetIssue(context.
+		Background(), assetIssueContract)
+
+	if err != nil {
+		log.Fatalf("create asset issue error: %v", assetIssueTransaction)
+	}
+
+	if assetIssueTransaction == nil || len(assetIssueTransaction.
+		GetRawData().GetContract()) == 0 {
+		log.Fatalf("create asset issue error: invalid transaction")
+	}
+
+	util.SignTransaction(assetIssueTransaction, ownerKey)
+
+	result, err := g.Client.BroadcastTransaction(context.Background(),
+		assetIssueTransaction)
+
+	if err != nil {
+		log.Fatalf("create asset issue error: %v", err)
 	}
 
 	return result
