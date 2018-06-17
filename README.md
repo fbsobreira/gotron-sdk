@@ -1,6 +1,6 @@
 ## go-client-api ![](https://img.shields.io/badge/progress-21%25-red.svg)
 
-<strong style="color: red;">**WARNING: The project is not finished
+<strong style="color: red;">**WARNING: This is an incomplete work-in-progress.
 yet**</strong>
 
 > The Golang java-tron gRPC client
