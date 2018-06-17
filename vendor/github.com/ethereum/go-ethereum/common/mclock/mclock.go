@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package mclock is a wrapper for a monotonic clock source
+// package mclock is a wrapper for a monotonic clock source
 package mclock
 
 import (
@@ -23,10 +23,8 @@ import (
 	"github.com/aristanetworks/goarista/monotime"
 )
 
-// AbsTime represents absolute monotonic time.
-type AbsTime time.Duration
+type AbsTime time.Duration // absolute monotonic time
 
-// Now returns the current absolute monotonic time.
 func Now() AbsTime {
 	return AbsTime(monotime.Now())
 }

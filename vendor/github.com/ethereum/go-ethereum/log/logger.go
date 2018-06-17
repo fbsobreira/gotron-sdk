@@ -12,7 +12,6 @@ const timeKey = "t"
 const lvlKey = "lvl"
 const msgKey = "msg"
 const errorKey = "LOG15_ERROR"
-const skipLevel = 2
 
 type Lvl int
 
@@ -128,13 +127,13 @@ type logger struct {
 	h   *swapHandler
 }
 
-func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+func (l *logger) write(msg string, lvl Lvl, ctx []interface{}) {
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
 		Msg:  msg,
 		Ctx:  newContext(l.ctx, ctx),
-		Call: stack.Caller(skip),
+		Call: stack.Caller(2),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
 			Msg:  msgKey,
@@ -158,27 +157,27 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 }
 
 func (l *logger) Trace(msg string, ctx ...interface{}) {
-	l.write(msg, LvlTrace, ctx, skipLevel)
+	l.write(msg, LvlTrace, ctx)
 }
 
 func (l *logger) Debug(msg string, ctx ...interface{}) {
-	l.write(msg, LvlDebug, ctx, skipLevel)
+	l.write(msg, LvlDebug, ctx)
 }
 
 func (l *logger) Info(msg string, ctx ...interface{}) {
-	l.write(msg, LvlInfo, ctx, skipLevel)
+	l.write(msg, LvlInfo, ctx)
 }
 
 func (l *logger) Warn(msg string, ctx ...interface{}) {
-	l.write(msg, LvlWarn, ctx, skipLevel)
+	l.write(msg, LvlWarn, ctx)
 }
 
 func (l *logger) Error(msg string, ctx ...interface{}) {
-	l.write(msg, LvlError, ctx, skipLevel)
+	l.write(msg, LvlError, ctx)
 }
 
 func (l *logger) Crit(msg string, ctx ...interface{}) {
-	l.write(msg, LvlCrit, ctx, skipLevel)
+	l.write(msg, LvlCrit, ctx)
 	os.Exit(1)
 }
 

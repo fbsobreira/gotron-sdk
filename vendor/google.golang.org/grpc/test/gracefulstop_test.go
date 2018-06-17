@@ -28,7 +28,7 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/internal/leakcheck"
+	"google.golang.org/grpc/test/leakcheck"
 
 	testpb "google.golang.org/grpc/test/grpc_testing"
 )
@@ -51,12 +51,7 @@ func (d *delayListener) Accept() (net.Conn, error) {
 		return nil, fmt.Errorf("listener is closed")
 	default:
 		close(d.acceptCalled)
-		conn, err := d.Listener.Accept()
-		// Allow closing of listener only after accept.
-		// Note: Dial can return successfully, yet Accept
-		// might now have finished.
-		d.allowClose()
-		return conn, err
+		return d.Listener.Accept()
 	}
 }
 
@@ -174,19 +169,20 @@ func TestGracefulStop(t *testing.T) {
 
 	// Now dial.  The listener's Accept method will return a valid connection,
 	// even though GracefulStop has closed the listener.
-	ctx, dialCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer dialCancel()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	cc, err := grpc.DialContext(ctx, "", grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDialer(d))
 	if err != nil {
 		t.Fatalf("grpc.Dial(%q) = %v", lis.Addr().String(), err)
 	}
+	cancel()
 	client := testpb.NewTestServiceClient(cc)
 	defer cc.Close()
+	dlis.allowClose()
 
 	// 4. Send an RPC on the new connection.
 	// The server would send a GOAWAY first, but we are delaying the server's
 	// writes for now until the client writes more than the preface.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
 	stream, err := client.FullDuplexCall(ctx)
 	if err != nil {
 		t.Fatalf("FullDuplexCall= _, %v; want _, <nil>", err)

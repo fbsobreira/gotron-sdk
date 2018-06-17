@@ -27,7 +27,7 @@ import (
 
 var (
 	mainnetChainConfig = params.ChainConfig{
-		ChainID:        big.NewInt(1),
+		ChainId:        big.NewInt(1),
 		HomesteadBlock: big.NewInt(1150000),
 		DAOForkBlock:   big.NewInt(1920000),
 		DAOForkSupport: true,

@@ -148,7 +148,7 @@ func (ccr *ccResolverWrapper) NewAddress(addrs []resolver.Address) {
 }
 
 // NewServiceConfig is called by the resolver implemenetion to send service
-// configs to gRPC.
+// configs to gPRC.
 func (ccr *ccResolverWrapper) NewServiceConfig(sc string) {
 	select {
 	case <-ccr.scCh:

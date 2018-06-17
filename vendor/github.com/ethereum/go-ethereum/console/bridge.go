@@ -271,7 +271,7 @@ func (b *bridge) SleepBlocks(call otto.FunctionCall) (response otto.Value) {
 }
 
 type jsonrpcCall struct {
-	ID     int64
+	Id     int64
 	Method string
 	Params []interface{}
 }
@@ -304,7 +304,7 @@ func (b *bridge) Send(call otto.FunctionCall) (response otto.Value) {
 	resps, _ := call.Otto.Object("new Array()")
 	for _, req := range reqs {
 		resp, _ := call.Otto.Object(`({"jsonrpc":"2.0"})`)
-		resp.Set("id", req.ID)
+		resp.Set("id", req.Id)
 		var result json.RawMessage
 		err = b.client.Call(&result, req.Method, req.Params...)
 		switch err := err.(type) {

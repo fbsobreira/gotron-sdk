@@ -432,11 +432,13 @@ func (api *SignerAPI) EcRecover(ctx context.Context, data, sig hexutil.Bytes) (c
 	}
 	sig[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
 	hash, _ := SignHash(data)
-	rpk, err := crypto.SigToPub(hash, sig)
+	rpk, err := crypto.Ecrecover(hash, sig)
 	if err != nil {
 		return common.Address{}, err
 	}
-	return crypto.PubkeyToAddress(*rpk), nil
+	pubKey := crypto.ToECDSAPub(rpk)
+	recoveredAddr := crypto.PubkeyToAddress(*pubKey)
+	return recoveredAddr, nil
 }
 
 // SignHash is a helper function that calculates a hash for the given message that can be

@@ -528,9 +528,9 @@ func importPublicKey(pubKey []byte) (*ecies.PublicKey, error) {
 		return nil, fmt.Errorf("invalid public key length %v (expect 64/65)", len(pubKey))
 	}
 	// TODO: fewer pointless conversions
-	pub, err := crypto.UnmarshalPubkey(pubKey65)
-	if err != nil {
-		return nil, err
+	pub := crypto.ToECDSAPub(pubKey65)
+	if pub.X == nil {
+		return nil, fmt.Errorf("invalid public key")
 	}
 	return ecies.ImportECDSAPublic(pub), nil
 }

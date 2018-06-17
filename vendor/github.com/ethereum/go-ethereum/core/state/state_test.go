@@ -99,7 +99,7 @@ func (s *StateSuite) TestNull(c *checker.C) {
 	s.state.SetState(address, common.Hash{}, value)
 	s.state.Commit(false)
 	value = s.state.GetState(address, common.Hash{})
-	if value != (common.Hash{}) {
+	if !common.EmptyHash(value) {
 		c.Errorf("expected empty hash. got %x", value)
 	}
 }

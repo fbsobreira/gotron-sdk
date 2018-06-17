@@ -1,7 +1,7 @@
 package base58
 
 import (
-	"github.com/tronprotocol/go-client-api/common/hexutil"
+	"github.com/sasaxie/go-client-api/common/hexutil"
 	"strings"
 	"testing"
 )

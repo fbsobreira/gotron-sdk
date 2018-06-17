@@ -561,8 +561,7 @@ func (s *Server) LoadSnapshot(w http.ResponseWriter, req *http.Request) {
 
 // CreateNode creates a node in the network using the given configuration
 func (s *Server) CreateNode(w http.ResponseWriter, req *http.Request) {
-	config := &adapters.NodeConfig{}
-
+	config := adapters.RandomNodeConfig()
 	err := json.NewDecoder(req.Body).Decode(config)
 	if err != nil && err != io.EOF {
 		http.Error(w, err.Error(), http.StatusBadRequest)

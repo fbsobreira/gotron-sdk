@@ -28,12 +28,9 @@ import (
 	"strings"
 
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/p2p/discover"
-)
-
-var (
-	ErrLinuxOnly = errors.New("DockerAdapter can only be used on Linux as it uses the current binary (which must be a Linux binary)")
 )
 
 // DockerAdapter is a NodeAdapter which runs simulation nodes inside Docker
@@ -55,7 +52,7 @@ func NewDockerAdapter() (*DockerAdapter, error) {
 	// It is reasonable to require this because the caller can just
 	// compile the current binary in a Docker container.
 	if runtime.GOOS != "linux" {
-		return nil, ErrLinuxOnly
+		return nil, errors.New("DockerAdapter can only be used on Linux as it uses the current binary (which must be a Linux binary)")
 	}
 
 	if err := buildDockerImage(); err != nil {
@@ -98,10 +95,7 @@ func (d *DockerAdapter) NewNode(config *NodeConfig) (Node, error) {
 	conf.Stack.P2P.NoDiscovery = true
 	conf.Stack.P2P.NAT = nil
 	conf.Stack.NoUSB = true
-
-	// listen on all interfaces on a given port, which we set when we
-	// initialise NodeConfig (usually a random port)
-	conf.Stack.P2P.ListenAddr = fmt.Sprintf(":%d", config.Port)
+	conf.Stack.Logger = log.New("node.id", config.ID.String())
 
 	node := &DockerNode{
 		ExecNode: ExecNode{

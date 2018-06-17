@@ -61,7 +61,7 @@ const (
 	// The approach taken here is to maintain a per-subscription linked list buffer
 	// shrinks on demand. If the buffer reaches the size below, the subscription is
 	// dropped.
-	maxClientSubscriptionBuffer = 20000
+	maxClientSubscriptionBuffer = 8000
 )
 
 // BatchElem is an element in a batch request.
