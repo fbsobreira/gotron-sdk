@@ -10,3 +10,4 @@ import:
 - package: github.com/ethereum/go-ethereum
   subpackages:
   - crypto
+- package: github.com/astaxie/beego
