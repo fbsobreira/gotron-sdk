@@ -21,6 +21,11 @@ func init() {
 				&controllers.WitnessController{},
 			),
 		),
+		beego.NSNamespace("/node",
+			beego.NSInclude(
+				&controllers.NodeController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }
