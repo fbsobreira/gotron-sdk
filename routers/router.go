@@ -26,6 +26,11 @@ func init() {
 				&controllers.NodeController{},
 			),
 		),
+		beego.NSNamespace("/block",
+			beego.NSInclude(
+				&controllers.BlockController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }
