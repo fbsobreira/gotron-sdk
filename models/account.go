@@ -48,20 +48,23 @@ func GetAccountByAddress(address string) (*Account, error) {
 
 	resultAccount.AccountName = hexutil.Encode(grpcAccount.AccountName)
 	resultAccount.AccountType = grpcAccount.Type.String()
-	resultAccount.Address = base58.Encode(grpcAccount.Address)
+	resultAccount.Address = base58.EncodeCheck(grpcAccount.Address)
 	resultAccount.Balance = grpcAccount.Balance
 
+	resultAccount.Votes = make([]Vote, 0)
 	for _, v := range grpcAccount.Votes {
 		var vote Vote
-		vote.VoteAddress = base58.Encode(v.VoteAddress)
+		vote.VoteAddress = base58.EncodeCheck(v.VoteAddress)
 		vote.VoteCount = v.VoteCount
 		resultAccount.Votes = append(resultAccount.Votes, vote)
 	}
 
+	resultAccount.Asset = make(map[string]int64)
 	for k, v := range grpcAccount.Asset {
 		resultAccount.Asset[k] = v
 	}
 
+	resultAccount.Frozen = make([]Frozen, 0)
 	for _, v := range grpcAccount.Frozen {
 		var frozen Frozen
 		frozen.FrozenBalance = v.FrozenBalance
@@ -78,6 +81,7 @@ func GetAccountByAddress(address string) (*Account, error) {
 	resultAccount.IsWitness = grpcAccount.IsWitness
 	resultAccount.IsCommittee = grpcAccount.IsCommittee
 
+	resultAccount.FrozenSupply = make([]Frozen, 0)
 	for _, v := range grpcAccount.FrozenSupply {
 		var frozen Frozen
 		frozen.FrozenBalance = v.FrozenBalance
@@ -87,12 +91,14 @@ func GetAccountByAddress(address string) (*Account, error) {
 
 	resultAccount.AssetIssuedName = hexutil.Encode(grpcAccount.AssetIssuedName)
 
+	resultAccount.LatestAssetOperationTime = make(map[string]int64)
 	for k, v := range grpcAccount.LatestAssetOperationTime {
 		resultAccount.LatestAssetOperationTime[k] = v
 	}
 
 	resultAccount.FreeNetUsage = grpcAccount.FreeNetUsage
 
+	resultAccount.FreeAssetNetUsage = make(map[string]int64)
 	for k, v := range grpcAccount.FreeAssetNetUsage {
 		resultAccount.FreeAssetNetUsage[k] = v
 	}
