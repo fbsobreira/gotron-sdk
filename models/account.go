@@ -46,7 +46,7 @@ func GetAccountByAddress(address string) (*Account, error) {
 
 	resultAccount := new(Account)
 
-	resultAccount.AccountName = hexutil.Encode(grpcAccount.AccountName)
+	resultAccount.AccountName = string(grpcAccount.AccountName)
 	resultAccount.AccountType = grpcAccount.Type.String()
 	resultAccount.Address = base58.EncodeCheck(grpcAccount.Address)
 	resultAccount.Balance = grpcAccount.Balance
