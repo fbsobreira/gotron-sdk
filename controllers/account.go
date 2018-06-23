@@ -16,7 +16,7 @@ type AccountController struct {
 // @Param	address		path 	string	true		"The key for staticblock"
 // @Success 200 {account} models.Account
 // @Failure 403 :address is empty
-// @router /:address [get]
+// @router /address/:address [get]
 func (a *AccountController) Get() {
 	address := a.GetString(":address")
 	if address != "" {
@@ -35,7 +35,7 @@ func (a *AccountController) Get() {
 // @Param	address		path 	string	true
 // @Success 200 {accountnetmessage} models.AccountNetMessage
 // @Failure 403 :address is empty
-// @router /net-message/:address [get]
+// @router /net-message/address/:address [get]
 func (a *AccountController) NetMessage() {
 	address := a.GetString(":address")
 	if address != "" {

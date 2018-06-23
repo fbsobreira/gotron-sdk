@@ -16,7 +16,7 @@ type AssetIssueController struct {
 // @Param	address		path 	string	true
 // @Success 200 {assetissuelist} models.AssetIssueList
 // @Failure 403 :address is empty
-// @router /:address [get]
+// @router /address/:address [get]
 func (i *AssetIssueController) Address() {
 	address := i.GetString(":address")
 	if address != "" {
@@ -31,7 +31,7 @@ func (i *AssetIssueController) Address() {
 // @Param	name		path 	string	true
 // @Success 200 {assetissue} models.AssetIssueContract
 // @Failure 403 :name is empty
-// @router /:name [get]
+// @router /name/:name [get]
 func (i *AssetIssueController) Name() {
 	name := i.GetString(":name")
 	if name != "" {

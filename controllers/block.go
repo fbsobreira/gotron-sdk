@@ -50,3 +50,27 @@ func (b *BlockController) Id() {
 	}
 	b.ServeJSON()
 }
+
+// @Title Get block list
+// @Description Get block list
+// @Param	start		path 	int64	true
+// @Param	end		path 	int64	true
+// @Success 200 {blocklist} models.BlockList
+// @router /start/:start/end/:end [get]
+func (b *BlockController) GetBlockByLimit() {
+	start, err := b.GetInt64(":start")
+
+	if err != nil {
+		b.Data["json"] = err.Error()
+	} else {
+		end, err := b.GetInt64(":end")
+		if err != nil {
+			b.Data["json"] = err.Error()
+		} else {
+			blockList := models.GetBlockByLimitNex(start, end)
+			b.Data["json"] = blockList
+		}
+	}
+
+	b.ServeJSON()
+}
