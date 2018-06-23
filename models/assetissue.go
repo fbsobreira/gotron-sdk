@@ -115,3 +115,48 @@ func GetAssetIssueByName(name string) AssetIssueContract {
 
 	return assetIssueContract
 }
+
+func GetAssetIssueList() AssetIssueList {
+	grpcAssetIssueList := global.TronClient.GetAssetIssueList()
+
+	var resultAssetIssueList AssetIssueList
+
+	if grpcAssetIssueList == nil {
+		return resultAssetIssueList
+	}
+
+	resultAssetIssueList.AssetIssue = make([]AssetIssueContract, 0)
+	for _, a := range grpcAssetIssueList.AssetIssue {
+		var assetIssueContract AssetIssueContract
+		assetIssueContract.OwnerAddress = base58.EncodeCheck(a.OwnerAddress)
+		assetIssueContract.Name = string(a.Name)
+		assetIssueContract.Abbr = string(a.Abbr)
+		assetIssueContract.TotalSupply = a.TotalSupply
+
+		assetIssueContract.FrozenSupply = make([]FrozenSupply, 0)
+		for _, f := range a.FrozenSupply {
+			var frozenSupply FrozenSupply
+			frozenSupply.FrozenAmount = f.FrozenAmount
+			frozenSupply.FrozenDays = f.FrozenDays
+			assetIssueContract.FrozenSupply = append(assetIssueContract.
+				FrozenSupply, frozenSupply)
+		}
+
+		assetIssueContract.TrxNum = a.TrxNum
+		assetIssueContract.Num = a.Num
+		assetIssueContract.StartTime = a.StartTime
+		assetIssueContract.EndTime = a.EndTime
+		assetIssueContract.VoteScore = a.VoteScore
+		assetIssueContract.Description = string(a.Description)
+		assetIssueContract.Url = string(a.Url)
+		assetIssueContract.FreeAssetNetLimit = a.FreeAssetNetLimit
+		assetIssueContract.PublicFreeAssetNetLimit = a.PublicFreeAssetNetLimit
+		assetIssueContract.PublicFreeAssetNetUsage = a.PublicFreeAssetNetUsage
+		assetIssueContract.PublicLatestFreeNetTime = a.PublicLatestFreeNetTime
+
+		resultAssetIssueList.AssetIssue = append(resultAssetIssueList.
+			AssetIssue, assetIssueContract)
+	}
+
+	return resultAssetIssueList
+}

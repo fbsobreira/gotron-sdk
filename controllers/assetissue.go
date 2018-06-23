@@ -40,3 +40,13 @@ func (i *AssetIssueController) Name() {
 	}
 	i.ServeJSON()
 }
+
+// @Title Get asset issue list
+// @Description get asset issue list
+// @Success 200 {assetissuelist} models.AssetIssueList
+// @router /list [get]
+func (i *AssetIssueController) List() {
+	assetIssueList := models.GetAssetIssueList()
+	i.Data["json"] = assetIssueList
+	i.ServeJSON()
+}
