@@ -457,3 +457,64 @@ func GetBlockByLimitNex(start, end int64) BlockList {
 
 	return blockList
 }
+
+func GetTransactionById(id string) Transaction {
+	grpcTransaction := global.TronClient.GetTransactionById(id)
+
+	var resultTransaction Transaction
+
+	if grpcTransaction.RawData != nil {
+		resultTransaction.RawData.RefBlockBytes = hexutil.Encode(grpcTransaction.RawData.RefBlockBytes)
+		resultTransaction.RawData.RefBlockNum = grpcTransaction.RawData.RefBlockNum
+		resultTransaction.RawData.RefBlockHash = hexutil.Encode(grpcTransaction.RawData.RefBlockHash)
+		resultTransaction.RawData.Expiration = grpcTransaction.RawData.Expiration
+
+		resultTransaction.RawData.Auths = make([]Acuthrity, 0)
+		for _, a := range grpcTransaction.RawData.Auths {
+			var auth Acuthrity
+
+			var accountId AccountId
+			accountId.Name = string(a.Account.Name)
+			accountId.Address = base58.EncodeCheck(a.Account.Address)
+
+			auth.Account = accountId
+
+			auth.PermissionName = string(a.PermissionName)
+
+			resultTransaction.RawData.Auths = append(resultTransaction.RawData.Auths,
+				auth)
+		}
+
+		resultTransaction.RawData.Data = string(grpcTransaction.RawData.Data)
+
+		resultTransaction.RawData.Contract = make([]Contract, 0)
+		for _, c := range grpcTransaction.RawData.Contract {
+			var contract Contract
+			contract.Type = c.Type.String()
+			contract.Parameter = c.Parameter
+			contract.Provider = string(c.Provider)
+			contract.ContractName = string(c.ContractName)
+
+			resultTransaction.RawData.Contract = append(resultTransaction.RawData.
+				Contract, contract)
+		}
+
+		resultTransaction.RawData.Scripts = string(grpcTransaction.RawData.Scripts)
+		resultTransaction.RawData.Timestamp = grpcTransaction.RawData.Timestamp
+	}
+
+	resultTransaction.Signature = make([]string, 0)
+	for _, s := range grpcTransaction.Signature {
+		resultTransaction.Signature = append(resultTransaction.Signature, hexutil.Encode(s))
+	}
+
+	resultTransaction.Ret = make([]Result, 0)
+	for _, r := range grpcTransaction.Ret {
+		var result Result
+		result.Ret = string(r.Ret)
+		result.Fee = r.Fee
+		resultTransaction.Ret = append(resultTransaction.Ret, result)
+	}
+
+	return resultTransaction
+}

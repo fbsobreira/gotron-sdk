@@ -41,6 +41,11 @@ func init() {
 				&controllers.NumberMessageController{},
 			),
 		),
+		beego.NSNamespace("/transaction",
+			beego.NSInclude(
+				&controllers.TransactionController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }
