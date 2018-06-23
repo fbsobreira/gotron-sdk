@@ -36,3 +36,17 @@ func (b *BlockController) Num() {
 	}
 	b.ServeJSON()
 }
+
+// @Title Get block by id
+// @Description Get block by id
+// @Param	id		path 	string	true
+// @Success 200 {block} models.Block
+// @router /id/:id [get]
+func (b *BlockController) Id() {
+	id := b.GetString(":id")
+	if id != "" {
+		block := models.GetBlockById(id)
+		b.Data["json"] = block
+	}
+	b.ServeJSON()
+}
