@@ -20,3 +20,13 @@ func (n *NumberMessageController) NextMaintenanceTime() {
 	n.Data["json"] = nextMaintenanceTime
 	n.ServeJSON()
 }
+
+// @Title Get total transaction
+// @Description Get total transaction
+// @Success 200 {totaltransaction} models.NumberMessage
+// @router /total-transaction [get]
+func (n *NumberMessageController) TotalTransaction() {
+	totalTransaction := models.GetTotalTransaction()
+	n.Data["json"] = totalTransaction
+	n.ServeJSON()
+}

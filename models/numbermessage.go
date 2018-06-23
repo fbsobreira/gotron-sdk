@@ -14,3 +14,12 @@ func GetNextMaintenanceTime() NumberMessage {
 
 	return resultNextMaintenanceTime
 }
+
+func GetTotalTransaction() NumberMessage {
+	grpcTotalTransaction := global.TronClient.TotalTransaction()
+
+	var resultTotalTransaction NumberMessage
+	resultTotalTransaction.Num = grpcTotalTransaction.Num
+
+	return resultTotalTransaction
+}
