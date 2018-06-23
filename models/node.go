@@ -4,6 +4,10 @@ import (
 	"github.com/sasaxie/go-client-api/common/global"
 )
 
+type NodeList struct {
+	Nodes []Node
+}
+
 type Node struct {
 	Address Address
 }
@@ -13,8 +17,9 @@ type Address struct {
 	Port int32
 }
 
-func GetNodeList() []Node {
-	nodes := make([]Node, 0)
+func GetNodeList() NodeList {
+	var nodes NodeList
+	nodes.Nodes = make([]Node, 0)
 
 	grpcNodes := global.TronClient.ListNodes()
 
@@ -33,7 +38,7 @@ func GetNodeList() []Node {
 
 		node.Address = address
 
-		nodes = append(nodes, node)
+		nodes.Nodes = append(nodes.Nodes, node)
 	}
 
 	return nodes

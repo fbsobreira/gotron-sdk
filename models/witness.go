@@ -6,6 +6,10 @@ import (
 	"github.com/sasaxie/go-client-api/common/hexutil"
 )
 
+type WitnessList struct {
+	Witnesses []Witness
+}
+
 type Witness struct {
 	Address        string
 	VoteCount      int64
@@ -18,8 +22,9 @@ type Witness struct {
 	IsJobs         bool
 }
 
-func GetWitnessList() []Witness {
-	witnesses := make([]Witness, 0)
+func GetWitnessList() WitnessList {
+	var witnesses WitnessList
+	witnesses.Witnesses = make([]Witness, 0)
 
 	grpcWitnesses := global.TronClient.ListWitnesses()
 
@@ -38,7 +43,7 @@ func GetWitnessList() []Witness {
 		witness.LatestBlockNum = w.LatestBlockNum
 		witness.LatestSlotNum = w.LatestSlotNum
 		witness.IsJobs = w.IsJobs
-		witnesses = append(witnesses, witness)
+		witnesses.Witnesses = append(witnesses.Witnesses, witness)
 	}
 
 	return witnesses
