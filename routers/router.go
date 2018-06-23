@@ -36,6 +36,11 @@ func init() {
 				&controllers.AssetIssueController{},
 			),
 		),
+		beego.NSNamespace("/number",
+			beego.NSInclude(
+				&controllers.NumberMessageController{},
+			),
+		),
 	)
 	beego.AddNamespace(ns)
 }
