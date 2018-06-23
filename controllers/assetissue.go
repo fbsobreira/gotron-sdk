@@ -25,3 +25,18 @@ func (i *AssetIssueController) Address() {
 	}
 	i.ServeJSON()
 }
+
+// @Title Get asset issue by name
+// @Description get asset issue by name
+// @Param	name		path 	string	true
+// @Success 200 {assetissue} models.AssetIssueContract
+// @Failure 403 :name is empty
+// @router /:name [get]
+func (i *AssetIssueController) Name() {
+	name := i.GetString(":name")
+	if name != "" {
+		assetIssue := models.GetAssetIssueByName(name)
+		i.Data["json"] = assetIssue
+	}
+	i.ServeJSON()
+}
