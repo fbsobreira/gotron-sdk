@@ -20,3 +20,19 @@ func (b *BlockController) Now() {
 	b.Data["json"] = nowBlock
 	b.ServeJSON()
 }
+
+// @Title Get block by num
+// @Description Get block by num
+// @Param	num		path 	int64	true
+// @Success 200 {block} models.Block
+// @router /num/:num [get]
+func (b *BlockController) Num() {
+	num, err := b.GetInt64(":num")
+	if err != nil {
+		b.Data["json"] = err.Error()
+	} else {
+		block := models.GetBlockByNum(num)
+		b.Data["json"] = block
+	}
+	b.ServeJSON()
+}
