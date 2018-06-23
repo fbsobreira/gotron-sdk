@@ -67,10 +67,26 @@ func (b *BlockController) GetBlockByLimit() {
 		if err != nil {
 			b.Data["json"] = err.Error()
 		} else {
-			blockList := models.GetBlockByLimitNex(start, end)
+			blockList := models.GetBlockByLimitNext(start, end)
 			b.Data["json"] = blockList
 		}
 	}
 
+	b.ServeJSON()
+}
+
+// @Title Get block list
+// @Description Get block list by latest num
+// @Param	num		path 	int64	true
+// @Success 200 {blocklist} models.BlockList
+// @router /latest-num/:num [get]
+func (b *BlockController) LatestNum() {
+	num, err := b.GetInt64(":num")
+	if err != nil {
+		b.Data["json"] = err.Error()
+	} else {
+		block := models.GetBlockByLatestNum(num)
+		b.Data["json"] = block
+	}
 	b.ServeJSON()
 }
