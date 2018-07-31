@@ -7,56 +7,16 @@ import (
 )
 
 type BlockList struct {
-	Block []Block
+	Block []*Block
 }
 
 type Block struct {
-	Transactions []Transaction
-	BlockHeader  BlockHeader
-}
-
-type Transaction struct {
-	RawData   TransactionRaw
-	Signature []string
-	Ret       []Result
-}
-
-type TransactionRaw struct {
-	RefBlockBytes string
-	RefBlockNum   int64
-	RefBlockHash  string
-	Expiration    int64
-	Auths         []Acuthrity
-	Data          string
-	Contract      []Contract
-	Scripts       string
-	Timestamp     int64
-}
-
-type Acuthrity struct {
-	Account        AccountId
-	PermissionName string
-}
-
-type AccountId struct {
-	Name    string
-	Address string
-}
-
-type Contract struct {
-	Type         string
-	Parameter    interface{}
-	Provider     string
-	ContractName string
-}
-
-type Result struct {
-	Fee int64
-	Ret string
+	Transactions []*Transaction
+	BlockHeader  *BlockHeader
 }
 
 type BlockHeader struct {
-	RawData          BlockHeaderRaw
+	RawData          *BlockHeaderRaw
 	WitnessSignature string
 }
 
@@ -74,10 +34,10 @@ func GetNowBlock() Block {
 
 	grpcNowBlock := global.TronClient.GetNowBlock()
 
-	nowBlock.Transactions = make([]Transaction, 0)
+	nowBlock.Transactions = make([]*Transaction, 0)
 
 	for _, t := range grpcNowBlock.Transactions {
-		var transaction Transaction
+		transaction := new(Transaction)
 
 		if t.RawData != nil {
 			transaction.RawData.RefBlockBytes = hexutil.Encode(t.RawData.RefBlockBytes)
@@ -85,11 +45,11 @@ func GetNowBlock() Block {
 			transaction.RawData.RefBlockHash = hexutil.Encode(t.RawData.RefBlockHash)
 			transaction.RawData.Expiration = t.RawData.Expiration
 
-			transaction.RawData.Auths = make([]Acuthrity, 0)
+			transaction.RawData.Auths = make([]*Acuthrity, 0)
 			for _, a := range t.RawData.Auths {
-				var auth Acuthrity
+				auth := new(Acuthrity)
 
-				var accountId AccountId
+				accountId := new(AccountId)
 				accountId.Name = string(a.Account.Name)
 				accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -103,9 +63,9 @@ func GetNowBlock() Block {
 
 			transaction.RawData.Data = string(t.RawData.Data)
 
-			transaction.RawData.Contract = make([]Contract, 0)
+			transaction.RawData.Contract = make([]*Contract, 0)
 			for _, c := range t.RawData.Contract {
-				var contract Contract
+				contract := new(Contract)
 				contract.Type = c.Type.String()
 				contract.Parameter = c.Parameter
 				contract.Provider = string(c.Provider)
@@ -124,9 +84,9 @@ func GetNowBlock() Block {
 			transaction.Signature = append(transaction.Signature, hexutil.Encode(s))
 		}
 
-		transaction.Ret = make([]Result, 0)
+		transaction.Ret = make([]*Result, 0)
 		for _, r := range t.Ret {
-			var result Result
+			result := new(Result)
 			result.Ret = string(r.Ret)
 			result.Fee = r.Fee
 			transaction.Ret = append(transaction.Ret, result)
@@ -172,10 +132,10 @@ func GetBlockByNum(num int64) Block {
 		return block
 	}
 
-	block.Transactions = make([]Transaction, 0)
+	block.Transactions = make([]*Transaction, 0)
 
 	for _, t := range grpcBlock.Transactions {
-		var transaction Transaction
+		transaction := new(Transaction)
 
 		if t.RawData != nil {
 			transaction.RawData.RefBlockBytes = hexutil.Encode(t.RawData.RefBlockBytes)
@@ -183,11 +143,11 @@ func GetBlockByNum(num int64) Block {
 			transaction.RawData.RefBlockHash = hexutil.Encode(t.RawData.RefBlockHash)
 			transaction.RawData.Expiration = t.RawData.Expiration
 
-			transaction.RawData.Auths = make([]Acuthrity, 0)
+			transaction.RawData.Auths = make([]*Acuthrity, 0)
 			for _, a := range t.RawData.Auths {
-				var auth Acuthrity
+				auth := new(Acuthrity)
 
-				var accountId AccountId
+				accountId := new(AccountId)
 				accountId.Name = string(a.Account.Name)
 				accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -201,9 +161,9 @@ func GetBlockByNum(num int64) Block {
 
 			transaction.RawData.Data = string(t.RawData.Data)
 
-			transaction.RawData.Contract = make([]Contract, 0)
+			transaction.RawData.Contract = make([]*Contract, 0)
 			for _, c := range t.RawData.Contract {
-				var contract Contract
+				contract := new(Contract)
 				contract.Type = c.Type.String()
 				contract.Parameter = c.Parameter
 				contract.Provider = string(c.Provider)
@@ -222,9 +182,9 @@ func GetBlockByNum(num int64) Block {
 			transaction.Signature = append(transaction.Signature, hexutil.Encode(s))
 		}
 
-		transaction.Ret = make([]Result, 0)
+		transaction.Ret = make([]*Result, 0)
 		for _, r := range t.Ret {
-			var result Result
+			result := new(Result)
 			result.Ret = string(r.Ret)
 			result.Fee = r.Fee
 			transaction.Ret = append(transaction.Ret, result)
@@ -270,10 +230,10 @@ func GetBlockById(id string) Block {
 		return block
 	}
 
-	block.Transactions = make([]Transaction, 0)
+	block.Transactions = make([]*Transaction, 0)
 
 	for _, t := range grpcBlock.Transactions {
-		var transaction Transaction
+		transaction := new(Transaction)
 
 		if t.RawData != nil {
 			transaction.RawData.RefBlockBytes = hexutil.Encode(t.RawData.RefBlockBytes)
@@ -281,11 +241,11 @@ func GetBlockById(id string) Block {
 			transaction.RawData.RefBlockHash = hexutil.Encode(t.RawData.RefBlockHash)
 			transaction.RawData.Expiration = t.RawData.Expiration
 
-			transaction.RawData.Auths = make([]Acuthrity, 0)
+			transaction.RawData.Auths = make([]*Acuthrity, 0)
 			for _, a := range t.RawData.Auths {
-				var auth Acuthrity
+				auth := new(Acuthrity)
 
-				var accountId AccountId
+				accountId := new(AccountId)
 				accountId.Name = string(a.Account.Name)
 				accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -299,9 +259,9 @@ func GetBlockById(id string) Block {
 
 			transaction.RawData.Data = string(t.RawData.Data)
 
-			transaction.RawData.Contract = make([]Contract, 0)
+			transaction.RawData.Contract = make([]*Contract, 0)
 			for _, c := range t.RawData.Contract {
-				var contract Contract
+				contract := new(Contract)
 				contract.Type = c.Type.String()
 				contract.Parameter = c.Parameter
 				contract.Provider = string(c.Provider)
@@ -320,9 +280,9 @@ func GetBlockById(id string) Block {
 			transaction.Signature = append(transaction.Signature, hexutil.Encode(s))
 		}
 
-		transaction.Ret = make([]Result, 0)
+		transaction.Ret = make([]*Result, 0)
 		for _, r := range t.Ret {
-			var result Result
+			result := new(Result)
 			result.Ret = string(r.Ret)
 			result.Fee = r.Fee
 			transaction.Ret = append(transaction.Ret, result)
@@ -365,11 +325,11 @@ func GetBlockByLimitNext(start, end int64) BlockList {
 	var blockList BlockList
 
 	for _, b := range grpcBlockList.Block {
-		var block Block
-		block.Transactions = make([]Transaction, 0)
+		block := new(Block)
+		block.Transactions = make([]*Transaction, 0)
 
 		for _, t := range b.Transactions {
-			var transaction Transaction
+			transaction := new(Transaction)
 
 			if t.RawData != nil {
 				transaction.RawData.RefBlockBytes = hexutil.Encode(t.RawData.RefBlockBytes)
@@ -377,11 +337,11 @@ func GetBlockByLimitNext(start, end int64) BlockList {
 				transaction.RawData.RefBlockHash = hexutil.Encode(t.RawData.RefBlockHash)
 				transaction.RawData.Expiration = t.RawData.Expiration
 
-				transaction.RawData.Auths = make([]Acuthrity, 0)
+				transaction.RawData.Auths = make([]*Acuthrity, 0)
 				for _, a := range t.RawData.Auths {
-					var auth Acuthrity
+					auth := new(Acuthrity)
 
-					var accountId AccountId
+					accountId := new(AccountId)
 					accountId.Name = string(a.Account.Name)
 					accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -395,9 +355,9 @@ func GetBlockByLimitNext(start, end int64) BlockList {
 
 				transaction.RawData.Data = string(t.RawData.Data)
 
-				transaction.RawData.Contract = make([]Contract, 0)
+				transaction.RawData.Contract = make([]*Contract, 0)
 				for _, c := range t.RawData.Contract {
-					var contract Contract
+					contract := new(Contract)
 					contract.Type = c.Type.String()
 					contract.Parameter = c.Parameter
 					contract.Provider = string(c.Provider)
@@ -416,9 +376,9 @@ func GetBlockByLimitNext(start, end int64) BlockList {
 				transaction.Signature = append(transaction.Signature, hexutil.Encode(s))
 			}
 
-			transaction.Ret = make([]Result, 0)
+			transaction.Ret = make([]*Result, 0)
 			for _, r := range t.Ret {
-				var result Result
+				result := new(Result)
 				result.Ret = string(r.Ret)
 				result.Fee = r.Fee
 				transaction.Ret = append(transaction.Ret, result)
@@ -469,11 +429,11 @@ func GetTransactionById(id string) Transaction {
 		resultTransaction.RawData.RefBlockHash = hexutil.Encode(grpcTransaction.RawData.RefBlockHash)
 		resultTransaction.RawData.Expiration = grpcTransaction.RawData.Expiration
 
-		resultTransaction.RawData.Auths = make([]Acuthrity, 0)
+		resultTransaction.RawData.Auths = make([]*Acuthrity, 0)
 		for _, a := range grpcTransaction.RawData.Auths {
-			var auth Acuthrity
+			auth := new(Acuthrity)
 
-			var accountId AccountId
+			accountId := new(AccountId)
 			accountId.Name = string(a.Account.Name)
 			accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -487,9 +447,9 @@ func GetTransactionById(id string) Transaction {
 
 		resultTransaction.RawData.Data = string(grpcTransaction.RawData.Data)
 
-		resultTransaction.RawData.Contract = make([]Contract, 0)
+		resultTransaction.RawData.Contract = make([]*Contract, 0)
 		for _, c := range grpcTransaction.RawData.Contract {
-			var contract Contract
+			contract := new(Contract)
 			contract.Type = c.Type.String()
 			contract.Parameter = c.Parameter
 			contract.Provider = string(c.Provider)
@@ -508,9 +468,9 @@ func GetTransactionById(id string) Transaction {
 		resultTransaction.Signature = append(resultTransaction.Signature, hexutil.Encode(s))
 	}
 
-	resultTransaction.Ret = make([]Result, 0)
+	resultTransaction.Ret = make([]*Result, 0)
 	for _, r := range grpcTransaction.Ret {
-		var result Result
+		result := new(Result)
 		result.Ret = string(r.Ret)
 		result.Fee = r.Fee
 		resultTransaction.Ret = append(resultTransaction.Ret, result)
@@ -525,11 +485,11 @@ func GetBlockByLatestNum(num int64) BlockList {
 	var blockList BlockList
 
 	for _, b := range grpcBlockList.Block {
-		var block Block
-		block.Transactions = make([]Transaction, 0)
+		block := new(Block)
+		block.Transactions = make([]*Transaction, 0)
 
 		for _, t := range b.Transactions {
-			var transaction Transaction
+			transaction := new(Transaction)
 
 			if t.RawData != nil {
 				transaction.RawData.RefBlockBytes = hexutil.Encode(t.RawData.RefBlockBytes)
@@ -537,11 +497,11 @@ func GetBlockByLatestNum(num int64) BlockList {
 				transaction.RawData.RefBlockHash = hexutil.Encode(t.RawData.RefBlockHash)
 				transaction.RawData.Expiration = t.RawData.Expiration
 
-				transaction.RawData.Auths = make([]Acuthrity, 0)
+				transaction.RawData.Auths = make([]*Acuthrity, 0)
 				for _, a := range t.RawData.Auths {
-					var auth Acuthrity
+					auth := new(Acuthrity)
 
-					var accountId AccountId
+					accountId := new(AccountId)
 					accountId.Name = string(a.Account.Name)
 					accountId.Address = base58.EncodeCheck(a.Account.Address)
 
@@ -555,9 +515,9 @@ func GetBlockByLatestNum(num int64) BlockList {
 
 				transaction.RawData.Data = string(t.RawData.Data)
 
-				transaction.RawData.Contract = make([]Contract, 0)
+				transaction.RawData.Contract = make([]*Contract, 0)
 				for _, c := range t.RawData.Contract {
-					var contract Contract
+					contract := new(Contract)
 					contract.Type = c.Type.String()
 					contract.Parameter = c.Parameter
 					contract.Provider = string(c.Provider)
@@ -576,9 +536,9 @@ func GetBlockByLatestNum(num int64) BlockList {
 				transaction.Signature = append(transaction.Signature, hexutil.Encode(s))
 			}
 
-			transaction.Ret = make([]Result, 0)
+			transaction.Ret = make([]*Result, 0)
 			for _, r := range t.Ret {
-				var result Result
+				result := new(Result)
 				result.Ret = string(r.Ret)
 				result.Fee = r.Fee
 				transaction.Ret = append(transaction.Ret, result)
