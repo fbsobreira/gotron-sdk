@@ -1,16 +1,27 @@
 package crypto
 
 import (
+	"fmt"
 	"github.com/sasaxie/go-client-api/common/hexutil"
 	"testing"
 )
 
 func TestGenerateKey(t *testing.T) {
-	_, err := GenerateKey()
+	k, err := GenerateKey()
 
 	if err != nil {
 		t.Error(err.Error())
 	}
+
+	priv := k.D.Text(16)
+	fmt.Println(priv)
+
+	k2, err := GetPrivateKeyByHexString(priv)
+	if err != nil {
+		t.Error(err.Error())
+	}
+	priv2 := k2.D.Text(16)
+	fmt.Println(priv2)
 }
 
 func TestGetPrivateKeyByHexString(t *testing.T) {
