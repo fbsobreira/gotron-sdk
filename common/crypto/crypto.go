@@ -3,13 +3,32 @@ package crypto
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/sasaxie/go-client-api/common/hexutil"
 )
 
 const AddressLength = 21
-const AddressPrefix = "a0"
+
+// AddressPrefix is the byte prefix of the address used in TRON addresses.
+// It's supposed to be '0xa0' for testnet, and '0x41' for mainnet.
+// But the Shasta mainteiners don't use the testnet params. So the default value is 41.
+// You may change it directly, or use the SetAddressPrefix/UseMainnet/UseTestnet methods.
+var AddressPrefix = byte(0x41)
+
+// SetAddressPrefix sets the prefix to the provided byte.
+func SetAddressPrefix(p byte) {
+	AddressPrefix = p
+}
+
+// UseMainnet sets the address prefix used for the main net.
+func UseMainnet() {
+	SetAddressPrefix(0x41)
+}
+
+// UseTestnet sets the address prefix used for the test net.
+func UseTestnet() {
+	SetAddressPrefix(0xa0)
+}
 
 type Address [AddressLength]byte
 
@@ -44,12 +63,7 @@ func PubkeyToAddress(p ecdsa.PublicKey) Address {
 
 	addressTron := make([]byte, AddressLength)
 
-	addressPrefix, err := hexutil.Decode(AddressPrefix)
-	if err != nil {
-		log.Error(err.Error())
-	}
-
-	addressTron = append(addressTron, addressPrefix...)
+	addressTron = append(addressTron, AddressPrefix)
 	addressTron = append(addressTron, address.Bytes()...)
 
 	return BytesToAddress(addressTron)
