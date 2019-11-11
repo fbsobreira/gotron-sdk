@@ -4,8 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"github.com/golang/protobuf/proto"
-	"github.com/sasaxie/go-client-api/common/crypto"
-	"github.com/sasaxie/go-client-api/core"
+	"github.com/fbsobreira/go-client-api/common/crypto"
+	"github.com/fbsobreira/go-client-api/core"
 	"log"
 	"time"
 )

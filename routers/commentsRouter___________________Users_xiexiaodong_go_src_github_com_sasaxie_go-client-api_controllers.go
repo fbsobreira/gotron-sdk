@@ -7,7 +7,7 @@ import (
 
 func init() {
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
 		beego.ControllerComments{
 			Method: "Get",
 			Router: `/address/:address`,
@@ -15,7 +15,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
 		beego.ControllerComments{
 			Method: "CreateAccount",
 			Router: `/create`,
@@ -23,7 +23,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
 		beego.ControllerComments{
 			Method: "NetMessage",
 			Router: `/net-message/address/:address`,
@@ -31,7 +31,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
 		beego.ControllerComments{
 			Method: "Address",
 			Router: `/address/:address`,
@@ -39,7 +39,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
 		beego.ControllerComments{
 			Method: "List",
 			Router: `/list`,
@@ -47,7 +47,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
 		beego.ControllerComments{
 			Method: "Name",
 			Router: `/name/:name`,
@@ -55,7 +55,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
 		beego.ControllerComments{
 			Method: "Id",
 			Router: `/id/:id`,
@@ -63,7 +63,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
 		beego.ControllerComments{
 			Method: "LatestNum",
 			Router: `/latest-num/:num`,
@@ -71,7 +71,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
 		beego.ControllerComments{
 			Method: "Now",
 			Router: `/now`,
@@ -79,7 +79,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
 		beego.ControllerComments{
 			Method: "Num",
 			Router: `/num/:num`,
@@ -87,7 +87,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
 		beego.ControllerComments{
 			Method: "GetBlockByLimit",
 			Router: `/start/:start/end/:end`,
@@ -95,7 +95,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NodeController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NodeController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NodeController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NodeController"],
 		beego.ControllerComments{
 			Method: "List",
 			Router: `/list`,
@@ -103,7 +103,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NumberMessageController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"],
 		beego.ControllerComments{
 			Method: "NextMaintenanceTime",
 			Router: `/next-maintenance-time`,
@@ -111,7 +111,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:NumberMessageController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"],
 		beego.ControllerComments{
 			Method: "TotalTransaction",
 			Router: `/total-transaction`,
@@ -119,7 +119,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "Post",
 			Router: `/`,
@@ -127,7 +127,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "GetAll",
 			Router: `/`,
@@ -135,7 +135,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "Get",
 			Router: `/:objectId`,
@@ -143,7 +143,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "Put",
 			Router: `/:objectId`,
@@ -151,7 +151,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
 		beego.ControllerComments{
 			Method: "Delete",
 			Router: `/:objectId`,
@@ -159,7 +159,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:TransactionController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:TransactionController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:TransactionController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:TransactionController"],
 		beego.ControllerComments{
 			Method: "Id",
 			Router: `/id/:id`,
@@ -167,7 +167,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Post",
 			Router: `/`,
@@ -175,7 +175,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "GetAll",
 			Router: `/`,
@@ -183,7 +183,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Get",
 			Router: `/:uid`,
@@ -191,7 +191,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Put",
 			Router: `/:uid`,
@@ -199,7 +199,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Delete",
 			Router: `/:uid`,
@@ -207,7 +207,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Login",
 			Router: `/login`,
@@ -215,7 +215,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
 		beego.ControllerComments{
 			Method: "Logout",
 			Router: `/logout`,
@@ -223,7 +223,7 @@ func init() {
 			MethodParams: param.Make(),
 			Params: nil})
 
-	beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:WitnessController"] = append(beego.GlobalControllerRouter["github.com/sasaxie/go-client-api/controllers:WitnessController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:WitnessController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:WitnessController"],
 		beego.ControllerComments{
 			Method: "List",
 			Router: `/list`,

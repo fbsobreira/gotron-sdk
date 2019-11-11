@@ -1,6 +1,6 @@
 package models
 
-import "github.com/sasaxie/go-client-api/common/global"
+import "github.com/fbsobreira/go-client-api/common/global"
 
 type NumberMessage struct {
 	Num int64
