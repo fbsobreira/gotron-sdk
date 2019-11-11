@@ -3,6 +3,10 @@ package service
 import (
 	"context"
 	"crypto/ecdsa"
+	"log"
+	"strconv"
+	"time"
+
 	"github.com/sasaxie/go-client-api/api"
 	"github.com/sasaxie/go-client-api/common/base58"
 	"github.com/sasaxie/go-client-api/common/crypto"
@@ -10,9 +14,6 @@ import (
 	"github.com/sasaxie/go-client-api/core"
 	"github.com/sasaxie/go-client-api/util"
 	"google.golang.org/grpc"
-	"log"
-	"strconv"
-	"time"
 )
 
 const GrpcTimeout = 5 * time.Second

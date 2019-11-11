@@ -1,2 +1,2 @@
-protoc -I=./protocol -I$GOPATH/src/github.com/sasaxie/go-client-api/third_party/googleapis --go_out=plugins=grpc:../../../ ./protocol/api/*.proto
-protoc -I=./protocol -I$GOPATH/src/github.com/sasaxie/go-client-api/third_party/googleapis --go_out=plugins=grpc:../../../ ./protocol/core/*.proto
+protoc -I=./protocol -I/usr/lib -I./third_party/googleapis --go_out=plugins=grpc,paths=source_relative:. ./protocol/api/*.proto
+protoc -I=./protocol -I/usr/lib -I./third_party/googleapis --go_out=plugins=grpc,paths=source_relative:. ./protocol/core/*.proto
