@@ -43,3 +43,7 @@ Example:
 go get -u github.com/sasaxie/go-client-api
 go run program/getnowblock.go -grpcAddress localhost:50051
 ```
+
+## Stargazers over time
+
+[![Stargazers over time](https://starchart.cc/sasaxie/go-client-api.svg)](https://starchart.cc/sasaxie/go-client-api)
