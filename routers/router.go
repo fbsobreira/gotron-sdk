@@ -1,6 +1,6 @@
 // @APIVersion 1.0.0
-// @Title go-client-api Test API
-// @Description go-client-api is tron-java grpc client
+// @Title gotron Test API
+// @Description gotron is tron-java grpc client
 // @TermsOfServiceUrl https://tron.network/
 package routers
 

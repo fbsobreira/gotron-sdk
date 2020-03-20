@@ -2,9 +2,9 @@ package main
 
 import (
 	"github.com/astaxie/beego"
-	"github.com/fbsobreira/go-client-api/common/global"
-	_ "github.com/fbsobreira/go-client-api/routers"
-	"github.com/fbsobreira/go-client-api/service"
+	"github.com/fbsobreira/gotron/common/global"
+	_ "github.com/fbsobreira/gotron/routers"
+	"github.com/fbsobreira/gotron/service"
 )
 
 func main() {
