@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/astaxie/beego"
-	"github.com/fbsobreira/go-client-api/models"
+	"github.com/fbsobreira/gotron/models"
 )
 
 // Operations about object

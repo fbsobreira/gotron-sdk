@@ -40,10 +40,6 @@ git submodule update --remote
 Example:
 
 ```sh
-go get -u github.com/sasaxie/go-client-api
-go run program/getnowblock.go -grpcAddress localhost:50051
+go get -u github.com/fbsobreira/gotron
+go run program/getnowblock.go -grpcAddress grpc.trongrid.io:50051
 ```
-
-## Stargazers over time
-
-[![Stargazers over time](https://starchart.cc/sasaxie/go-client-api.svg)](https://starchart.cc/sasaxie/go-client-api)

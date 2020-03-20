@@ -1,5 +1,5 @@
 .idea
 routers/commentsRouter_controllers.go
-go-client-api
+gotron
 *.tmp
 vendor/**

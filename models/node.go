@@ -1,7 +1,7 @@
 package models
 
 import (
-	"github.com/fbsobreira/go-client-api/common/global"
+	"github.com/fbsobreira/gotron/common/global"
 )
 
 type NodeList struct {

@@ -1,5 +1,5 @@
 package global
 
-import "github.com/fbsobreira/go-client-api/service"
+import "github.com/fbsobreira/gotron/service"
 
 var TronClient *service.GrpcClient

@@ -1,11 +1,11 @@
 package controllers
 
 import (
-	"github.com/fbsobreira/go-client-api/models"
+	"github.com/fbsobreira/gotron/models"
 
 	"encoding/json"
 	"github.com/astaxie/beego"
-	"github.com/fbsobreira/go-client-api/models/contract"
+	"github.com/fbsobreira/gotron/models/contract"
 )
 
 // Operations about Account

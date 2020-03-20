@@ -7,228 +7,228 @@ import (
 
 func init() {
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"],
 		beego.ControllerComments{
-			Method: "Get",
-			Router: `/address/:address`,
+			Method:           "Get",
+			Router:           `/address/:address`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"],
 		beego.ControllerComments{
-			Method: "CreateAccount",
-			Router: `/create`,
+			Method:           "CreateAccount",
+			Router:           `/create`,
 			AllowHTTPMethods: []string{"post"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AccountController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AccountController"],
 		beego.ControllerComments{
-			Method: "NetMessage",
-			Router: `/net-message/address/:address`,
+			Method:           "NetMessage",
+			Router:           `/net-message/address/:address`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"],
 		beego.ControllerComments{
-			Method: "Address",
-			Router: `/address/:address`,
+			Method:           "Address",
+			Router:           `/address/:address`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"],
 		beego.ControllerComments{
-			Method: "List",
-			Router: `/list`,
+			Method:           "List",
+			Router:           `/list`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:AssetIssueController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:AssetIssueController"],
 		beego.ControllerComments{
-			Method: "Name",
-			Router: `/name/:name`,
+			Method:           "Name",
+			Router:           `/name/:name`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"],
 		beego.ControllerComments{
-			Method: "Id",
-			Router: `/id/:id`,
+			Method:           "Id",
+			Router:           `/id/:id`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"],
 		beego.ControllerComments{
-			Method: "LatestNum",
-			Router: `/latest-num/:num`,
+			Method:           "LatestNum",
+			Router:           `/latest-num/:num`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"],
 		beego.ControllerComments{
-			Method: "Now",
-			Router: `/now`,
+			Method:           "Now",
+			Router:           `/now`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"],
 		beego.ControllerComments{
-			Method: "Num",
-			Router: `/num/:num`,
+			Method:           "Num",
+			Router:           `/num/:num`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:BlockController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:BlockController"],
 		beego.ControllerComments{
-			Method: "GetBlockByLimit",
-			Router: `/start/:start/end/:end`,
+			Method:           "GetBlockByLimit",
+			Router:           `/start/:start/end/:end`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NodeController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NodeController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NodeController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NodeController"],
 		beego.ControllerComments{
-			Method: "List",
-			Router: `/list`,
+			Method:           "List",
+			Router:           `/list`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NumberMessageController"],
 		beego.ControllerComments{
-			Method: "NextMaintenanceTime",
-			Router: `/next-maintenance-time`,
+			Method:           "NextMaintenanceTime",
+			Router:           `/next-maintenance-time`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:NumberMessageController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NumberMessageController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:NumberMessageController"],
 		beego.ControllerComments{
-			Method: "TotalTransaction",
-			Router: `/total-transaction`,
+			Method:           "TotalTransaction",
+			Router:           `/total-transaction`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"],
 		beego.ControllerComments{
-			Method: "Post",
-			Router: `/`,
+			Method:           "Post",
+			Router:           `/`,
 			AllowHTTPMethods: []string{"post"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"],
 		beego.ControllerComments{
-			Method: "GetAll",
-			Router: `/`,
+			Method:           "GetAll",
+			Router:           `/`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"],
 		beego.ControllerComments{
-			Method: "Get",
-			Router: `/:objectId`,
+			Method:           "Get",
+			Router:           `/:objectId`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"],
 		beego.ControllerComments{
-			Method: "Put",
-			Router: `/:objectId`,
+			Method:           "Put",
+			Router:           `/:objectId`,
 			AllowHTTPMethods: []string{"put"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:ObjectController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:ObjectController"],
 		beego.ControllerComments{
-			Method: "Delete",
-			Router: `/:objectId`,
+			Method:           "Delete",
+			Router:           `/:objectId`,
 			AllowHTTPMethods: []string{"delete"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:TransactionController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:TransactionController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:TransactionController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:TransactionController"],
 		beego.ControllerComments{
-			Method: "Id",
-			Router: `/id/:id`,
+			Method:           "Id",
+			Router:           `/id/:id`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Post",
-			Router: `/`,
+			Method:           "Post",
+			Router:           `/`,
 			AllowHTTPMethods: []string{"post"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "GetAll",
-			Router: `/`,
+			Method:           "GetAll",
+			Router:           `/`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Get",
-			Router: `/:uid`,
+			Method:           "Get",
+			Router:           `/:uid`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Put",
-			Router: `/:uid`,
+			Method:           "Put",
+			Router:           `/:uid`,
 			AllowHTTPMethods: []string{"put"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Delete",
-			Router: `/:uid`,
+			Method:           "Delete",
+			Router:           `/:uid`,
 			AllowHTTPMethods: []string{"delete"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Login",
-			Router: `/login`,
+			Method:           "Login",
+			Router:           `/login`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:UserController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:UserController"],
 		beego.ControllerComments{
-			Method: "Logout",
-			Router: `/logout`,
+			Method:           "Logout",
+			Router:           `/logout`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
-	beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:WitnessController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/go-client-api/controllers:WitnessController"],
+	beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:WitnessController"] = append(beego.GlobalControllerRouter["github.com/fbsobreira/gotron/controllers:WitnessController"],
 		beego.ControllerComments{
-			Method: "List",
-			Router: `/list`,
+			Method:           "List",
+			Router:           `/list`,
 			AllowHTTPMethods: []string{"get"},
-			MethodParams: param.Make(),
-			Params: nil})
+			MethodParams:     param.Make(),
+			Params:           nil})
 
 }

@@ -1,7 +1,7 @@
 package base58
 
 import (
-	"github.com/fbsobreira/go-client-api/common/hexutil"
+	"github.com/fbsobreira/gotron/common/hexutil"
 	"strings"
 	"testing"
 )

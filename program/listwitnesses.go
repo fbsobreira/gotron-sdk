@@ -3,8 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fbsobreira/go-client-api/common/hexutil"
-	"github.com/fbsobreira/go-client-api/service"
+	"github.com/fbsobreira/gotron/common/hexutil"
+	"github.com/fbsobreira/gotron/service"
 	"log"
 	"strings"
 )

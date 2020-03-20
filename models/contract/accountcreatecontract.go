@@ -1,9 +1,9 @@
 package contract
 
 import (
-	"github.com/fbsobreira/go-client-api/common/base58"
-	"github.com/fbsobreira/go-client-api/common/global"
-	"github.com/fbsobreira/go-client-api/core"
+	"github.com/fbsobreira/gotron/common/base58"
+	"github.com/fbsobreira/gotron/common/global"
+	"github.com/fbsobreira/gotron/core"
 )
 
 type AccountCreateContract struct {

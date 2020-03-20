@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
-	"github.com/fbsobreira/go-client-api/models"
+	"github.com/fbsobreira/gotron/models"
 
 	"github.com/astaxie/beego"
 )

@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"github.com/fbsobreira/go-client-api/models"
+	"github.com/fbsobreira/gotron/models"
 
 	"github.com/astaxie/beego"
 )

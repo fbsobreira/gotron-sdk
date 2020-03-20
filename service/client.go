@@ -7,12 +7,12 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fbsobreira/go-client-api/api"
-	"github.com/fbsobreira/go-client-api/common/base58"
-	"github.com/fbsobreira/go-client-api/common/crypto"
-	"github.com/fbsobreira/go-client-api/common/hexutil"
-	"github.com/fbsobreira/go-client-api/core"
-	"github.com/fbsobreira/go-client-api/util"
+	"github.com/fbsobreira/gotron/api"
+	"github.com/fbsobreira/gotron/common/base58"
+	"github.com/fbsobreira/gotron/common/crypto"
+	"github.com/fbsobreira/gotron/common/hexutil"
+	"github.com/fbsobreira/gotron/core"
+	"github.com/fbsobreira/gotron/util"
 	"google.golang.org/grpc"
 )
 

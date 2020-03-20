@@ -3,9 +3,9 @@ package util
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"github.com/fbsobreira/gotron/common/crypto"
+	"github.com/fbsobreira/gotron/core"
 	"github.com/golang/protobuf/proto"
-	"github.com/fbsobreira/go-client-api/common/crypto"
-	"github.com/fbsobreira/go-client-api/core"
 	"log"
 	"time"
 )

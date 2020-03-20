@@ -2,7 +2,7 @@ package crypto
 
 import (
 	"fmt"
-	"github.com/fbsobreira/go-client-api/common/hexutil"
+	"github.com/fbsobreira/gotron/common/hexutil"
 	"testing"
 )
 
