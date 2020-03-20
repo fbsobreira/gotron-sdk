@@ -5,7 +5,7 @@ import "api/api.proto";
 
 package protocol;
 
-option go_package = "github.com/fbsobreira/gotron/core";
+option go_package = "github.com/fbsobreira/gotron/protocol_util";
 
 message ProtoCompleteTransaction {
     uint64 BlockNumber = 1;
