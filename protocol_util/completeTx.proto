@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "core/Tron.proto";
+import "api/api.proto";
+
+package protocol;
+
+option go_package = "github.com/fbsobreira/gotron/core";
+
+message ProtoCompleteTransaction {
+    uint64 BlockNumber = 1;
+    uint64 BlockTime = 2;
+    TransactionExtention Tx = 3;
+    TransactionInfo Info = 4;
+}
