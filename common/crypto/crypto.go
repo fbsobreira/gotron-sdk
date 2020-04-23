@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fbsobreira/gotron/common/base58"
 	"github.com/fbsobreira/gotron/common/hexutil"
 )
 
@@ -16,6 +17,8 @@ const (
 	HashLength = 32
 	// AddressLength is the expected length of the address
 	AddressLength = 21
+	// Base58AddressLength is the expected length of the address
+	Base58AddressLength = 34
 	// AmountDecimalPoint TRX decimal point
 	AmountDecimalPoint = 6
 )
@@ -126,7 +129,7 @@ func HexToAddress(s string) Address { return BytesToAddress(hexutil.FromHex(s)) 
 
 // String implements fmt.Stringer.
 func (a Address) String() string {
-	return hexutil.ToHex(a.Bytes())
+	return base58.EncodeCheck(a.Bytes())
 }
 
 func GenerateKey() (*ecdsa.PrivateKey, error) {
