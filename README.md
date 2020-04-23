@@ -1,13 +1,12 @@
-## gotron ![](https://img.shields.io/badge/progress-21%25-red.svg)
+## gotron ![](https://img.shields.io/badge/progress-80%25-yellow.svg)
 
-<strong style="color: red;">**WARNING: This is an incomplete work-in-progress.
-yet**</strong>
 
-> The Golang java-tron gRPC client
+Fork from [sasaxie/go-client-api]https://github.com/sasaxie/go-client-api
+
 
 ## Requirements
 
-- Go 1.6 or higher
+- Go 1.13 or higher
 
 ## Installation
 
