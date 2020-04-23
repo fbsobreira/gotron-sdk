@@ -462,7 +462,7 @@ func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) *api.Return {
 }
 
 func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
-	name, description, urlStr string, totalSupply, startTime, endTime,
+	name, description, abbr, urlStr string, totalSupply, startTime, endTime,
 	FreeAssetNetLimit,
 	PublicFreeAssetNetLimit int64, trxNum,
 	icoNum, voteScore int32, frozenSupply map[string]string) *api.Return {
@@ -472,6 +472,8 @@ func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
 		PublicKey).Bytes()
 
 	assetIssueContract.Name = []byte(name)
+
+	assetIssueContract.Abbr = []byte(abbr)
 
 	if totalSupply <= 0 {
 		log.Fatalf("create asset issue error: total supply <= 0")
