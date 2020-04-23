@@ -20,7 +20,10 @@ type AssetIssueController struct {
 func (i *AssetIssueController) Address() {
 	address := i.GetString(":address")
 	if address != "" {
-		assetIssueList := models.GetAssetIssueAccount(address)
+		assetIssueList, err := models.GetAssetIssueAccount(address)
+		if err != nil {
+			i.Abort("500")
+		}
 		i.Data["json"] = assetIssueList
 	}
 	i.ServeJSON()

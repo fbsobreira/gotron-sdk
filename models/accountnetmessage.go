@@ -13,13 +13,12 @@ type AccountNetMessage struct {
 	TotalNetWeight int64
 }
 
-func GetAccountNet(address string) AccountNetMessage {
-	grpcAccountNet := global.TronClient.GetAccountNet(address)
-
+func GetAccountNet(address string) (AccountNetMessage, error) {
 	var resultAccountNet AccountNetMessage
 
-	if grpcAccountNet == nil {
-		return resultAccountNet
+	grpcAccountNet, err := global.TronClient.GetAccountNet(address)
+	if grpcAccountNet == nil || err != nil {
+		return resultAccountNet, err
 	}
 
 	resultAccountNet.FreeNetUsed = grpcAccountNet.FreeNetUsed
@@ -31,5 +30,5 @@ func GetAccountNet(address string) AccountNetMessage {
 	resultAccountNet.TotalNetLimit = grpcAccountNet.TotalNetLimit
 	resultAccountNet.TotalNetWeight = grpcAccountNet.TotalNetWeight
 
-	return resultAccountNet
+	return resultAccountNet, nil
 }

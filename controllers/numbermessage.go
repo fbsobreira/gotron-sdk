@@ -16,7 +16,10 @@ type NumberMessageController struct {
 // @Success 200 {nextmaintenancetime} models.NumberMessage
 // @router /next-maintenance-time [get]
 func (n *NumberMessageController) NextMaintenanceTime() {
-	nextMaintenanceTime := models.GetNextMaintenanceTime()
+	nextMaintenanceTime, err := models.GetNextMaintenanceTime()
+	if err != nil {
+		n.Abort("500")
+	}
 	n.Data["json"] = nextMaintenanceTime
 	n.ServeJSON()
 }

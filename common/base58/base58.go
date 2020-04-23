@@ -2,8 +2,9 @@ package base58
 
 import (
 	"crypto/sha256"
+	"fmt"
+
 	"github.com/shengdoushi/base58"
-	"log"
 )
 
 var tronAlphabet = base58.NewAlphabet("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz")
@@ -31,15 +32,15 @@ func Decode(input string) ([]byte, error) {
 	return base58.Decode(input, tronAlphabet)
 }
 
-func DecodeCheck(input string) []byte {
+func DecodeCheck(input string) ([]byte, error) {
 	decodeCheck, err := Decode(input)
 
 	if err != nil {
-		log.Fatalln(err.Error())
+		return nil, err
 	}
 
 	if len(decodeCheck) < 4 {
-		return nil
+		return nil, fmt.Errorf("b58 check error")
 	}
 
 	decodeData := decodeCheck[:len(decodeCheck)-4]
@@ -56,8 +57,7 @@ func DecodeCheck(input string) []byte {
 		h1[1] == decodeCheck[len(decodeData)+1] &&
 		h1[2] == decodeCheck[len(decodeData)+2] &&
 		h1[3] == decodeCheck[len(decodeData)+3] {
-		return decodeData
+		return decodeData, nil
 	}
-
-	return nil
+	return nil, fmt.Errorf("b58 check error")
 }

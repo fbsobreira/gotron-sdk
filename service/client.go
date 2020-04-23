@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -66,21 +67,19 @@ func (g *GrpcClient) ListNodes() *api.NodeList {
 	return nodeList
 }
 
-func (g *GrpcClient) GetAccount(address string) *core.Account {
+func (g *GrpcClient) GetAccount(address string) (*core.Account, error) {
 	account := new(core.Account)
+	var err error
 
-	account.Address = base58.DecodeCheck(address)
+	account.Address, err = base58.DecodeCheck(address)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetAccount(ctx, account)
-
-	if err != nil {
-		log.Fatalf("get account error: %v\n", err)
-	}
-
-	return result
+	return g.Client.GetAccount(ctx, account)
 }
 
 func (g *GrpcClient) GetNowBlock() *core.Block {
@@ -96,35 +95,27 @@ func (g *GrpcClient) GetNowBlock() *core.Block {
 	return result
 }
 
-func (g *GrpcClient) GetAssetIssueByAccount(address string) *api.AssetIssueList {
+func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList, error) {
 	account := new(core.Account)
+	var err error
 
-	account.Address = base58.DecodeCheck(address)
+	account.Address, err = base58.DecodeCheck(address)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetAssetIssueByAccount(ctx, account)
-
-	if err != nil {
-		log.Fatalf("get asset issue by account error: %v", err)
-	}
-
-	return result
+	return g.Client.GetAssetIssueByAccount(ctx, account)
 }
 
-func (g *GrpcClient) GetNextMaintenanceTime() *api.NumberMessage {
+func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetNextMaintenanceTime(ctx,
+	return g.Client.GetNextMaintenanceTime(ctx,
 		new(api.EmptyMessage))
-
-	if err != nil {
-		log.Fatalf("get next maintenance time error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) TotalTransaction() *api.NumberMessage {
@@ -141,21 +132,19 @@ func (g *GrpcClient) TotalTransaction() *api.NumberMessage {
 	return result
 }
 
-func (g *GrpcClient) GetAccountNet(address string) *api.AccountNetMessage {
+func (g *GrpcClient) GetAccountNet(address string) (*api.AccountNetMessage, error) {
 	account := new(core.Account)
+	var err error
 
-	account.Address = base58.DecodeCheck(address)
+	account.Address, err = base58.DecodeCheck(address)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetAccountNet(ctx, account)
-
-	if err != nil {
-		log.Fatalf("get account net error: %v", err)
-	}
-
-	return result
+	return g.Client.GetAccountNet(ctx, account)
 }
 
 func (g *GrpcClient) GetAssetIssueByName(name string) *core.AssetIssueContract {
@@ -282,11 +271,15 @@ func (g *GrpcClient) GetBlockByLatestNum(num int64) *api.BlockList {
 }
 
 func (g *GrpcClient) CreateAccount(ownerKey *ecdsa.PrivateKey,
-	accountAddress string) *api.Return {
+	accountAddress string) (*api.Return, error) {
+	var err error
 
 	accountCreateContract := new(core.AccountCreateContract)
 	accountCreateContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.PublicKey).Bytes()
-	accountCreateContract.AccountAddress = base58.DecodeCheck(accountAddress)
+	accountCreateContract.AccountAddress, err = base58.DecodeCheck(accountAddress)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
@@ -295,24 +288,18 @@ func (g *GrpcClient) CreateAccount(ownerKey *ecdsa.PrivateKey,
 		accountCreateContract)
 
 	if err != nil {
-		log.Fatalf("create account error: %v", err)
+		return nil, err
 	}
 
 	if accountCreateTransaction == nil || len(accountCreateTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("create account error: invalid transaction")
+		return nil, fmt.Errorf("create account error: invalid transaction")
 	}
 
 	util.SignTransaction(accountCreateTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		accountCreateTransaction)
-
-	if err != nil {
-		log.Fatalf("create account error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) CreateAccountByContract(accountCreateContract *core.
@@ -360,12 +347,17 @@ func (g *GrpcClient) UpdateAccount(ownerKey *ecdsa.PrivateKey,
 }
 
 func (g *GrpcClient) Transfer(ownerKey *ecdsa.PrivateKey, toAddress string,
-	amount int64) *api.Return {
+	amount int64) (*api.Return, error) {
+	var err error
 
 	transferContract := new(core.TransferContract)
 	transferContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
 		PublicKey).Bytes()
-	transferContract.ToAddress = base58.DecodeCheck(toAddress)
+
+	transferContract.ToAddress, err = base58.DecodeCheck(toAddress)
+	if err != nil {
+		return nil, err
+	}
 	transferContract.Amount = amount
 
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
@@ -375,28 +367,23 @@ func (g *GrpcClient) Transfer(ownerKey *ecdsa.PrivateKey, toAddress string,
 		transferContract)
 
 	if err != nil {
-		log.Fatalf("transfer error: %v", err)
+		return nil, err
 	}
 
 	if transferTransaction == nil || len(transferTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("transfer error: invalid transaction")
+		return nil, fmt.Errorf("transfer error: invalid transaction")
 	}
 
 	util.SignTransaction(transferTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		transferTransaction)
-
-	if err != nil {
-		log.Fatalf("transfer error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) FreezeBalance(ownerKey *ecdsa.PrivateKey,
-	frozenBalance, frozenDuration int64) *api.Return {
+	frozenBalance, frozenDuration int64) (*api.Return, error) {
+	var err error
 	freezeBalanceContract := new(core.FreezeBalanceContract)
 	freezeBalanceContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
 		PublicKey).Bytes()
@@ -408,29 +395,25 @@ func (g *GrpcClient) FreezeBalance(ownerKey *ecdsa.PrivateKey,
 
 	freezeBalanceTransaction, err := g.Client.FreezeBalance(ctx,
 		freezeBalanceContract)
-
 	if err != nil {
-		log.Fatalf("freeze balance error: %v", err)
+		return nil, err
 	}
 
 	if freezeBalanceTransaction == nil || len(freezeBalanceTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("freeze balance error: invalid transaction")
+		return nil, fmt.Errorf("freeze balance error: invalid transaction")
 	}
 
 	util.SignTransaction(freezeBalanceTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		freezeBalanceTransaction)
 
-	if err != nil {
-		log.Fatalf("freeze balance error: %v", err)
-	}
-
-	return result
 }
 
-func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) *api.Return {
+func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) (*api.Return, error) {
+	var err error
+
 	unfreezeBalanceContract := new(core.UnfreezeBalanceContract)
 	unfreezeBalanceContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.PublicKey).Bytes()
 
@@ -439,26 +422,20 @@ func (g *GrpcClient) UnfreezeBalance(ownerKey *ecdsa.PrivateKey) *api.Return {
 
 	unfreezeBalanceTransaction, err := g.Client.UnfreezeBalance(ctx,
 		unfreezeBalanceContract)
-
 	if err != nil {
-		log.Fatalf("unfreeze balance error: %v", err)
+		return nil, err
 	}
 
 	if unfreezeBalanceTransaction == nil || len(unfreezeBalanceTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("unfreeze balance error: invalid transaction")
+		return nil, fmt.Errorf("unfreeze balance error: invalid transaction")
 	}
 
 	util.SignTransaction(unfreezeBalanceTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		unfreezeBalanceTransaction)
 
-	if err != nil {
-		log.Fatalf("unfreeze balance error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) CreateAssetIssue(ownerKey *ecdsa.PrivateKey,
@@ -601,12 +578,17 @@ func (g *GrpcClient) UpdateAssetIssue(ownerKey *ecdsa.PrivateKey,
 }
 
 func (g *GrpcClient) TransferAsset(ownerKey *ecdsa.PrivateKey, toAddress,
-	assetName string, amount int64) *api.Return {
+	assetName string, amount int64) (*api.Return, error) {
+	var err error
 
 	transferAssetContract := new(core.TransferAssetContract)
 	transferAssetContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
 		PublicKey).Bytes()
-	transferAssetContract.ToAddress = base58.DecodeCheck(toAddress)
+
+	transferAssetContract.ToAddress, err = base58.DecodeCheck(toAddress)
+	if err != nil {
+		return nil, err
+	}
 	transferAssetContract.AssetName = []byte(assetName)
 	transferAssetContract.Amount = amount
 
@@ -615,9 +597,8 @@ func (g *GrpcClient) TransferAsset(ownerKey *ecdsa.PrivateKey, toAddress,
 
 	transferAssetTransaction, err := g.Client.TransferAsset(ctx,
 		transferAssetContract)
-
 	if err != nil {
-		log.Fatalf("transfer asset error: %v", err)
+		return nil, err
 	}
 
 	if transferAssetTransaction == nil || len(transferAssetTransaction.
@@ -627,24 +608,23 @@ func (g *GrpcClient) TransferAsset(ownerKey *ecdsa.PrivateKey, toAddress,
 
 	util.SignTransaction(transferAssetTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		transferAssetTransaction)
 
-	if err != nil {
-		log.Fatalf("transfer asset error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) ParticipateAssetIssue(ownerKey *ecdsa.PrivateKey,
 	toAddress,
-	assetName string, amount int64) *api.Return {
+	assetName string, amount int64) (*api.Return, error) {
+	var err error
 
 	participateAssetIssueContract := new(core.ParticipateAssetIssueContract)
 	participateAssetIssueContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
 		PublicKey).Bytes()
-	participateAssetIssueContract.ToAddress = base58.DecodeCheck(toAddress)
+	participateAssetIssueContract.ToAddress, err = base58.DecodeCheck(toAddress)
+	if err != nil {
+		return nil, err
+	}
 	participateAssetIssueContract.AssetName = []byte(assetName)
 	participateAssetIssueContract.Amount = amount
 
@@ -653,12 +633,12 @@ func (g *GrpcClient) ParticipateAssetIssue(ownerKey *ecdsa.PrivateKey,
 			Background(), participateAssetIssueContract)
 
 	if err != nil {
-		log.Fatalf("participate asset error: %v", err)
+		return nil, err
 	}
 
 	if participateAssetIssueTransaction == nil || len(participateAssetIssueTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("participate asset error: invalid transaction")
+		return nil, fmt.Errorf("participate asset error: invalid transaction")
 	}
 
 	util.SignTransaction(participateAssetIssueTransaction, ownerKey)
@@ -666,14 +646,8 @@ func (g *GrpcClient) ParticipateAssetIssue(ownerKey *ecdsa.PrivateKey,
 	ctx, cancel := context.WithTimeout(context.Background(), GrpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		participateAssetIssueTransaction)
-
-	if err != nil {
-		log.Fatalf("participate asset error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) CreateWitness(ownerKey *ecdsa.PrivateKey,
@@ -747,18 +721,20 @@ func (g *GrpcClient) UpdateWitness(ownerKey *ecdsa.PrivateKey,
 }
 
 func (g *GrpcClient) VoteWitnessAccount(ownerKey *ecdsa.PrivateKey,
-	witnessMap map[string]string) *api.Return {
+	witnessMap map[string]string) (*api.Return, error) {
 
 	voteWitnessContract := new(core.VoteWitnessContract)
 	voteWitnessContract.OwnerAddress = crypto.PubkeyToAddress(ownerKey.
 		PublicKey).Bytes()
 
 	for key, value := range witnessMap {
-		witnessAddress := base58.DecodeCheck(key)
-		voteCount, err := strconv.ParseInt(value, 64, 10)
-
+		witnessAddress, err := base58.DecodeCheck(key)
 		if err != nil {
-			log.Fatalf("vote witness account error: %v", err)
+			return nil, err
+		}
+		voteCount, err := strconv.ParseInt(value, 64, 10)
+		if err != nil {
+			return nil, err
 		}
 
 		vote := new(core.VoteWitnessContract_Vote)
@@ -774,24 +750,18 @@ func (g *GrpcClient) VoteWitnessAccount(ownerKey *ecdsa.PrivateKey,
 		voteWitnessContract)
 
 	if err != nil {
-		log.Fatalf("vote witness account error: %v", err)
+		return nil, err
 	}
 
 	if voteWitnessTransaction == nil || len(voteWitnessTransaction.
 		GetRawData().GetContract()) == 0 {
-		log.Fatalf("vote witness account error: invalid transaction")
+		return nil, fmt.Errorf("vote witness account error: invalid transaction")
 	}
 
 	util.SignTransaction(voteWitnessTransaction, ownerKey)
 
-	result, err := g.Client.BroadcastTransaction(ctx,
+	return g.Client.BroadcastTransaction(ctx,
 		voteWitnessTransaction)
-
-	if err != nil {
-		log.Fatalf("vote witness account error: %v", err)
-	}
-
-	return result
 }
 
 func (g *GrpcClient) UnfreezeAsset(ownerKey *ecdsa.PrivateKey,

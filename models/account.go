@@ -4,6 +4,7 @@ import (
 	"github.com/fbsobreira/gotron/common/base58"
 	"github.com/fbsobreira/gotron/common/global"
 	"github.com/fbsobreira/gotron/common/hexutil"
+	"github.com/fbsobreira/gotron/core"
 )
 
 type Account struct {
@@ -60,10 +61,35 @@ type AccountResource struct {
 	LatestExchangeStorageTime               int64
 }
 
-func GetAccountByAddress(address string) (*Account, error) {
-	grpcAccount := global.TronClient.GetAccount(address)
+type AccountCreateContract struct {
+	OwnerAddress   string           `json:"ownerAddress"`
+	AccountAddress string           `json:"accountAddress"`
+	Type           core.AccountType `json:"type"`
+}
 
+func CreateAccount(contract AccountCreateContract) (*core.Transaction,
+	error) {
+
+	grpcContract := new(core.AccountCreateContract)
+	var err error
+
+	grpcContract.OwnerAddress, err = base58.DecodeCheck(contract.OwnerAddress)
+	if err != nil {
+		return nil, err
+	}
+	grpcContract.AccountAddress, err = base58.DecodeCheck(contract.AccountAddress)
+	if err != nil {
+		return nil, err
+	}
+	return global.TronClient.CreateAccountByContract(grpcContract)
+}
+
+func GetAccountByAddress(address string) (*Account, error) {
 	resultAccount := new(Account)
+	grpcAccount, err := global.TronClient.GetAccount(address)
+	if err != nil {
+		return resultAccount, err
+	}
 
 	resultAccount.AccountName = string(grpcAccount.AccountName)
 	resultAccount.AccountType = grpcAccount.Type.String()

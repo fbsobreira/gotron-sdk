@@ -4,8 +4,8 @@ import (
 	"github.com/fbsobreira/gotron/models"
 
 	"encoding/json"
+
 	"github.com/astaxie/beego"
-	"github.com/fbsobreira/gotron/models/contract"
 )
 
 // Operations about Account
@@ -41,7 +41,10 @@ func (a *AccountController) Get() {
 func (a *AccountController) NetMessage() {
 	address := a.GetString(":address")
 	if address != "" {
-		accountNetMessage := models.GetAccountNet(address)
+		accountNetMessage, err := models.GetAccountNet(address)
+		if err != nil {
+			a.Abort("500")
+		}
 		a.Data["json"] = accountNetMessage
 	}
 	a.ServeJSON()
@@ -52,13 +55,13 @@ func (a *AccountController) NetMessage() {
 // @Param accountaddress body string true
 // @router /create [post]
 func (a *AccountController) CreateAccount() {
-	var accountCreateContract contract.AccountCreateContract
+	var accountCreateContract models.AccountCreateContract
 	err := json.Unmarshal(a.Ctx.Input.RequestBody, &accountCreateContract)
 
 	if err != nil {
 		a.Data["json"] = err.Error()
 	} else {
-		transaction, err := contract.CreateAccount(accountCreateContract)
+		transaction, err := models.CreateAccount(accountCreateContract)
 
 		if err != nil {
 			a.Data["json"] = err.Error()

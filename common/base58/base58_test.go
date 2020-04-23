@@ -1,16 +1,17 @@
 package base58
 
 import (
-	"github.com/fbsobreira/gotron/common/hexutil"
 	"strings"
 	"testing"
+
+	"github.com/fbsobreira/gotron/common/hexutil"
 )
 
 func TestEncode(t *testing.T) {
 }
 
 func TestDecodeCheck(t *testing.T) {
-	decodeBytes := DecodeCheck("27ZESitosJfKouTBrGg6Nk5yEjnJHXMbkZp")
+	decodeBytes, _ := DecodeCheck("27ZESitosJfKouTBrGg6Nk5yEjnJHXMbkZp")
 
 	decode := hexutil.Encode(decodeBytes)
 

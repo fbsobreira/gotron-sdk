@@ -6,13 +6,15 @@ type NumberMessage struct {
 	Num int64
 }
 
-func GetNextMaintenanceTime() NumberMessage {
-	grpcNextMaintenanceTime := global.TronClient.GetNextMaintenanceTime()
-
+func GetNextMaintenanceTime() (NumberMessage, error) {
 	var resultNextMaintenanceTime NumberMessage
-	resultNextMaintenanceTime.Num = grpcNextMaintenanceTime.Num
 
-	return resultNextMaintenanceTime
+	grpcNextMaintenanceTime, err := global.TronClient.GetNextMaintenanceTime()
+	if err != nil {
+		return resultNextMaintenanceTime, err
+	}
+	resultNextMaintenanceTime.Num = grpcNextMaintenanceTime.Num
+	return resultNextMaintenanceTime, nil
 }
 
 func GetTotalTransaction() NumberMessage {

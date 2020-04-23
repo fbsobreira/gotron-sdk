@@ -33,19 +33,25 @@ type FrozenSupply struct {
 	FrozenDays   int64
 }
 
-func GetAssetIssueAccount(address string) AssetIssueList {
-	grpcAssetIssueList := global.TronClient.GetAssetIssueByAccount(address)
-
+func GetAssetIssueAccount(address string) (AssetIssueList, error) {
 	var resultAssetIssueList AssetIssueList
 
-	if grpcAssetIssueList == nil {
-		return resultAssetIssueList
+	grpcAssetIssueList, err := global.TronClient.GetAssetIssueByAccount(address)
+	if err != nil {
+		return resultAssetIssueList, err
+	}
+
+	if grpcAssetIssueList == nil || err != nil {
+		return resultAssetIssueList, err
 	}
 
 	resultAssetIssueList.AssetIssue = make([]AssetIssueContract, 0)
 	for _, a := range grpcAssetIssueList.AssetIssue {
 		var assetIssueContract AssetIssueContract
 		assetIssueContract.OwnerAddress = base58.EncodeCheck(a.OwnerAddress)
+		if err != nil {
+			return resultAssetIssueList, err
+		}
 		assetIssueContract.Name = string(a.Name)
 		assetIssueContract.Abbr = string(a.Abbr)
 		assetIssueContract.TotalSupply = a.TotalSupply
@@ -75,7 +81,7 @@ func GetAssetIssueAccount(address string) AssetIssueList {
 			AssetIssue, assetIssueContract)
 	}
 
-	return resultAssetIssueList
+	return resultAssetIssueList, nil
 }
 
 func GetAssetIssueByName(name string) AssetIssueContract {
