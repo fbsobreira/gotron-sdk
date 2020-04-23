@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/fbsobreira/gotron/common/crypto"
-	"github.com/fbsobreira/gotron/service"
 	"log"
 	"strings"
+
+	"github.com/fbsobreira/gotron/common/crypto"
+	"github.com/fbsobreira/gotron/service"
 )
 
 func main() {
@@ -21,6 +22,9 @@ func main() {
 
 	description := flag.String("description", "",
 		"description: <new asset issue description>")
+
+	abbr := flag.String("abbr", "",
+		"description: <new asset issue symbol>")
 
 	urlStr := flag.String("url", "",
 		"url: <new asset issue url>")
@@ -56,6 +60,8 @@ func main() {
 		(strings.EqualFold("", *name) && len(*name) == 0) ||
 		(strings.EqualFold("", *grpcAddress) && len(*grpcAddress) == 0) ||
 		(strings.EqualFold("", *description) && len(*description) == 0) ||
+		(strings.EqualFold("", *abbr) && len(*abbr) > 4) ||
+		(strings.EqualFold("", *abbr) && len(*abbr) == 0) ||
 		(strings.EqualFold("", *urlStr) && len(*urlStr) == 0) ||
 		(*totalSupply <= 0) ||
 		(*startTime <= 0) ||
@@ -70,6 +76,7 @@ func main() {
 			"-ownerPrivateKey <your private key> " +
 			"-name <new asset issue name> " +
 			"-description <new asset issue description> " +
+			"-abbr <new asset issue symbol> " +
 			"-url <new asset issue url> " +
 			"-totalSupply <new asset issue total supply> " +
 			"-startTime <start time> " +
@@ -100,7 +107,7 @@ func main() {
 		log.Fatalf("get private key by hex string error: %v", err)
 	}
 
-	result := client.CreateAssetIssue(key, *name, *description, *urlStr,
+	result := client.CreateAssetIssue(key, *name, *description, *abbr, *urlStr,
 		*totalSupply, *startTime, *endTime, *freeAssetNetLimit,
 		*publicFreeAssetNetLimit, int32(*trxNum), int32(*icoNum), 0,
 		frozenSupplyMap)
