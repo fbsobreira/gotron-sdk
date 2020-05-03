@@ -2,12 +2,14 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	color "github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
@@ -62,9 +64,9 @@ var (
 			return nil
 		},
 		Long: fmt.Sprintf(`
-CLI interface to the Tron blockchain
+CLI interface to Tron blockchain
 
-%s`, g("type 'tronclt --help' details")),
+%s`, g("type 'tronclt --help' for details")),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Help()
 			return nil
@@ -101,26 +103,80 @@ func init() {
 var (
 	// VersionWrapDump meant to be set from main.go
 	VersionWrapDump = ""
-	versionLink     = "https://cryptochain.network/tronctl_ver"
+	versionLink     = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases/latest"
+	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
 	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
+
+//GitHubReleaseAssets json struct
+type GitHubReleaseAssets struct {
+	ID   json.Number `json:"id"`
+	Name string      `json:"name"`
+	Size json.Number `json:"size"`
+	URL  string      `json:"browser_download_url"`
+}
+
+//GitHubRelease json struct
+type GitHubRelease struct {
+	Prerelease      bool                  `json:"prerelease"`
+	TagName         string                `json:"tag_name"`
+	TargetCommitish string                `json:"target_commitish"`
+	CreatedAt       time.Time             `json:"created_at"`
+	Assets          []GitHubReleaseAssets `json:"assets"`
+}
+
+//GitHubTag json struct
+type GitHubTag struct {
+	Ref    string `json:"ref"`
+	NodeID string `json:"node_id"`
+	URL    string `json:"url"`
+	DATA   struct {
+		SHA string `json:"sha"`
+	} `json:"object"`
+}
+
+func getGitVersion() (string, error) {
+	resp, _ := http.Get(versionLink)
+	defer resp.Body.Close()
+	// if error, no op
+	if resp != nil && resp.StatusCode == 200 {
+		buf := new(bytes.Buffer)
+		buf.ReadFrom(resp.Body)
+		release := &GitHubRelease{}
+		if err := json.Unmarshal(buf.Bytes(), release); err != nil {
+			return "", err
+		}
+
+		respTag, _ := http.Get(versionTagLink + release.TagName)
+		defer resp.Body.Close()
+		// if error, no op
+		if respTag != nil && respTag.StatusCode == 200 {
+			buf.Reset()
+			buf.ReadFrom(respTag.Body)
+
+			releaseTag := &GitHubTag{}
+			if err := json.Unmarshal(buf.Bytes(), releaseTag); err != nil {
+				return "", err
+			}
+			commit := strings.Split(VersionWrapDump, "-")
+
+			if releaseTag.DATA.SHA[:8] != commit[1] {
+				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
+				fmt.Fprintf(os.Stderr, color.RedString(warnMsg))
+				return release.TagName, fmt.Errorf(warnMsg)
+			}
+			return release.TagName, nil
+		}
+	}
+	return "", fmt.Errorf("could not fetch version")
+}
 
 // Execute kicks off the tronctl CLI
 func Execute() {
 	RootCmd.SilenceErrors = true
 	if err := RootCmd.Execute(); err != nil {
-		resp, _ := http.Get(versionLink)
-		defer resp.Body.Close()
-		// If error, no op
-		if resp != nil && resp.StatusCode == 200 {
-			buf := new(bytes.Buffer)
-			buf.ReadFrom(resp.Body)
-
-			currentVersion := versionFormat.FindAllString(buf.String(), 1)
-			if currentVersion != nil && currentVersion[0] != VersionWrapDump {
-				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", currentVersion[0])
-				fmt.Fprintf(os.Stderr, color.RedString(warnMsg))
-			}
+		if tag, errGit := getGitVersion(); errGit == nil {
+			VersionWrapDump += ":" + tag
 		}
 		errMsg := errors.Wrapf(err, "commit: %s, error", VersionWrapDump).Error()
 		fmt.Fprintf(os.Stderr, errMsg+"\n")
@@ -144,7 +200,7 @@ func findAddress(value string) (tronAddress, error) {
 		if acc, err := store.AddressFromAccountName(value); err == nil {
 			return tronAddress{acc}, nil
 		}
-		return address, fmt.Errorf("Invalid one address/Invalid account name: %s", value)
+		return address, fmt.Errorf("Invalid address/Invalid account name: %s", value)
 	}
 	return address, nil
 }

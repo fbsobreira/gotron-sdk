@@ -29,7 +29,7 @@ func main() {
 		Short: "Show version",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(os.Stderr,
-				"TronCTL. %v, version %v-%v (%v %v)\n",
+				"TronCTL. %v version %v-%v (%v %v)\n",
 				path.Base(os.Args[0]), version, commit, builtBy, builtAt)
 			os.Exit(0)
 			return nil
