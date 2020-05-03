@@ -54,7 +54,7 @@ func ToHexArray(b [][]byte) []string {
 
 // FromHex returns the bytes represented by the hexadecimal string s.
 // s may be prefixed with "0x".
-func FromHex(s string) []byte {
+func FromHex(s string) ([]byte, error) {
 	if has0xPrefix(s) {
 		s = s[2:]
 	}
@@ -104,9 +104,8 @@ func Bytes2Hex(d []byte) string {
 }
 
 // Hex2Bytes returns the bytes represented by the hexadecimal string str.
-func Hex2Bytes(str string) []byte {
-	h, _ := hex.DecodeString(str)
-	return h
+func Hex2Bytes(str string) ([]byte, error) {
+	return hex.DecodeString(str)
 }
 
 // Hex2BytesFixed returns bytes of a specified fixed length flen.

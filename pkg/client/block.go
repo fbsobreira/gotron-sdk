@@ -46,7 +46,7 @@ func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error) {
 	blockID := new(api.BytesMessage)
 	var err error
 
-	blockID.Value, err = common.Decode(id)
+	blockID.Value, err = common.FromHex(id)
 
 	if err != nil {
 		log.Fatalf("get block by id error: %v", err)

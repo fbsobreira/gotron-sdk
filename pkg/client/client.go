@@ -1,10 +1,10 @@
 package client
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -29,9 +29,25 @@ func (g *GrpcClient) Start() error {
 	var err error
 	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
 	if err != nil {
-		zap.L().Error("Connecting GRPC Client", zap.Error(err))
-		return err
+		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
 	g.Client = api.NewWalletClient(g.Conn)
+	return nil
+}
+
+// Stop GRPC Connection
+func (g *GrpcClient) Stop() {
+	if g.Conn != nil {
+		g.Conn.Close()
+	}
+}
+
+// Reconnect GRPC
+func (g *GrpcClient) Reconnect(url string) error {
+	g.Stop()
+	if len(url) > 0 {
+		g.Address = url
+	}
+	g.Start()
 	return nil
 }
