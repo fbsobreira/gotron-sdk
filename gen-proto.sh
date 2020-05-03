@@ -1,5 +1,5 @@
 #!/bin/bash
-protoc -I=./protocol -I/usr/lib -I./third_party/googleapis --go_out=plugins=grpc,paths=source_relative:. ./protocol/core/*.proto ./protocol/core/contract/*.proto 
-protoc -I=./protocol -I/usr/lib -I./third_party/googleapis --go_out=plugins=grpc,paths=source_relative:. ./protocol/api/*.proto
-
-protoc -I=./protocol -I./protocol_util -I/usr/lib -I./third_party/googleapis --go_out=plugins=grpc,paths=source_relative:./protocol_util ./protocol_util/*.proto
+protoc -I=./proto/tron -I/usr/lib -I./proto/googleapis --go_out=plugins=grpc,paths=source_relative:./pkg/proto ./proto/tron/core/*.proto ./proto/tron/core/contract/*.proto 
+protoc -I=./proto/tron -I/usr/lib -I./proto/googleapis --go_out=plugins=grpc,paths=source_relative:./pkg/proto ./proto/tron/api/*.proto
+mkdir -p ./pkg/proto/util
+protoc -I=./proto/tron -I./proto/util -I/usr/lib -I./proto/googleapis --go_out=plugins=grpc,paths=source_relative:./pkg/proto/util ./proto/util/*.proto
