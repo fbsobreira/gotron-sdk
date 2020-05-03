@@ -45,7 +45,7 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	transactionID := new(api.BytesMessage)
 	var err error
 
-	transactionID.Value, err = common.Decode(id)
+	transactionID.Value, err = common.FromHex(id)
 	if err != nil {
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
@@ -56,12 +56,26 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	return g.Client.GetTransactionById(ctx, transactionID)
 }
 
+// GetTransactionExtensionByID returns transaction details by ID
+func (g *GrpcClient) GetTransactionExtensionByID(id string) (*api.TransactionExtention, error) {
+	txE := new(api.TransactionExtention)
+
+	var err error
+	if txE.Txid, err = common.FromHex(id); err != nil {
+		return nil, fmt.Errorf("get transaction by id error: %v", err)
+	}
+	if txE.Transaction, err = g.GetTransactionByID(id); err != nil {
+		return nil, fmt.Errorf("get transaction info by id error: %v", err)
+	}
+	return txE, nil
+}
+
 //GetTransactionInfoByID returns transaction receipt by ID
 func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, error) {
 	transactionID := new(api.BytesMessage)
 	var err error
 
-	transactionID.Value, err = common.Decode(id)
+	transactionID.Value, err = common.FromHex(id)
 	if err != nil {
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
@@ -87,4 +101,12 @@ func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 		return nil, fmt.Errorf("result error(%s): %s", result.GetCode, result.GetMessage())
 	}
 	return result, nil
+}
+
+// GetNodeInfo current connection
+func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	return g.Client.GetNodeInfo(ctx, new(api.EmptyMessage))
 }
