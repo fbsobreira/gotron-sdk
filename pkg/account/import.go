@@ -120,7 +120,7 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 
 	hasAddress := store.FromAddress(key.Address.String()) != nil
 	if hasAddress {
-		return "", fmt.Errorf("address %s already exists in keystore", key.Address.String)
+		return "", fmt.Errorf("address %s already exists in keystore", key.Address.String())
 	}
 	uDir, _ := homedir.Dir()
 	newPath := filepath.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName, name, filepath.Base(keyPath))

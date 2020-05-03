@@ -1,17 +1,12 @@
 package account
 
 import (
-	"errors"
-
 	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
-var (
-	AccountByNameExists = errors.New("name chosen for account already exists")
-)
-
+// Creation struct for account
 type Creation struct {
 	Name               string
 	Passphrase         string
