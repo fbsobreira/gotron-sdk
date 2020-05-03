@@ -2,44 +2,43 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"go.uber.org/zap"
 )
 
 // GetNowBlock return TIP block
-func (g *GrpcClient) GetNowBlock() (*core.Block, error) {
+func (g *GrpcClient) GetNowBlock() (*api.BlockExtention, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetNowBlock(ctx, new(api.EmptyMessage))
+	result, err := g.Client.GetNowBlock2(ctx, new(api.EmptyMessage))
 
 	if err != nil {
-		zap.L().Error("Get block now", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("Get block now: %v", err)
 	}
 
 	return result, nil
 }
 
 // GetBlockByNum block from number
-func (g *GrpcClient) GetBlockByNum(num int64) *core.Block {
+func (g *GrpcClient) GetBlockByNum(num int64) (*api.BlockExtention, error) {
 	numMessage := new(api.NumberMessage)
 	numMessage.Num = num
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	result, err := g.Client.GetBlockByNum(ctx, numMessage)
+	result, err := g.Client.GetBlockByNum2(ctx, numMessage)
 
 	if err != nil {
-		log.Fatalf("get block by num error: %v", err)
-	}
+		return nil, fmt.Errorf("Get block by num: %v", err)
 
-	return result
+	}
+	return result, nil
 }
 
 // GetBlockByID block from hash
@@ -60,7 +59,7 @@ func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error) {
 }
 
 // GetBlockByLimitNext return list of block start/end
-func (g *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockList, error) {
+func (g *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockListExtention, error) {
 	blockLimit := new(api.BlockLimit)
 	blockLimit.StartNum = start
 	blockLimit.EndNum = end
@@ -68,18 +67,16 @@ func (g *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockList, erro
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetBlockByLimitNext(ctx, blockLimit)
-
+	return g.Client.GetBlockByLimitNext2(ctx, blockLimit)
 }
 
 // GetBlockByLatestNum return block list till num
-func (g *GrpcClient) GetBlockByLatestNum(num int64) (*api.BlockList, error) {
+func (g *GrpcClient) GetBlockByLatestNum(num int64) (*api.BlockListExtention, error) {
 	numMessage := new(api.NumberMessage)
 	numMessage.Num = num
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetBlockByLatestNum(ctx, numMessage)
-
+	return g.Client.GetBlockByLatestNum2(ctx, numMessage)
 }
