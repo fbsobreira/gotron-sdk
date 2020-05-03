@@ -17,8 +17,6 @@ const (
 	AddressLengthBase58 = 34
 	// TronBytePrefix is the hex prefix to address
 	TronBytePrefix = byte(0x41)
-	// AmountDecimalPoint TRX decimal point
-	AmountDecimalPoint = 6
 )
 
 // Address represents the 21 byte address of an Tron account.

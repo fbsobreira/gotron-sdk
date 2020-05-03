@@ -6,15 +6,20 @@ import (
 )
 
 const (
-	DefaultConfigDirName               = ".tronctl"
+	// DefaultConfigDirName for wallets
+	DefaultConfigDirName = ".tronctl"
+	// DefaultConfigAccountAliasesDirName fro accounts
 	DefaultConfigAccountAliasesDirName = "account-keys"
-	DefaultPassphrase                  = ""
-	JSONRPCVersion                     = "2.0"
-	Secp256k1PrivateKeyBytesLength     = 32
+	// DefaultPassphrase for accounts
+	DefaultPassphrase = ""
+	// Secp256k1PrivateKeyBytesLength privete key
+	Secp256k1PrivateKeyBytesLength = 32
+	// AmountDecimalPoint TRX decimal point
+	AmountDecimalPoint = 6
 )
 
 var (
-	DebugRPC         = false
+	DebugGRPC        = false
 	DebugTransaction = false
 	ErrNotAbsPath    = errors.New("keypath is not absolute path")
 	ErrBadKeyLength  = errors.New("Invalid private key (wrong length)")
@@ -22,19 +27,19 @@ var (
 )
 
 func init() {
-	if _, enabled := os.LookupEnv("HMY_RPC_DEBUG"); enabled != false {
-		DebugRPC = true
+	if _, enabled := os.LookupEnv("TRONCTL_GRPC_DEBUG"); enabled != false {
+		DebugGRPC = true
 	}
-	if _, enabled := os.LookupEnv("HMY_TX_DEBUG"); enabled != false {
+	if _, enabled := os.LookupEnv("TRONCTL_TX_DEBUG"); enabled != false {
 		DebugTransaction = true
 	}
-	if _, enabled := os.LookupEnv("HMY_ALL_DEBUG"); enabled != false {
+	if _, enabled := os.LookupEnv("TRONCTL_ALL_DEBUG"); enabled != false {
 		EnableAllVerbose()
 	}
 }
 
 // EnableAllVerbose sets debug vars to true
 func EnableAllVerbose() {
-	DebugRPC = true
+	DebugGRPC = true
 	DebugTransaction = true
 }
