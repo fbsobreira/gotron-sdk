@@ -1,44 +1,63 @@
-## gotron ![](https://img.shields.io/badge/progress-80%25-yellow.svg)
+# TRON's go-sdk
+
+GoSDK and TRON-CLI tool for TRON's blockchain via GRPC
+
+# Build
 
 
-Fork from [sasaxie/go-client-api](https://github.com/sasaxie/go-client-api)
-
-
-## Requirements
-
-- Go 1.13 or higher
-
-## Installation
-
-First you need to install ProtocolBuffers 3.0.0-beta-3 or later.
-
-```sh
-mkdir tmp
-cd tmp
-git clone https://github.com/google/protobuf
-cd protobuf
-./autogen.sh
-./configure
-make
-make check
-sudo make install
+```
+$ git pull -r origin master
+$ make
 ```
 
-Then, `go get -u` as usual the following packages:
+# Usage & Examples
 
-```sh
-go get -u github.com/golang/protobuf/protoc-gen-go
+# bash completions
+
+once built, add `tronctl` to your path and add to your `.bashrc`
+
+```
+. <(tronctl completion)
 ```
 
-Update protocol:
+## Transfer JSON file format
+The JSON file will be a JSON array where each element has the following attributes:
 
-```sh
-git submodule update --remote
+| Key                 | Value-type | Value-description|
+| :------------------:|:----------:| :----------------|
+| `from`              | string     | [**Required**] Sender's one address, must have key in keystore. |
+| `to`                | string     | [**Required**] The receivers one address. |
+| `amount`            | string     | [**Required**] The amount to send in $ONE. |
+| `passphrase-file`   | string     | [*Optional*] The file path to file containing the passphrase in plain text. If none is provided, check for passphrase string. |
+| `passphrase-string` | string     | [*Optional*] The passphrase as a string in plain text. If none is provided, passphrase is ''. |
+| `stop-on-error`     | boolean    | [*Optional*] If true, stop sending transactions if an error occurred, default is false. |
+
+Example of JSON file:
+
+```json
+[
+  {
+    "from": "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH",
+    "to": "TKSXDA8HfE9E1y39RczVQ1ZascUEtaSToF",
+    "amount": "1",
+    "passphrase-string": "",
+    "stop-on-error": true
+  },
+  {
+    "from": "TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH",
+    "to": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R",
+    "amount": "1",
+    "passphrase-file": "./pw.txt",
+  }
+]
 ```
 
-Example:
 
-```sh
-go get -u github.com/fbsobreira/gotron
-go run program/getnowblock.go -grpcAddress grpc.trongrid.io:50051
+# Debugging
+
+The gotron-sdk code respects `GOTRON_SDK_DEBUG` as debugging
+based environment variables.
+
+```bash
+GOTRON_SDK_DEBUG=true ./tronctl
 ```

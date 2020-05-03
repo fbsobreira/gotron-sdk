@@ -1,5 +1,5 @@
-.idea
-routers/commentsRouter_controllers.go
-gotron
-*.tmp
-vendor/**
+tronctl
+tonctl-docs
+bin
+.idea/
+*.key
