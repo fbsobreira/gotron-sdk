@@ -85,3 +85,13 @@ func PubkeyToAddress(p ecdsa.PublicKey) Address {
 
 	return BytesToAddress(addressTron)
 }
+
+// IsZeroAddress check if all bytes are zero
+func (a Address) IsZeroAddress() bool {
+	for _, v := range a {
+		if v != 0 {
+			return false
+		}
+	}
+	return true
+}
