@@ -125,3 +125,25 @@ func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error) {
 	}
 	return "", fmt.Errorf("Cannot parse %s,", data)
 }
+
+// TRC20ContractBalance get Address balance
+func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.Int, error) {
+	addrB, err := address.Base58ToAddress(addr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address %s: %v", addr, addr)
+	}
+	req := trc20BalanceOf + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-2:] + addrB.Hex()[2:]
+	result, err := g.TRC20Call("", contractAddress, req)
+	if err != nil {
+		return nil, err
+	}
+	data := common.ToHex(result.GetConstantResult()[0])
+	r, err := g.ParseTRC20NumericProperty(data)
+	if err != nil {
+		return nil, fmt.Errorf("contract address %s: %v", contractAddress, err)
+	}
+	if r == nil {
+		return nil, fmt.Errorf("contract address %s: invalid balance of %s", contractAddress, addr)
+	}
+	return r, nil
+}
