@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/big"
 	"strconv"
 	"time"
 
@@ -31,15 +32,20 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList
 
 // GetAssetIssueByName list asset issued by name
 func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
 
-	assetName := new(api.BytesMessage)
-	assetName.Value = []byte(name)
+	return g.Client.GetAssetIssueByName(ctx, GetMessageBytes([]byte(name)))
+}
+
+// GetAssetIssueByID list asset issued by ID
+func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract, error) {
+	bn := new(big.Int).SetBytes([]byte(tokenID))
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetAssetIssueByName(ctx, assetName)
-
+	return g.Client.GetAssetIssueById(ctx, GetMessageBytes(bn.Bytes()))
 }
 
 // GetAssetIssueList list all TRC10
