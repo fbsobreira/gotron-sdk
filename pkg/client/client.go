@@ -51,3 +51,17 @@ func (g *GrpcClient) Reconnect(url string) error {
 	g.Start()
 	return nil
 }
+
+// GetMessageBytes return grpc message from bytes
+func GetMessageBytes(m []byte) *api.BytesMessage {
+	message := new(api.BytesMessage)
+	message.Value = m
+	return message
+}
+
+// GetMessageNumber return grpc message number
+func GetMessageNumber(n int64) *api.NumberMessage {
+	message := new(api.NumberMessage)
+	message.Num = n
+	return message
+}
