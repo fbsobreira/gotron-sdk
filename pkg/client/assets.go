@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"strconv"
 	"time"
@@ -114,11 +113,11 @@ func (g *GrpcClient) AssetIssue(from, name, description, abbr, urlStr string,
 	for key, value := range frozenSupply {
 		amount, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
-			log.Fatalf("create asset issue error: convert error: %v", err)
+			return nil, fmt.Errorf("create asset issue: convert error: %v", err)
 		}
 		days, err := strconv.ParseInt(key, 10, 64)
 		if err != nil {
-			log.Fatalf("create asset issue error: convert error: %v", err)
+			return nil, fmt.Errorf("create asset issue error: convert error: %v", err)
 		}
 		assetIssueContractFrozenSupply := new(core.
 			AssetIssueContract_FrozenSupply)

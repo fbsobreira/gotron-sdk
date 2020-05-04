@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -47,9 +46,8 @@ func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error) {
 	var err error
 
 	blockID.Value, err = common.FromHex(id)
-
 	if err != nil {
-		log.Fatalf("get block by id error: %v", err)
+		return nil, fmt.Errorf("get block by id: %v", err)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
