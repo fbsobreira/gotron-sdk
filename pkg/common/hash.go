@@ -27,9 +27,12 @@ func BigToHash(b *big.Int) Hash { return BytesToHash(b.Bytes()) }
 
 // HexToHash sets byte representation of s to hash.
 // If b is larger than len(h), b will be cropped from the left.
-func HexToHash(s string) Hash {
-	b, _ := HexStringToBytes(s)
-	return BytesToHash(b)
+func HexToHash(s string) (Hash, error) {
+	b, err := HexStringToBytes(s)
+	if err != nil {
+		return Hash{}, err
+	}
+	return BytesToHash(b), nil
 }
 
 // Bytes gets the byte representation of the underlying hash.
