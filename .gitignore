@@ -3,3 +3,4 @@ tonctl-docs
 bin
 .idea/
 *.key
+scripts/*
