@@ -1,6 +1,9 @@
 package common
 
-import "encoding/hex"
+import (
+	"encoding/hex"
+	"strings"
+)
 
 var (
 	EmptyString = &hexError{"empty hex string"}
@@ -18,8 +21,7 @@ func (h *hexError) Error() string {
 func BytesToHexString(bytes []byte) string {
 	encode := make([]byte, len(bytes)*2)
 	hex.Encode(encode, bytes)
-
-	return string(encode)
+	return "0x" + string(encode)
 }
 
 // HexStringToBytes hex string as bytes
@@ -28,7 +30,7 @@ func HexStringToBytes(input string) ([]byte, error) {
 		return nil, EmptyString
 	}
 
-	return hex.DecodeString(input[:])
+	return hex.DecodeString(strings.Replace(input, "0x", "", -1))
 }
 
 // ToHex returns the hex representation of b, prefixed with '0x'.
