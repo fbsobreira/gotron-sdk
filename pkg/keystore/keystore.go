@@ -23,6 +23,7 @@ package keystore
 import (
 	"crypto/ecdsa"
 	crand "crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"os"
@@ -36,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"google.golang.org/protobuf/proto"
 )
 
 // ErrLocked ...
@@ -270,11 +272,23 @@ func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, 
 	if !found {
 		return nil, ErrLocked
 	}
+	defer zeroKey(unlockedKey.PrivateKey)
 
-	//return types.SignTx(tx, types.HomesteadSigner{}, unlockedKey.PrivateKey)
-	// TODO:
+	rawData, err := proto.Marshal(tx.GetRawData())
+	if err != nil {
+		return nil, err
+	}
+	h256h := sha256.New()
+	h256h.Write(rawData)
+	hash := h256h.Sum(nil)
+
+	signature, err := crypto.Sign(hash, unlockedKey.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	tx.Signature = append(tx.Signature, signature)
 	_ = unlockedKey
-	return nil, nil
+	return tx, nil
 }
 
 // SignHashWithPassphrase signs hash if the private key matching the given address
@@ -298,10 +312,20 @@ func (ks *KeyStore) SignTxWithPassphrase(a Account, passphrase string, tx *core.
 	}
 	defer zeroKey(key.PrivateKey)
 
-	// Depending on the presence of the chain ID, sign with EIP155 or homestead
-	// TODO:
-	//return types.SignTx(tx, types.HomesteadSigner{}, key.PrivateKey)
-	return nil, nil
+	rawData, err := proto.Marshal(tx.GetRawData())
+	if err != nil {
+		return nil, err
+	}
+	h256h := sha256.New()
+	h256h.Write(rawData)
+	hash := h256h.Sum(nil)
+
+	signature, err := crypto.Sign(hash, key.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+	tx.Signature = append(tx.Signature, signature)
+	return tx, nil
 }
 
 // Unlock unlocks the given account indefinitely.
