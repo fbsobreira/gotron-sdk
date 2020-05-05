@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-const defaultTimeout = 40
+const defaultTimeout = 20
 
 var (
 	addr            tronAddress
