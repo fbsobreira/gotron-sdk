@@ -1,12 +1,14 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
 )
 
@@ -53,21 +55,14 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetTransactionById(ctx, transactionID)
-}
-
-// GetTransactionExtensionByID returns transaction details by ID
-func (g *GrpcClient) GetTransactionExtensionByID(id string) (*api.TransactionExtention, error) {
-	txE := new(api.TransactionExtention)
-
-	var err error
-	if txE.Txid, err = common.FromHex(id); err != nil {
-		return nil, fmt.Errorf("get transaction by id error: %v", err)
+	tx, err := g.Client.GetTransactionById(ctx, transactionID)
+	if err != nil {
+		return nil, err
 	}
-	if txE.Transaction, err = g.GetTransactionByID(id); err != nil {
-		return nil, fmt.Errorf("get transaction info by id error: %v", err)
+	if size := proto.Size(tx); size > 0 {
+		return tx, nil
 	}
-	return txE, nil
+	return nil, fmt.Errorf("transaction info not found")
 }
 
 //GetTransactionInfoByID returns transaction receipt by ID
@@ -83,7 +78,14 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetTransactionInfoById(ctx, transactionID)
+	txi, err := g.Client.GetTransactionInfoById(ctx, transactionID)
+	if err != nil {
+		return nil, err
+	}
+	if bytes.Equal(txi.Id, transactionID.Value) {
+		return txi, nil
+	}
+	return nil, fmt.Errorf("transaction info not found")
 }
 
 // Broadcast broadcast TX
