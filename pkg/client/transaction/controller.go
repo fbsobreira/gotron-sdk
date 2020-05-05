@@ -33,7 +33,8 @@ type Controller struct {
 	tx             *core.Transaction
 	sender         sender
 	Behavior       behavior
-	Receipt        *api.Return
+	Result         *api.Return
+	Receipt        *core.TransactionInfo
 }
 
 type behavior struct {
@@ -106,13 +107,12 @@ func (C *Controller) hardwareSignTxForSending() {
 	C.tx.Signature = append(C.tx.Signature, signature)
 }
 
+// TransactionHash extract hash from TX
 func (C *Controller) TransactionHash() (string, error) {
-
 	rawData, err := C.GetRawData()
 	if err != nil {
 		return "", err
 	}
-
 	h256h := sha256.New()
 	h256h.Write(rawData)
 	hash := h256h.Sum(nil)
@@ -129,13 +129,15 @@ func (C *Controller) txConfirmation() {
 			C.executionError = fmt.Errorf("could not get tx hash")
 			return
 		}
-		fmt.Printf("His s hash: %s\n", txHash)
+		//fmt.Printf("TX hash: %s\nWaiting for confirmation....", txHash)
 		start := int(C.Behavior.ConfirmationWaitTime)
 		for {
 			// GETTX by ID
-			_ = txHash
-			// Add receipt
-			// if ok return
+			if txi, err := C.client.GetTransactionInfoByID(txHash); err == nil {
+				// Add receipt
+				C.Receipt = txi
+				return
+			}
 			if start < 0 {
 				C.executionError = fmt.Errorf("could not confirm transaction after %d seconds", C.Behavior.ConfirmationWaitTime)
 				return
@@ -178,36 +180,8 @@ func (C *Controller) sendSignedTx() {
 		C.executionError = err
 		return
 	}
-	C.Receipt = result
-}
-
-/*
-func SignTransaction(transaction *core.Transaction, key *ecdsa.PrivateKey) {
-	transaction.GetRawData().Timestamp = time.Now().UnixNano() / 1000000
-
-	rawData, err := proto.Marshal(transaction.GetRawData())
-
-	if err != nil {
-		log.Fatalf("sign transaction error: %v", err)
+	if result.Code != 0 {
+		C.executionError = fmt.Errorf("bad transaction: %v", string(result.GetMessage()))
 	}
-
-	h256h := sha256.New()
-	h256h.Write(rawData)
-	hash := h256h.Sum(nil)
-
-	contractList := transaction.GetRawData().GetContract()
-
-	for range contractList {
-		//TODO:
-		_ = hash
-		/*signature, err := crypto.Sign(hash, key)
-
-		if err != nil {
-			log.Fatalf("sign transaction error: %v", err)
-		}
-
-		transaction.Signature = append(transaction.Signature, signature)
-
-	}
+	C.Result = result
 }
-*/
