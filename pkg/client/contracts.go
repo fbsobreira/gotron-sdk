@@ -20,6 +20,23 @@ func (g *GrpcClient) TriggerConstantContract(ct *core.TriggerSmartContract) (*ap
 	return g.Client.TriggerConstantContract(ctx, ct)
 }
 
+// TriggerContract and return tx result
+func (g *GrpcClient) TriggerContract(ct *core.TriggerSmartContract, feeLimit int64) (*api.TransactionExtention, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	tx, err := g.Client.TriggerContract(ctx, ct)
+	if err != nil {
+		return nil, err
+	}
+	if feeLimit > 0 {
+		tx.Transaction.RawData.FeeLimit = feeLimit
+		// update hash
+		g.UpdateHash(tx)
+	}
+	return tx, err
+}
+
 // DeployContract and return tx result
 func (g *GrpcClient) DeployContract(from, contractName string,
 	abi *core.SmartContract_ABI, codeStr string,
