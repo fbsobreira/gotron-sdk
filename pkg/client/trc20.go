@@ -170,6 +170,5 @@ func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLi
 	ab := common.LeftPadBytes(amount.Bytes(), 32)
 	req := trc20TransferMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
-	fmt.Printf("Req: %s", req)
 	return g.TRC20Call(from, contract, req, false, feeLimit)
 }

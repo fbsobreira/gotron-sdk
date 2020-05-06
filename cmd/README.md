@@ -18,8 +18,8 @@
   - [x] send
 
 - [ ] trc20
-  - [ ] send
-  - [ ] balance
+  - [x] send
+  - [x] balance
   - [ ] allow
   - [ ] sendfrom
 

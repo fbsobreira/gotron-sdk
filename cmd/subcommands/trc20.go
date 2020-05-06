@@ -41,8 +41,7 @@ func trc20Sub() []*cobra.Command {
 				tokenDecimals = big.NewInt(0)
 			}
 
-			value = decimals.ApplyDecimals(value, tokenDecimals.Int64())
-			amount, _ := value.Int(nil)
+			amount, _ := decimals.ApplyDecimals(value, tokenDecimals.Int64())
 			tx, err := conn.TRC20Send(signerAddress.String(), addr.String(), contract.String(), amount, feeLimit)
 			if err != nil {
 				return err
@@ -93,7 +92,46 @@ func trc20Sub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdSend}
+	cmdBalance := &cobra.Command{
+		Use:     "balance <ADDRESS_TO> <CONTRACT_ADDRESS> ",
+		Short:   "get TRC20 balance from contract",
+		Args:    cobra.ExactArgs(2),
+		PreRunE: validateAddress,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// get contract address
+			contract, err := findAddress(args[1])
+			if err != nil {
+				return err
+			}
+
+			// get contract decimals if any
+			tokenDecimals, err := conn.TRC20GetDecimals(contract.String())
+			if err != nil {
+				tokenDecimals = big.NewInt(0)
+			}
+
+			value, err := conn.TRC20ContractBalance(addr.String(), contract.String())
+			if err != nil {
+				return err
+			}
+
+			amount := decimals.RemoveDecimals(value, tokenDecimals.Int64())
+
+			if noPrettyOutput {
+				fmt.Println(amount.String())
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["balance"] = amount.String()
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdSend, cmdBalance}
 }
 
 func init() {
