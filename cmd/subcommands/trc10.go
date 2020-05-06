@@ -18,7 +18,7 @@ import (
 
 var (
 	issueStartDate string
-	issueDuration  time.Duration
+	issueDuration  uint32
 	issueFrozen    []string
 	issueDecimals  int32
 )
@@ -96,8 +96,8 @@ func trc10Sub() []*cobra.Command {
 				args[3], // URL
 				issueDecimals,
 				totalSupply,
-				t.UTC().UnixNano(),
-				t.Add(time.Hour*issueDuration*24).UTC().UnixNano(),
+				t.UTC().Unix()*1000,
+				t.Add(time.Duration(issueDuration)*time.Hour*24).UTC().Unix()*1000,
 				0, 0, //AssetLimit
 				int32(trxNum),
 				int32(tokenNum),
@@ -145,7 +145,7 @@ func trc10Sub() []*cobra.Command {
 	}
 	// Asset issue extras
 	cmdIssue.Flags().StringVar(&issueStartDate, "start", time.Now().Add(10*time.Minute).String(), "start time")
-	cmdIssue.Flags().DurationVarP(&issueDuration, "duration", "d", 1, "ico duration in days")
+	cmdIssue.Flags().Uint32VarP(&issueDuration, "duration", "d", 1, "ico duration in days")
 	cmdIssue.Flags().StringSliceVarP(&issueFrozen, "frozen", "0", []string{}, "frozen supply day1:amount1,day2:amount2")
 	cmdIssue.Flags().Int32VarP(&issueDecimals, "decimals", "p", 0, "decimals precision (max 6)")
 
