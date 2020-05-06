@@ -15,7 +15,7 @@
   - [ ] byowner
   - [ ] byname
   - [ ] list
-  - [ ] send
+  - [x] send
 
 - [ ] trc20
   - [ ] send

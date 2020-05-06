@@ -149,7 +149,90 @@ func trc10Sub() []*cobra.Command {
 	cmdIssue.Flags().StringSliceVarP(&issueFrozen, "frozen", "0", []string{}, "frozen supply day1:amount1,day2:amount2")
 	cmdIssue.Flags().Int32VarP(&issueDecimals, "decimals", "p", 0, "decimals precision (max 6)")
 
-	return []*cobra.Command{cmdIssue}
+	cmdSend := &cobra.Command{
+		Use:     "send <ADDRESS_TO> <AMOUNT> <TOKEN_ID or TOKEN_NAME> ",
+		Short:   "send TOKEN to an address",
+		Args:    cobra.ExactArgs(3),
+		PreRunE: validateAddress,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			// get amount
+			value, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return err
+			}
+
+			// Get asset information
+			// check if possible id
+			tokenID := ""
+			tokenDecimals := int32(0)
+			if _, err := strconv.Atoi(args[2]); err == nil {
+				if asset, err := conn.GetAssetIssueByID(args[2]); err == nil {
+					if asset.Id == args[2] {
+						tokenID = args[2]
+						tokenDecimals = asset.Precision
+					}
+				} else {
+					return fmt.Errorf("TRC10 not found: %s", args[3])
+				}
+			}
+			if len(tokenID) == 0 {
+				// try by name
+				if asset, err := conn.GetAssetIssueByName(args[2]); err == nil {
+					if string(asset.Name) == args[2] {
+						tokenID = asset.Id
+						tokenDecimals = asset.Precision
+					}
+				} else {
+					return fmt.Errorf("TRC10 not found: %s", args[3])
+				}
+			}
+
+			value = value * math.Pow10(int(tokenDecimals))
+			tx, err := conn.TransferAsset(signerAddress.String(), addr.String(), tokenID, int64(value))
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(0); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdIssue, cmdSend}
 }
 
 func init() {
