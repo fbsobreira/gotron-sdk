@@ -81,14 +81,23 @@ func trc10Sub() []*cobra.Command {
 				if len(frozenSupply[frozenSupplyKeyValue[0]]) > 0 {
 					return fmt.Errorf("frozen supply date colision %s:%s -> %s", frozenSupplyKeyValue[0], frozenSupply[frozenSupplyKeyValue[0]], value)
 				}
-				frozenSupply[frozenSupplyKeyValue[0]] = frozenSupplyKeyValue[1]
+				// update frozen supply with decimals
+				fSupply := ""
+				if s, err := strconv.ParseFloat(frozenSupplyKeyValue[1], 64); err == nil {
+					s *= math.Pow10(int(issueDecimals))
+					fSupply = strconv.FormatInt(int64(s), 10)
+				} else {
+					return fmt.Errorf("invalid frozen supply: %s", value)
+				}
+				frozenSupply[frozenSupplyKeyValue[0]] = fSupply
 			}
 
 			totalSupply, err := strconv.ParseInt(args[4], 10, 64)
 			if err != nil {
 				return err
 			}
-
+			// update total supply with decimals
+			totalSupply = int64(float64(totalSupply) * math.Pow10(int(issueDecimals)))
 			tx, err := conn.AssetIssue(signerAddress.String(),
 				args[0], // Name
 				args[1], // Description
