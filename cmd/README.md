@@ -6,6 +6,7 @@
   - [x] send
   - [x] address
   - [ ] freeze
+  - [ ] withdraw
  
 
 - [ ] trc10
