@@ -24,13 +24,14 @@
   - [ ] sendfrom
 
 - [ ] contract
+  - [x] deploy
   - [ ] constant
-  - [ ] send
+  - [ ] trigger
 
 - [ ] bc
   - [ ] mt
   - [ ] block
-    - [ ] now
+    - [ ] last
     - [ ] byid
     - [ ] byhash
   - [ ] tx
