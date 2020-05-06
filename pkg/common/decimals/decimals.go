@@ -72,6 +72,10 @@ func FromString(x string) (*big.Float, bool) {
 	return Zero().SetString(x)
 }
 
-func ApplyDecimals(x *big.Float, y int64) *big.Float {
-	return Mul(x, Pow(NewFloat(10), y))
+func ApplyDecimals(x *big.Float, y int64) (*big.Int, big.Accuracy) {
+	return Mul(x, Pow(NewFloat(10), y)).Int(nil)
+}
+
+func RemoveDecimals(x *big.Int, y int64) *big.Float {
+	return Div(new(big.Float).SetInt(x), Pow(NewFloat(10), y))
 }
