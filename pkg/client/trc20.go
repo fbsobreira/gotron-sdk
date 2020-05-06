@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	trc20TransferMtrxodSignature = "0xa9059cbb"
+	trc20TransferMethodSignature = "0xa9059cbb"
 	trc20TransferEventSignature  = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 	trc20NameSignature           = "0x06fdde03"
 	trc20SymbolSignature         = "0x95d89b41"
@@ -23,7 +23,7 @@ const (
 )
 
 // TRC20Call make cosntant calll
-func (g *GrpcClient) TRC20Call(from, contractAddress, data string) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool, feeLimit int64) (*api.TransactionExtention, error) {
 	var err error
 	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
 	if len(from) > 0 {
@@ -45,13 +45,16 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string) (*api.Transac
 		ContractAddress: contractDesc.Bytes(),
 		Data:            dataBytes,
 	}
-
-	return g.TriggerConstantContract(ct)
+	if constant {
+		return g.TriggerConstantContract(ct)
+	} else {
+		return g.TriggerContract(ct, feeLimit)
+	}
 }
 
 // TRC20GetName get token name
 func (g *GrpcClient) TRC20GetName(contractAddress string) (string, error) {
-	result, err := g.TRC20Call("", contractAddress, trc20NameSignature)
+	result, err := g.TRC20Call("", contractAddress, trc20NameSignature, true, 0)
 	if err != nil {
 		return "", err
 	}
@@ -61,7 +64,7 @@ func (g *GrpcClient) TRC20GetName(contractAddress string) (string, error) {
 
 // TRC20GetSymbol get contract symbol
 func (g *GrpcClient) TRC20GetSymbol(contractAddress string) (string, error) {
-	result, err := g.TRC20Call("", contractAddress, trc20SymbolSignature)
+	result, err := g.TRC20Call("", contractAddress, trc20SymbolSignature, true, 0)
 	if err != nil {
 		return "", err
 	}
@@ -71,7 +74,7 @@ func (g *GrpcClient) TRC20GetSymbol(contractAddress string) (string, error) {
 
 // TRC20GetDecimals get contract decimals
 func (g *GrpcClient) TRC20GetDecimals(contractAddress string) (*big.Int, error) {
-	result, err := g.TRC20Call("", contractAddress, trc20DecimalsSignature)
+	result, err := g.TRC20Call("", contractAddress, trc20DecimalsSignature, true, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +136,7 @@ func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.In
 		return nil, fmt.Errorf("invalid address %s: %v", addr, addr)
 	}
 	req := trc20BalanceOf + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-2:] + addrB.Hex()[2:]
-	result, err := g.TRC20Call("", contractAddress, req)
+	result, err := g.TRC20Call("", contractAddress, req, true, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -146,4 +149,17 @@ func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.In
 		return nil, fmt.Errorf("contract address %s: invalid balance of %s", contractAddress, addr)
 	}
 	return r, nil
+}
+
+// TRC20Send send toke to address
+func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+	addrB, err := address.Base58ToAddress(to)
+	if err != nil {
+		return nil, err
+	}
+	ab := common.LeftPadBytes(amount.Bytes(), 32)
+	req := trc20TransferMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
+	req += common.Bytes2Hex(ab)
+	fmt.Printf("Req: %s", req)
+	return g.TRC20Call(from, contract, req, false, feeLimit)
 }
