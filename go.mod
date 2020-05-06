@@ -9,6 +9,7 @@ require (
 	github.com/deckarep/golang-set v1.7.1
 	github.com/ethereum/go-ethereum v1.9.13
 	github.com/fatih/color v1.9.0
+	github.com/gogo/protobuf v1.3.1
 	github.com/golang/protobuf v1.4.0
 	github.com/karalabe/hid v1.0.0
 	github.com/mitchellh/go-homedir v1.1.0

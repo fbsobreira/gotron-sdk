@@ -72,7 +72,7 @@ func accountSub() []*cobra.Command {
 				}
 				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
 			}
-			if err = ctrlr.ExecuteTransaction(0); err != nil {
+			if err = ctrlr.ExecuteTransaction(); err != nil {
 				return err
 			}
 
@@ -128,7 +128,7 @@ func accountSub() []*cobra.Command {
 				}
 				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
 			}
-			if err = ctrlr.ExecuteTransaction(0); err != nil {
+			if err = ctrlr.ExecuteTransaction(); err != nil {
 				return err
 			}
 

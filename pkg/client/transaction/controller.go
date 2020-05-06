@@ -29,6 +29,7 @@ type sender struct {
 // Controller drives the transaction signing process
 type Controller struct {
 	executionError error
+	resultError    error
 	client         *client.GrpcClient
 	tx             *core.Transaction
 	sender         sender
@@ -54,6 +55,7 @@ func NewController(
 
 	ctrlr := &Controller{
 		executionError: nil,
+		resultError:    nil,
 		client:         client,
 		sender: sender{
 			ks:      senderKs,
@@ -134,6 +136,10 @@ func (C *Controller) txConfirmation() {
 		for {
 			// GETTX by ID
 			if txi, err := C.client.GetTransactionInfoByID(txHash); err == nil {
+				// check receipt
+				if txi.Result != 0 {
+					C.resultError = fmt.Errorf("%s", txi.ResMessage)
+				}
 				// Add receipt
 				C.Receipt = txi
 				return
@@ -149,12 +155,15 @@ func (C *Controller) txConfirmation() {
 
 }
 
+// GetResultError return result error
+func (C *Controller) GetResultError() error {
+	return C.resultError
+}
+
 // ExecuteTransaction is the single entrypoint to execute a plain transaction.
 // Each step in transaction creation, execution probably includes a mutation
 // Each becomes a no-op if executionError occurred in any previous step
-func (C *Controller) ExecuteTransaction(
-	limitFee uint64,
-) error {
+func (C *Controller) ExecuteTransaction() error {
 	switch C.Behavior.SigningImpl {
 	case Software:
 		C.signTxForSending()
