@@ -45,11 +45,21 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool
 		ContractAddress: contractDesc.Bytes(),
 		Data:            dataBytes,
 	}
+	result := &api.TransactionExtention{}
 	if constant {
-		return g.TriggerConstantContract(ct)
+		result, err = g.TriggerConstantContract(ct)
+
 	} else {
-		return g.TriggerContract(ct, feeLimit)
+		result, err = g.TriggerContract(ct, feeLimit)
 	}
+	if err != nil {
+		return nil, err
+	}
+	if result.Result.Code > 0 {
+		return result, fmt.Errorf(string(result.Result.Message))
+	}
+	return result, nil
+
 }
 
 // TRC20GetName get token name
