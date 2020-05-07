@@ -67,13 +67,13 @@ func trc20Sub() []*cobra.Command {
 				return nil
 			}
 
-			addrResult := address.Address(ctrlr.Receipt.ContractAddress)
+			addrResult := address.Address(ctrlr.Receipt.ContractAddress).String()
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
-			result["contractAddress"] = addrResult.String()
+			result["contractAddress"] = addrResult
 			result["success"] = ctrlr.GetResultError() == nil
 			result["resMessage"] = string(ctrlr.Receipt.ResMessage)
 			result["receipt"] = map[string]interface{}{

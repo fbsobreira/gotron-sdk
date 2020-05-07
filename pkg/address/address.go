@@ -1,6 +1,7 @@
 package address
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"math/big"
 
@@ -34,7 +35,11 @@ func (a Address) Hex() string {
 
 // BigToAddress returns Address with byte values of b.
 // If b is larger than len(h), b will be cropped from the left.
-func BigToAddress(b *big.Int) Address { return b.Bytes() }
+func BigToAddress(b *big.Int) Address {
+	id := b.Bytes()
+	base := bytes.Repeat([]byte{0}, AddressLength-len(id))
+	return append(base, id...)
+}
 
 // HexToAddress returns Address with byte values of s.
 // If s is larger than len(h), s will be cropped from the left.
@@ -57,7 +62,7 @@ func Base58ToAddress(s string) (Address, error) {
 
 // String implements fmt.Stringer.
 func (a Address) String() string {
-	if a[0] != TronBytePrefix {
+	if a[0] == 0 {
 		return new(big.Int).SetBytes(a.Bytes()).String()
 	}
 	return common.EncodeCheck(a.Bytes())
