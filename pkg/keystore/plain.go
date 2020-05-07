@@ -17,6 +17,7 @@
 package keystore
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -39,7 +40,7 @@ func (ks keyStorePlain) GetKey(addr address.Address, filename, auth string) (*Ke
 	if err := json.NewDecoder(fd).Decode(key); err != nil {
 		return nil, err
 	}
-	if key.Address != addr {
+	if !bytes.Equal(key.Address, addr) {
 		return nil, fmt.Errorf("key content mismatch: have address %x, want %x", key.Address, addr)
 	}
 	return key, nil

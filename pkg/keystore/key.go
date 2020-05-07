@@ -124,7 +124,7 @@ func (k *Key) UnmarshalJSON(j []byte) (err error) {
 		return err
 	}
 
-	k.Address = address.BytesToAddress(addr)
+	k.Address = addr
 	k.PrivateKey = privkey
 
 	return nil

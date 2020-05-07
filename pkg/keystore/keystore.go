@@ -21,6 +21,7 @@
 package keystore
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	crand "crypto/rand"
 	"crypto/sha256"
@@ -58,10 +59,10 @@ const walletRefreshCycle = 3 * time.Second
 
 // KeyStore manages a key storage directory on disk.
 type KeyStore struct {
-	storage  keyStore                      // Storage backend, might be cleartext or encrypted
-	cache    *accountCache                 // In-memory account cache over the filesystem storage
-	changes  chan struct{}                 // Channel receiving change notifications from the cache
-	unlocked map[address.Address]*unlocked // Currently unlocked account (decrypted private keys)
+	storage  keyStore             // Storage backend, might be cleartext or encrypted
+	cache    *accountCache        // In-memory account cache over the filesystem storage
+	changes  chan struct{}        // Channel receiving change notifications from the cache
+	unlocked map[string]*unlocked // Currently unlocked account (decrypted private keys)
 
 	wallets     []Wallet                // Wallet wrappers around the individual key files
 	updateFeed  event.Feed              // Event feed to notify wallet additions/removals
@@ -90,7 +91,7 @@ func (ks *KeyStore) init(keydir string) {
 	defer ks.mu.Unlock()
 
 	// Initialize the set of unlocked keys and the account cache
-	ks.unlocked = make(map[address.Address]*unlocked)
+	ks.unlocked = make(map[string]*unlocked)
 	ks.cache, ks.changes = newAccountCache(keydir)
 
 	// TODO: In order for this finalizer to work, there must be no references
@@ -150,7 +151,8 @@ func (ks *KeyStore) refreshWallets() {
 			continue
 		}
 		// If the account is the same as the first wallet, keep it
-		if ks.wallets[0].Accounts()[0] == account {
+		if ks.wallets[0].Accounts()[0].URL == account.URL &&
+			bytes.Equal(ks.wallets[0].Accounts()[0].Address, account.Address) {
 			wallets = append(wallets, ks.wallets[0])
 			ks.wallets = ks.wallets[1:]
 			continue
@@ -254,7 +256,7 @@ func (ks *KeyStore) SignHash(a Account, hash []byte) ([]byte, error) {
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 
-	unlockedKey, found := ks.unlocked[a.Address]
+	unlockedKey, found := ks.unlocked[a.Address.String()]
 	if !found {
 		return nil, ErrLocked
 	}
@@ -268,7 +270,7 @@ func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, 
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
 
-	unlockedKey, found := ks.unlocked[a.Address]
+	unlockedKey, found := ks.unlocked[a.Address.String()]
 	if !found {
 		return nil, ErrLocked
 	}
@@ -336,7 +338,7 @@ func (ks *KeyStore) Unlock(a Account, passphrase string) error {
 // Lock removes the private key with the given address from memory.
 func (ks *KeyStore) Lock(addr address.Address) error {
 	ks.mu.Lock()
-	if unl, found := ks.unlocked[addr]; found {
+	if unl, found := ks.unlocked[addr.String()]; found {
 		ks.mu.Unlock()
 		ks.expire(addr, unl, time.Duration(0)*time.Nanosecond)
 	} else {
@@ -360,7 +362,7 @@ func (ks *KeyStore) TimedUnlock(a Account, passphrase string, timeout time.Durat
 
 	ks.mu.Lock()
 	defer ks.mu.Unlock()
-	u, found := ks.unlocked[a.Address]
+	u, found := ks.unlocked[a.Address.String()]
 	if found {
 		if u.abort == nil {
 			// The address was unlocked indefinitely, so unlocking
@@ -377,7 +379,7 @@ func (ks *KeyStore) TimedUnlock(a Account, passphrase string, timeout time.Durat
 	} else {
 		u = &unlocked{Key: key}
 	}
-	ks.unlocked[a.Address] = u
+	ks.unlocked[a.Address.String()] = u
 	return nil
 }
 
@@ -412,9 +414,9 @@ func (ks *KeyStore) expire(addr address.Address, u *unlocked, timeout time.Durat
 		// was launched with. we can check that using pointer equality
 		// because the map stores a new pointer every time the key is
 		// unlocked.
-		if ks.unlocked[addr] == u {
+		if ks.unlocked[addr.String()] == u {
 			zeroKey(u.PrivateKey)
-			delete(ks.unlocked, addr)
+			delete(ks.unlocked, addr.String())
 		}
 		ks.mu.Unlock()
 	}

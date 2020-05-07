@@ -17,6 +17,8 @@
 package keystore
 
 import (
+	"bytes"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
@@ -39,7 +41,7 @@ func (w *keystoreWallet) Status() (string, error) {
 	w.keystore.mu.RLock()
 	defer w.keystore.mu.RUnlock()
 
-	if _, ok := w.keystore.unlocked[w.account.Address]; ok {
+	if _, ok := w.keystore.unlocked[w.account.Address.String()]; ok {
 		return "Unlocked", nil
 	}
 	return "Locked", nil
@@ -62,7 +64,7 @@ func (w *keystoreWallet) Accounts() []Account {
 // Contains implements Wallet, returning whether a particular account is
 // or is not wrapped by this wallet instance.
 func (w *keystoreWallet) Contains(account Account) bool {
-	return account.Address == w.account.Address && (account.URL == (URL{}) || account.URL == w.account.URL)
+	return bytes.Equal(account.Address, w.account.Address) && (account.URL == (URL{}) || account.URL == w.account.URL)
 }
 
 // Derive implements Wallet, but is a noop for plain wallets since there

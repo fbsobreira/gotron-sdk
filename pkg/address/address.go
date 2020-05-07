@@ -20,7 +20,7 @@ const (
 )
 
 // Address represents the 21 byte address of an Tron account.
-type Address [AddressLength]byte
+type Address []byte
 
 // Bytes get bytes from address
 func (a Address) Bytes() []byte {
@@ -32,46 +32,34 @@ func (a Address) Hex() string {
 	return common.ToHex(a[:])
 }
 
-// SetBytes to address
-func (a *Address) SetBytes(b []byte) {
-	if len(b) > len(a) {
-		b = b[len(b)-AddressLength:]
-	}
-	copy(a[AddressLength-len(b):], b)
-}
-
-// BytesToAddress new address from bytes
-func BytesToAddress(b []byte) Address {
-	var a Address
-	a.SetBytes(b)
-	return a
-}
-
 // BigToAddress returns Address with byte values of b.
 // If b is larger than len(h), b will be cropped from the left.
-func BigToAddress(b *big.Int) Address { return BytesToAddress(b.Bytes()) }
+func BigToAddress(b *big.Int) Address { return b.Bytes() }
 
 // HexToAddress returns Address with byte values of s.
 // If s is larger than len(h), s will be cropped from the left.
 func HexToAddress(s string) Address {
 	addr, err := common.FromHex(s)
 	if err != nil {
-		return Address{}
+		return nil
 	}
-	return BytesToAddress(addr)
+	return addr
 }
 
 // Base58ToAddress returns Address with byte values of s.
 func Base58ToAddress(s string) (Address, error) {
 	addr, err := common.DecodeCheck(s)
 	if err != nil {
-		return Address{}, err
+		return nil, err
 	}
-	return BytesToAddress(addr), nil
+	return addr, nil
 }
 
 // String implements fmt.Stringer.
 func (a Address) String() string {
+	if a[0] != TronBytePrefix {
+		return new(big.Int).SetBytes(a.Bytes()).String()
+	}
 	return common.EncodeCheck(a.Bytes())
 }
 
@@ -79,19 +67,8 @@ func (a Address) String() string {
 func PubkeyToAddress(p ecdsa.PublicKey) Address {
 	address := crypto.PubkeyToAddress(p)
 
-	addressTron := make([]byte, AddressLength)
+	addressTron := make([]byte, 0)
 	addressTron = append(addressTron, TronBytePrefix)
 	addressTron = append(addressTron, address.Bytes()...)
-
-	return BytesToAddress(addressTron)
-}
-
-// IsZeroAddress check if all bytes are zero
-func (a Address) IsZeroAddress() bool {
-	for _, v := range a {
-		if v != 0 {
-			return false
-		}
-	}
-	return true
+	return addressTron
 }

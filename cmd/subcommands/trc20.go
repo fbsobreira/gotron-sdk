@@ -67,7 +67,7 @@ func trc20Sub() []*cobra.Command {
 				return nil
 			}
 
-			addrResult := address.BytesToAddress(ctrlr.Receipt.ContractAddress)
+			addrResult := address.Address(ctrlr.Receipt.ContractAddress)
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())

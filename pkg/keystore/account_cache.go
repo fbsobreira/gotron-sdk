@@ -18,6 +18,7 @@ package keystore
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -67,7 +68,7 @@ type accountCache struct {
 	watcher  *watcher
 	mu       sync.Mutex
 	all      accountsByURL
-	byAddr   map[address.Address][]Account
+	byAddr   map[string][]Account
 	throttle *time.Timer
 	notify   chan struct{}
 	fileC    fileCache
@@ -76,7 +77,7 @@ type accountCache struct {
 func newAccountCache(keydir string) (*accountCache, chan struct{}) {
 	ac := &accountCache{
 		keydir: keydir,
-		byAddr: make(map[address.Address][]Account),
+		byAddr: make(map[string][]Account),
 		notify: make(chan struct{}, 1),
 		fileC:  fileCache{all: mapset.NewThreadUnsafeSet()},
 	}
@@ -97,7 +98,7 @@ func (ac *accountCache) hasAddress(addr address.Address) bool {
 	ac.maybeReload()
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	return len(ac.byAddr[addr]) > 0
+	return len(ac.byAddr[addr.String()]) > 0
 }
 
 func (ac *accountCache) add(newAccount Account) {
@@ -105,14 +106,16 @@ func (ac *accountCache) add(newAccount Account) {
 	defer ac.mu.Unlock()
 
 	i := sort.Search(len(ac.all), func(i int) bool { return ac.all[i].URL.Cmp(newAccount.URL) >= 0 })
-	if i < len(ac.all) && ac.all[i] == newAccount {
+	if i < len(ac.all) &&
+		ac.all[i].URL == newAccount.URL &&
+		bytes.Equal(ac.all[i].Address, newAccount.Address) {
 		return
 	}
 	// newAccount is not in the cache.
 	ac.all = append(ac.all, Account{})
 	copy(ac.all[i+1:], ac.all[i:])
 	ac.all[i] = newAccount
-	ac.byAddr[newAccount.Address] = append(ac.byAddr[newAccount.Address], newAccount)
+	ac.byAddr[newAccount.Address.String()] = append(ac.byAddr[newAccount.Address.String()], newAccount)
 }
 
 // note: removed needs to be unique here (i.e. both File and Address must be set).
@@ -121,10 +124,10 @@ func (ac *accountCache) delete(removed Account) {
 	defer ac.mu.Unlock()
 
 	ac.all = removeAccount(ac.all, removed)
-	if ba := removeAccount(ac.byAddr[removed.Address], removed); len(ba) == 0 {
-		delete(ac.byAddr, removed.Address)
+	if ba := removeAccount(ac.byAddr[removed.Address.String()], removed); len(ba) == 0 {
+		delete(ac.byAddr, removed.Address.String())
 	} else {
-		ac.byAddr[removed.Address] = ba
+		ac.byAddr[removed.Address.String()] = ba
 	}
 }
 
@@ -137,17 +140,17 @@ func (ac *accountCache) deleteByFile(path string) {
 	if i < len(ac.all) && ac.all[i].URL.Path == path {
 		removed := ac.all[i]
 		ac.all = append(ac.all[:i], ac.all[i+1:]...)
-		if ba := removeAccount(ac.byAddr[removed.Address], removed); len(ba) == 0 {
-			delete(ac.byAddr, removed.Address)
+		if ba := removeAccount(ac.byAddr[removed.Address.String()], removed); len(ba) == 0 {
+			delete(ac.byAddr, removed.Address.String())
 		} else {
-			ac.byAddr[removed.Address] = ba
+			ac.byAddr[removed.Address.String()] = ba
 		}
 	}
 }
 
 func removeAccount(slice []Account, elem Account) []Account {
 	for i := range slice {
-		if slice[i] == elem {
+		if slice[i].URL == elem.URL && bytes.Equal(slice[i].Address, elem.Address) {
 			return append(slice[:i], slice[i+1:]...)
 		}
 	}
@@ -160,8 +163,8 @@ func removeAccount(slice []Account, elem Account) []Account {
 func (ac *accountCache) find(a Account) (Account, error) {
 	// Limit search to address candidates if possible.
 	matches := ac.all
-	if (a.Address != address.Address{}) {
-		matches = ac.byAddr[a.Address]
+	if a.Address != nil {
+		matches = ac.byAddr[a.Address.String()]
 	}
 	if a.URL.Path != "" {
 		// If only the basename is specified, complete the path.
@@ -173,7 +176,7 @@ func (ac *accountCache) find(a Account) (Account, error) {
 				return matches[i], nil
 			}
 		}
-		if (a.Address == address.Address{}) {
+		if a.Address == nil {
 			return Account{}, ErrNoMatch
 		}
 	}
@@ -263,9 +266,9 @@ func (ac *accountCache) scanAccounts() error {
 
 		switch {
 		case err != nil:
-			zap.L().Error("Failed to decode keystore key", zap.String("path", path), zap.Error(err))
-		case (addr == address.Address{}):
-			zap.L().Error("Failed to decode keystore key, missing or zero address", zap.String("path", path), zap.Error(err))
+			fmt.Printf("Failed to decode keystore key: [%s] %+v", path, err)
+		case (addr == nil):
+			fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, err)
 		default:
 			return &Account{
 				Address: addr,

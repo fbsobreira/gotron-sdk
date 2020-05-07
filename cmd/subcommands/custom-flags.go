@@ -25,7 +25,7 @@ func (tronAddress *tronAddress) Set(s string) error {
 func (tronAddress *tronAddress) GetAddress() address.Address {
 	addr, err := address.Base58ToAddress(tronAddress.address)
 	if err != nil {
-		return address.Address{}
+		return nil
 	}
 	return addr
 }
