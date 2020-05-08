@@ -16,6 +16,8 @@
   - [x] list
   - [ ] details
   - [ ] create
+  - [ ] update sr
+  - [ ] update brokerage
   - [ ] proposal
     - [ ] create
     - [ ] vote proposal
@@ -28,6 +30,7 @@
   - [ ] byname
   - [ ] list
   - [x] send
+  - [ ] update info
 
 - [ ] trc20
   - [x] send
