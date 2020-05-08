@@ -44,9 +44,8 @@ func accountSub() []*cobra.Command {
 			result := make(map[string]interface{})
 			result["address"] = addr.String()
 			result["type"] = acc.GetType()
-			result["name"] = acc.GetAccountName()
 			result["balance"] = float64(acc.GetBalance()) / 1000000
-			result["allowance"] = float64(acc.Allowance) / 1000000
+			result["allowance"] = float64(acc.GetAllowance()) / 1000000
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
@@ -195,53 +194,23 @@ func accountSub() []*cobra.Command {
 		},
 	}
 
-	cmdResources := &cobra.Command{
-		Use:     "resources <ACCOUNT_NAME>",
+	cmdInfo := &cobra.Command{
+		Use:     "info <ACCOUNT_NAME>",
 		Short:   "Check account resources",
 		Args:    cobra.ExactArgs(1),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ar, err := conn.GetAccountResource(addr.String())
-			if err != nil {
-				return err
-			}
-			ard, err := conn.GetDelegatedResources(addr.String())
+			acc, err := conn.GetAccountDetailed(addr.String())
 			if err != nil {
 				return err
 			}
 
 			if noPrettyOutput {
-				fmt.Println(ar, ard)
+				fmt.Println(acc)
 				return nil
 			}
 
-			result := make(map[string]interface{})
-			result["address"] = addr.String()
-			result["freeNetLimit"] = ar.GetFreeNetLimit()
-			result["netLimit"] = ar.GetNetLimit()
-			result["totalNetLimit"] = ar.GetTotalNetLimit()
-			result["totalNetWeight"] = ar.GetTotalNetWeight()
-			result["energyLimit"] = ar.GetEnergyLimit()
-			result["totalEnergyLimit"] = ar.GetTotalEnergyLimit()
-			result["totalEnergyWeight"] = ar.GetTotalEnergyWeight()
-			//TODO: add tron power
-
-			delegated := make([]map[string]interface{}, 0)
-			for _, d := range ard {
-				for _, r := range d.DelegatedResource {
-					data := make(map[string]interface{})
-					data["from"] = address.Address(r.GetFrom()).String()
-					data["to"] = address.Address(r.GetTo()).String()
-					data["bw"] = float64(r.GetFrozenBalanceForBandwidth()) / 1000000
-					data["energy"] = float64(r.GetFrozenBalanceForEnergy()) / 1000000
-					data["bwExpire"] = r.GetExpireTimeForBandwidth()
-					data["energyExpire"] = r.GetExpireTimeForEnergy()
-					delegated = append(delegated, data)
-				}
-			}
-			result["delegated"] = delegated
-
-			asJSON, _ := json.Marshal(result)
+			asJSON, _ := json.Marshal(acc)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
 		},
@@ -458,7 +427,7 @@ func accountSub() []*cobra.Command {
 	}
 	cmdVote.Flags().StringSliceVar(&voteList, "wv", []string{}, "witness1:vote1,witness2:vote2")
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources, cmdWithdraw, cmdFreeze, cmdVote}
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote}
 }
 
 func init() {
