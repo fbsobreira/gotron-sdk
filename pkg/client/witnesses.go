@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"strconv"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -73,7 +72,7 @@ func (g *GrpcClient) UpdateWitness(from, urlStr string) (*api.TransactionExtenti
 
 // VoteWitnessAccount change account vote
 func (g *GrpcClient) VoteWitnessAccount(from string,
-	witnessMap map[string]string) (*api.TransactionExtention, error) {
+	witnessMap map[string]int64) (*api.TransactionExtention, error) {
 	var err error
 
 	contract := &core.VoteWitnessContract{}
@@ -82,17 +81,13 @@ func (g *GrpcClient) VoteWitnessAccount(from string,
 	}
 
 	for key, value := range witnessMap {
-
 		if witnessAddress, err := common.DecodeCheck(key); err == nil {
-			if voteCount, err := strconv.ParseInt(value, 64, 10); err == nil {
-				vote := &core.VoteWitnessContract_Vote{
-					VoteAddress: witnessAddress,
-					VoteCount:   voteCount,
-				}
-				contract.Votes = append(contract.Votes, vote)
-			} else {
-				return nil, err
+			vote := &core.VoteWitnessContract_Vote{
+				VoteAddress: witnessAddress,
+				VoteCount:   value,
 			}
+			contract.Votes = append(contract.Votes, vote)
+
 		} else {
 			return nil, err
 		}
@@ -112,4 +107,21 @@ func (g *GrpcClient) VoteWitnessAccount(from string,
 		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
 	}
 	return tx, nil
+}
+
+// GetWitnessBrokerage from witness address
+func (g *GrpcClient) GetWitnessBrokerage(witness string) (float64, error) {
+	addr, err := common.DecodeCheck(witness)
+	if err != nil {
+		return 0, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	result, err := g.Client.GetBrokerageInfo(ctx, GetMessageBytes(addr))
+	if err != nil {
+		return 0, err
+	}
+	return float64(result.Num), nil
 }
