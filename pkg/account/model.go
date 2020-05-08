@@ -14,19 +14,19 @@ type FrozenResource struct {
 
 // Account detailed view
 type Account struct {
-	Address         string
-	Name            string
-	ID              string
-	Balance         int64
-	Allowance       int64
-	Assets          map[string]int64
-	TronPower       int64
-	TronPowerUsed   int64
-	FrozenBalance   int64
-	FrozenResources []FrozenResource
-	Votes           map[string]int64
-	BWTotal         int64
-	BWUsed          int64
-	EnergyTotal     int64
-	EnergyUsed      int64
+	Address         string           `json:"address"`
+	Name            string           `json:"name"`
+	ID              string           `json:"id"`
+	Balance         int64            `json:"balance"`
+	Allowance       int64            `json:"allowance"`
+	Assets          map[string]int64 `json:"assetList"`
+	TronPower       int64            `json:"tronPower"`
+	TronPowerUsed   int64            `json:"tronPowerUsed"`
+	FrozenBalance   int64            `json:"frozenBalance"`
+	FrozenResources []FrozenResource `json:"frozenList"`
+	Votes           map[string]int64 `json:"voteList"`
+	BWTotal         int64            `json:"bandwidthTotal"`
+	BWUsed          int64            `json:"bandwidthUsed"`
+	EnergyTotal     int64            `json:"energyTotal"`
+	EnergyUsed      int64            `json:"energyUsed"`
 }
