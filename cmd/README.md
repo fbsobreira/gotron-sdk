@@ -6,8 +6,13 @@
   - [x] send
   - [x] address
   - [ ] freeze
+  - [ ] unfreeze
   - [ ] withdraw
- 
+  - [x] resources
+
+- [ ] witness
+  - [ ] list
+  - [ ] vote
 
 - [ ] trc10
   - [x] issue

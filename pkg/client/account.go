@@ -42,6 +42,22 @@ func (g *GrpcClient) GetAccountNet(address string) (*api.AccountNetMessage, erro
 	return g.Client.GetAccountNet(ctx, account)
 }
 
+// GetAccountResource from BASE58 address
+func (g *GrpcClient) GetAccountResource(address string) (*api.AccountResourceMessage, error) {
+	account := new(core.Account)
+	var err error
+
+	account.Address, err = common.DecodeCheck(address)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	return g.Client.GetAccountResource(ctx, account)
+}
+
 // CreateAccount activate tron account
 func (g *GrpcClient) CreateAccount(from, accountAddress string) (*api.TransactionExtention, error) {
 	var err error

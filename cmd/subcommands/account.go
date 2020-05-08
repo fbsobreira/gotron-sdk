@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
@@ -185,7 +186,58 @@ func accountSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress}
+	cmdResources := &cobra.Command{
+		Use:     "resources <ACCOUNT_NAME>",
+		Short:   "Check account resources",
+		Args:    cobra.ExactArgs(1),
+		PreRunE: validateAddress,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ar, err := conn.GetAccountResource(addr.String())
+			if err != nil {
+				return err
+			}
+			ard, err := conn.GetDelegatedResources(addr.String())
+			if err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(ar, ard)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["address"] = addr.String()
+			result["freeNetLimit"] = ar.GetFreeNetLimit()
+			result["netLimit"] = ar.GetNetLimit()
+			result["totalNetLimit"] = ar.GetTotalNetLimit()
+			result["totalNetWeight"] = ar.GetTotalNetWeight()
+			result["energyLimit"] = ar.GetEnergyLimit()
+			result["totalEnergyLimit"] = ar.GetTotalEnergyLimit()
+			result["totalEnergyWeight"] = ar.GetTotalEnergyWeight()
+
+			delegated := make([]map[string]interface{}, 0)
+			for _, d := range ard {
+				for _, r := range d.DelegatedResource {
+					data := make(map[string]interface{})
+					data["from"] = address.Address(r.GetFrom()).String()
+					data["to"] = address.Address(r.GetTo()).String()
+					data["bw"] = r.GetFrozenBalanceForBandwidth()
+					data["energy"] = r.GetFrozenBalanceForEnergy()
+					data["bwExpire"] = r.GetExpireTimeForBandwidth()
+					data["energyExpire"] = r.GetExpireTimeForEnergy()
+					delegated = append(delegated, data)
+				}
+			}
+			result["delegated"] = delegated
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources}
 }
 
 func init() {
