@@ -19,6 +19,9 @@ type Account struct {
 	ID              string           `json:"id"`
 	Balance         int64            `json:"balance"`
 	Allowance       int64            `json:"allowance"`
+	LastWithdraw    int64            `json:"lastWithdraw"`
+	IsWitness       bool             `json:"isWitness"`
+	IsElected       bool             `json:"isElected"`
 	Assets          map[string]int64 `json:"assetList"`
 	TronPower       int64            `json:"tronPower"`
 	TronPowerUsed   int64            `json:"tronPowerUsed"`
