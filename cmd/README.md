@@ -9,10 +9,14 @@
   - [ ] unfreeze
   - [x] withdraw
   - [x] resources
+  - [x] vote
 
 - [ ] sr
-  - [ ] list
-  - [ ] vote
+  - [x] list
+  - [ ] details
+  - [ ] create proposal
+  - [ ] vote proposal
+  - [ ] list proposals
 
 - [ ] trc10
   - [x] issue
