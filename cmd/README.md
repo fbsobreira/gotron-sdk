@@ -7,7 +7,7 @@
   - [x] address
   - [ ] freeze
   - [ ] unfreeze
-  - [ ] withdraw
+  - [x] withdraw
   - [x] resources
 
 - [ ] witness

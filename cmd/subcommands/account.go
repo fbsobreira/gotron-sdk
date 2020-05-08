@@ -112,8 +112,8 @@ func accountSub() []*cobra.Command {
 			if err != nil {
 				return err
 			}
-			value = value * math.Pow10(6)
-			tx, err := conn.Transfer(signerAddress.String(), addr.String(), int64(value))
+			valueInt := int64(value * math.Pow10(6))
+			tx, err := conn.Transfer(signerAddress.String(), addr.String(), int64(valueInt))
 			if err != nil {
 				return err
 			}
@@ -134,11 +134,14 @@ func accountSub() []*cobra.Command {
 			}
 
 			if noPrettyOutput {
-				fmt.Println(tx)
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
 				return nil
 			}
 
 			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["to"] = addr.String()
+			result["amount"] = value
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
@@ -222,8 +225,8 @@ func accountSub() []*cobra.Command {
 					data := make(map[string]interface{})
 					data["from"] = address.Address(r.GetFrom()).String()
 					data["to"] = address.Address(r.GetTo()).String()
-					data["bw"] = r.GetFrozenBalanceForBandwidth()
-					data["energy"] = r.GetFrozenBalanceForEnergy()
+					data["bw"] = float64(r.GetFrozenBalanceForBandwidth()) / 1000000
+					data["energy"] = float64(r.GetFrozenBalanceForEnergy()) / 1000000
 					data["bwExpire"] = r.GetExpireTimeForBandwidth()
 					data["energyExpire"] = r.GetExpireTimeForEnergy()
 					delegated = append(delegated, data)
@@ -237,7 +240,59 @@ func accountSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources}
+	cmdWithdraw := &cobra.Command{
+		Use:   "withdraw",
+		Short: "claim rewards",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			tx, err := conn.WithdrawBalance(signerAddress.String())
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["address"] = addr.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["amount"] = addr.String()
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["amount"] = float64(ctrlr.Receipt.WithdrawAmount) / 1000000
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources, cmdWithdraw}
 }
 
 func init() {
