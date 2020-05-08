@@ -11,8 +11,8 @@ import (
 )
 
 // FreezeBalance from base58 address
-func (g *GrpcClient) FreezeBalance(from, delegateTo string, resource core.ResourceCode,
-	frozenBalance, frozenDuration int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) FreezeBalance(from, delegateTo string,
+	resource core.ResourceCode, frozenBalance int64) (*api.TransactionExtention, error) {
 	var err error
 
 	contract := &core.FreezeBalanceContract{}
@@ -21,7 +21,7 @@ func (g *GrpcClient) FreezeBalance(from, delegateTo string, resource core.Resour
 	}
 
 	contract.FrozenBalance = frozenBalance
-	contract.FrozenDuration = frozenDuration
+	contract.FrozenDuration = 3 // Tron Only allows 3 days freeze
 
 	if len(delegateTo) > 0 {
 		if contract.ReceiverAddress, err = common.DecodeCheck(delegateTo); err != nil {

@@ -5,12 +5,12 @@
   - [x] balance
   - [x] send
   - [x] address
-  - [ ] freeze
+  - [x] freeze
   - [ ] unfreeze
   - [x] withdraw
   - [x] resources
 
-- [ ] witness
+- [ ] sr
   - [ ] list
   - [ ] vote
 

@@ -10,12 +10,15 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 )
 
 var (
-	balanceDetails bool
+	balanceDetails    bool
+	resourcesType     int
+	resourcesDelegate string
 )
 
 func accountSub() []*cobra.Command {
@@ -113,7 +116,7 @@ func accountSub() []*cobra.Command {
 				return err
 			}
 			valueInt := int64(value * math.Pow10(6))
-			tx, err := conn.Transfer(signerAddress.String(), addr.String(), int64(valueInt))
+			tx, err := conn.Transfer(signerAddress.String(), addr.String(), valueInt)
 			if err != nil {
 				return err
 			}
@@ -292,7 +295,91 @@ func accountSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources, cmdWithdraw}
+	cmdFreeze := &cobra.Command{
+		Use:   "freeze <AMOUNT>",
+		Short: "Freeze TRX to gain resources",
+		Long:  "Freeze TRX to gain BW(default)/Energy. User can also delegate to another acccount ",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			// get amount
+			value, err := strconv.ParseFloat(args[0], 64)
+			if err != nil {
+				return err
+			}
+			valueInt := int64(value * math.Pow10(6))
+
+			delegateTo := ""
+			if len(resourcesDelegate) > 0 {
+				delegateAddr, err := findAddress(resourcesDelegate)
+				if err != nil {
+					return fmt.Errorf("invalid delegated address %s. %+v", resourcesDelegate, err)
+				}
+				delegateTo = delegateAddr.String()
+			}
+
+			rType := core.ResourceCode_BANDWIDTH
+			if resourcesType == 1 {
+				rType = core.ResourceCode_ENERGY
+			} else if resourcesType != 0 {
+				return fmt.Errorf("invalid resource. Use 0 for Bandwidth or 1 for Energy")
+			}
+
+			tx, err := conn.FreezeBalance(
+				signerAddress.String(),
+				delegateTo,
+				rType,
+				valueInt,
+			)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["Type"] = rType.String()
+			result["Delegate"] = resourcesDelegate
+			result["amount"] = value
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+	cmdFreeze.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
+	cmdFreeze.Flags().StringVar(&resourcesDelegate, "delegate", "", "Delegate to address")
+
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdResources, cmdWithdraw, cmdFreeze}
 }
 
 func init() {
