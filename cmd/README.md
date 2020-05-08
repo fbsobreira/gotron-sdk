@@ -10,13 +10,16 @@
   - [x] withdraw
   - [x] resources
   - [x] vote
+  - [ ] permission
 
 - [ ] sr
   - [x] list
   - [ ] details
-  - [ ] create proposal
-  - [ ] vote proposal
-  - [ ] list proposals
+  - [ ] create
+  - [ ] proposal
+    - [ ] create
+    - [ ] vote proposal
+    - [ ] list proposals
 
 - [ ] trc10
   - [x] issue
@@ -38,7 +41,8 @@
   - [ ] trigger
 
 - [ ] bc
-  - [ ] mt
+  - [ ] node metrics
+  - [ ] next maintenance time
   - [ ] block
     - [ ] last
     - [ ] byid
@@ -46,3 +50,18 @@
   - [ ] tx
     - [ ] byid
     - [ ] byhash
+
+- [x] keys
+  - [x] add
+  - [x] remove
+  - [x] mnemonic
+  - [x] recover-from-mnemonic
+  - [x] import-ks
+  - [x] import-private-key
+  - [x] export-private-key
+  - [x] export-ks
+
+- [x] utility
+  - [x] addr-to-base58
+  - [x] base58-to-addr
+  - [ ] set default node
