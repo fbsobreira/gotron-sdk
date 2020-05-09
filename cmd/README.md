@@ -44,8 +44,8 @@
   - [ ] trigger
 
 - [ ] bc
-  - [ ] node metrics
-  - [ ] next maintenance time
+  - [x] node metrics
+  - [x] next maintenance time
   - [ ] block
     - [ ] last
     - [ ] byid
