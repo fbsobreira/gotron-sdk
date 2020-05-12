@@ -131,11 +131,43 @@ func contractSub() []*cobra.Command {
 	cmdDeploy.Flags().Int64Var(&oeLimit, "oeLimit", 1000000, "origin energy limit")
 
 	cmdConstant := &cobra.Command{
-		Use:     "constant <CONTRACT_ADDRESS> <DATA>",
+		Use:     "constant <CONTRACT_ADDRESS> <METHOD> [PARAMETER]",
 		Short:   "constantTrigger contract",
-		Args:    cobra.ExactArgs(2),
+		Args:    cobra.RangeArgs(2, 3),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			param := ""
+			if len(args) == 3 {
+				param = args[2]
+			}
+
+			tx, err := conn.TriggerConstantContract(
+				signerAddress.String(),
+				addr.String(),
+				args[1],
+				param,
+			)
+			if err != nil {
+				return err
+			}
+
+			cResult := tx.GetConstantResult()
+
+			if noPrettyOutput {
+				fmt.Println(cResult)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			//TODO: parse based on contract ABI
+			result["Result"] = common.ToHex(cResult[0])
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 
 			return nil
 		},

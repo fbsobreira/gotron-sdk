@@ -40,8 +40,9 @@
 
 - [ ] contract
   - [x] deploy
-  - [ ] constant
-  - [ ] trigger
+  - [x] constant
+  - [x] trigger
+  - [ ] build data from ABI
 
 - [ ] bc
   - [x] node metrics

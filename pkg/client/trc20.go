@@ -47,7 +47,7 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool
 	}
 	result := &api.TransactionExtention{}
 	if constant {
-		result, err = g.TriggerConstantContract(ct)
+		result, err = g.triggerConstantContract(ct)
 
 	} else {
 		result, err = g.triggerContract(ct, feeLimit)

@@ -15,7 +15,41 @@ import (
 )
 
 // TriggerConstantContract and return tx result
-func (g *GrpcClient) TriggerConstantContract(ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
+	var err error
+	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
+	if len(from) > 0 {
+		fromDesc, err = address.Base58ToAddress(from)
+		if err != nil {
+			return nil, err
+		}
+	}
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	param, err := abi.LoadFromJSON(jsonString)
+	if err != nil {
+		return nil, err
+	}
+
+	dataBytes, err := abi.Pack(method, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            dataBytes,
+	}
+
+	return g.triggerConstantContract(ct)
+}
+
+// triggerConstantContract and return tx result
+func (g *GrpcClient) triggerConstantContract(ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
