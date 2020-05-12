@@ -100,7 +100,7 @@ func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 		return nil, fmt.Errorf("result error: %s", result.GetMessage())
 	}
 	if result.GetCode() != api.Return_SUCCESS {
-		return nil, fmt.Errorf("result error(%s): %s", result.GetCode, result.GetMessage())
+		return nil, fmt.Errorf("result error(%s): %s", result.GetCode(), result.GetMessage())
 	}
 	return result, nil
 }

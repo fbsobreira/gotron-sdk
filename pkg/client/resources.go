@@ -24,7 +24,7 @@ func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessag
 	return g.Client.GetAccountResource(ctx, account)
 }
 
-// GetDelegatedResource from BASE58 address
+// GetDelegatedResources from BASE58 address
 func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedResourceList, error) {
 	addrBytes, err := common.DecodeCheck(address)
 	if err != nil {
