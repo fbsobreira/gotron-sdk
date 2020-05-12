@@ -50,7 +50,7 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool
 		result, err = g.TriggerConstantContract(ct)
 
 	} else {
-		result, err = g.TriggerContract(ct, feeLimit)
+		result, err = g.triggerContract(ct, feeLimit)
 	}
 	if err != nil {
 		return nil, err
