@@ -46,8 +46,8 @@
 
 - [ ] exchange
   - [x] create
-  - [ ] inject
-  - [ ] withdraw
+  - [x] inject
+  - [x] withdraw
   - [ ] buy
 
 - [ ] bc

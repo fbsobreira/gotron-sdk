@@ -45,3 +45,71 @@ func (g *GrpcClient) ExchangeCreate(
 	}
 	return tx, nil
 }
+
+// ExchangeInject both tokens into banco pair (the second token is taken info transaction process)
+func (g *GrpcClient) ExchangeInject(
+	from string,
+	exchangeID int64,
+	tokenID string,
+	amountToken int64,
+) (*api.TransactionExtention, error) {
+	var err error
+
+	contract := &core.ExchangeInjectContract{
+		ExchangeId: exchangeID,
+		TokenId:    []byte(tokenID),
+		Quant:      amountToken,
+	}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	tx, err := g.Client.ExchangeInject(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+	if proto.Size(tx) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
+	return tx, nil
+}
+
+// ExchangeWithdraw both tokens into banco pair (the second token is taken info transaction process)
+func (g *GrpcClient) ExchangeWithdraw(
+	from string,
+	exchangeID int64,
+	tokenID string,
+	amountToken int64,
+) (*api.TransactionExtention, error) {
+	var err error
+
+	contract := &core.ExchangeWithdrawContract{
+		ExchangeId: exchangeID,
+		TokenId:    []byte(tokenID),
+		Quant:      amountToken,
+	}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	tx, err := g.Client.ExchangeWithdraw(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+	if proto.Size(tx) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
+	return tx, nil
+}
