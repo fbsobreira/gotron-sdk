@@ -44,11 +44,12 @@
   - [x] trigger
   - [ ] build data from ABI
 
-- [ ] exchange
+- [x] exchange
   - [x] create
   - [x] inject
   - [x] withdraw
-  - [ ] buy
+  - [x] list
+  - [x] trade
 
 - [ ] bc
   - [x] node metrics
