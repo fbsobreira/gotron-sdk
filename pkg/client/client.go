@@ -65,3 +65,11 @@ func GetMessageNumber(n int64) *api.NumberMessage {
 	message.Num = n
 	return message
 }
+
+// GetPaginatedMessage return grpc message number
+func GetPaginatedMessage(offset int64, limit int64) *api.PaginatedMessage {
+	return &api.PaginatedMessage{
+		Offset: offset,
+		Limit:  limit,
+	}
+}
