@@ -25,9 +25,9 @@
 
 - [ ] trc10
   - [x] issue
-  - [ ] byid
-  - [ ] byowner
-  - [ ] byname
+  - [x] byid
+  - [x] byowner
+  - [x] byname
   - [x] list
   - [x] send
   - [ ] update info

@@ -13,6 +13,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 )
@@ -277,7 +278,6 @@ func trc10Sub() []*cobra.Command {
 			if len(tokenID) == 0 {
 				// try by name
 				if asset, err := conn.GetAssetIssueByName(args[0]); err == nil {
-					fmt.Println("NAME", asset.Name)
 					if string(asset.Name) == args[0] {
 						tokenID = asset.Id
 						tokenDecimals = asset.Precision
@@ -374,7 +374,70 @@ func trc10Sub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdIssue, cmdSend, cmdICO, cmdList}
+	cmdInfo := &cobra.Command{
+		Use:   "info <TOKEN_ID or ISSUER_ADDRESS or TOKEN_NAME> ",
+		Short: "get information about TRC10",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			var asset *core.AssetIssueContract
+			var err error
+			found := false
+			if _, err := strconv.Atoi(args[0]); err == nil {
+				if asset, err = conn.GetAssetIssueByID(args[0]); err == nil {
+					if asset.Id == args[0] {
+						found = true
+					}
+				}
+			}
+			if !found {
+				// try by name
+				if asset, err = conn.GetAssetIssueByName(args[0]); err == nil {
+					if string(asset.Name) == args[0] {
+						found = true
+					}
+				}
+			}
+			if !found {
+				// try by issuer
+				if list, err := conn.GetAssetIssueByAccount(args[0]); err == nil {
+					if len(list.AssetIssue) == 1 &&
+						address.Address(list.AssetIssue[0].GetOwnerAddress()).String() == args[0] {
+						asset = list.GetAssetIssue()[0]
+						found = true
+					}
+				}
+
+			}
+			if !found {
+				return fmt.Errorf("TRC 10 not found")
+			}
+
+			if noPrettyOutput {
+				fmt.Println(asset)
+				return nil
+			}
+
+			result := map[string]interface{}{
+				"ID":          asset.GetId(),
+				"Name":        string(asset.GetName()),
+				"Symbol":      string(asset.GetAbbr()),
+				"Decimals":    asset.GetPrecision(),
+				"Owner":       address.Address(asset.GetOwnerAddress()).String(),
+				"ICOStart":    time.Unix(asset.GetStartTime()/1000, 0),
+				"ICOEnd":      time.Unix(asset.GetEndTime()/1000, 0),
+				"TotalSupply": asset.GetTotalSupply(),
+				"URL":         string(asset.GetUrl()),
+				"Price":       float64(asset.GetTrxNum()) / float64(asset.GetNum()),
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdIssue, cmdSend, cmdICO, cmdList, cmdInfo}
 }
 
 func init() {
