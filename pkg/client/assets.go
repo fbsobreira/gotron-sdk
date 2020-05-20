@@ -48,11 +48,19 @@ func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract
 }
 
 // GetAssetIssueList list all TRC10
-func (g *GrpcClient) GetAssetIssueList() (*api.AssetIssueList, error) {
+func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssueList, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()
 
-	return g.Client.GetAssetIssueList(ctx, new(api.EmptyMessage))
+	if page == -1 {
+		return g.Client.GetAssetIssueList(ctx, new(api.EmptyMessage))
+	}
+
+	useLimit := int64(10)
+	if len(limit) == 1 {
+		useLimit = int64(limit[0])
+	}
+	return g.Client.GetPaginatedAssetIssueList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
 }
 
 // AssetIssue create a new asset TRC10

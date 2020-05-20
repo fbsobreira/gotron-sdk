@@ -334,7 +334,47 @@ func trc10Sub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdIssue, cmdSend, cmdICO}
+	cmdList := &cobra.Command{
+		Use:   "list",
+		Short: "list TRC10 tokens",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			list, err := conn.GetAssetIssueList(-1)
+			if err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(list.GetAssetIssue())
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["total"] = len(list.GetAssetIssue())
+			result["list"] = make([]map[string]interface{}, 0)
+			for _, e := range list.GetAssetIssue() {
+				data := map[string]interface{}{
+					"ID":          e.GetId(),
+					"Name":        string(e.GetName()),
+					"Symbol":      string(e.GetAbbr()),
+					"Decimals":    e.GetPrecision(),
+					"Owner":       address.Address(e.GetOwnerAddress()).String(),
+					"ICOStart":    time.Unix(e.GetStartTime()/1000, 0),
+					"ICOEnd":      time.Unix(e.GetEndTime()/1000, 0),
+					"TotalSupply": e.GetTotalSupply(),
+					"URL":         string(e.GetUrl()),
+					"Price":       float64(e.GetTrxNum()) / float64(e.GetNum()),
+				}
+				result["list"] = append(result["list"].([]map[string]interface{}), data)
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdIssue, cmdSend, cmdICO, cmdList}
 }
 
 func init() {

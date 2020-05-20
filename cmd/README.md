@@ -28,7 +28,7 @@
   - [ ] byid
   - [ ] byowner
   - [ ] byname
-  - [ ] list
+  - [x] list
   - [x] send
   - [ ] update info
   - [x] ico
