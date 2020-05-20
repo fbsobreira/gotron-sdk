@@ -21,8 +21,6 @@ import (
 	"github.com/spf13/cobra/doc"
 )
 
-const defaultTimeout = 20
-
 var (
 	addr            tronAddress
 	signer          string
@@ -75,17 +73,22 @@ CLI interface to Tron blockchain
 )
 
 func init() {
+	initConfig()
+	config, err := LoadConfig()
+	if err != nil {
+		panic(err)
+	}
 	vS := "dump out debug information, same as env var GOTRON_SDK_DEBUG=true"
-	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, vS)
+	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", config.Verbose, vS)
 	RootCmd.PersistentFlags().StringVarP(&signer, "signer", "s", "", "<signer>")
-	RootCmd.PersistentFlags().StringVarP(&node, "node", "n", defaultNodeAddr, "<host>")
+	RootCmd.PersistentFlags().StringVarP(&node, "node", "n", config.Node, "<host>")
 	RootCmd.PersistentFlags().BoolVar(
-		&noPrettyOutput, "no-pretty", false, "Disable pretty print JSON outputs",
+		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)
 	RootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
-	RootCmd.Flags().Uint32Var(&timeout, "timeout", defaultTimeout, "set timeout in seconds. Set to 0 to not wait for confirm")
+	RootCmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
 
-	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", false, "Use ledger hardware wallet")
+	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", config.Ledger, "Use ledger hardware wallet")
 	RootCmd.PersistentFlags().StringVar(&givenFilePath, "file", "", "Path to file for given command when applicable")
 	RootCmd.AddCommand(&cobra.Command{
 		Use:   "docs",
