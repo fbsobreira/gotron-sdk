@@ -263,13 +263,15 @@ func trc10Sub() []*cobra.Command {
 			// check if possible id
 			tokenID := ""
 			issuerAddress := ""
-			tokenDecimals := int32(0)
+			price := float64(0)
+			//tokenDecimals := int32(0)
 			if _, err := strconv.Atoi(args[0]); err == nil {
 				if asset, err := conn.GetAssetIssueByID(args[0]); err == nil {
 					if asset.Id == args[0] {
 						tokenID = args[0]
-						tokenDecimals = asset.Precision
+						//tokenDecimals = asset.Precision
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
+						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					}
 				} else {
 					return fmt.Errorf("TRC10 not found: %s", args[0])
@@ -280,8 +282,9 @@ func trc10Sub() []*cobra.Command {
 				if asset, err := conn.GetAssetIssueByName(args[0]); err == nil {
 					if string(asset.Name) == args[0] {
 						tokenID = asset.Id
-						tokenDecimals = asset.Precision
+						//tokenDecimals = asset.Precision
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
+						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					} else {
 						return fmt.Errorf("TRC10 not found: %s", args[0])
 					}
@@ -290,8 +293,8 @@ func trc10Sub() []*cobra.Command {
 				}
 			}
 
-			valueInt := int64(value * math.Pow10(int(tokenDecimals)))
-			fmt.Println("Requesting....", signerAddress.String(), issuerAddress)
+			// participate amount is TRX value
+			valueInt := int64(value * math.Pow10(6))
 			tx, err := conn.ParticipateAssetIssue(signerAddress.String(), issuerAddress, tokenID, valueInt)
 			if err != nil {
 				return err
@@ -325,7 +328,9 @@ func trc10Sub() []*cobra.Command {
 				"fee":         ctrlr.Receipt.Fee,
 				"netFee":      ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":    ctrlr.Receipt.Receipt.NetUsage,
-				"tokenAmount": value,
+				"price":       price,
+				"cost":        value,
+				"tokenAmount": float64(valueInt) * price,
 			}
 
 			asJSON, _ := json.Marshal(result)
