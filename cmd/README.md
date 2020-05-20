@@ -31,6 +31,7 @@
   - [ ] list
   - [x] send
   - [ ] update info
+  - [x] ico
 
 - [ ] trc20
   - [x] send

@@ -207,18 +207,18 @@ func (g *GrpcClient) TransferAsset(from, toAddress,
 }
 
 // ParticipateAssetIssue TRC10 ICO
-func (g *GrpcClient) ParticipateAssetIssue(from, toAddress,
-	assetName string, amount int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) ParticipateAssetIssue(from, issuerAddress,
+	tokenID string, amount int64) (*api.TransactionExtention, error) {
 	var err error
 	contract := &core.ParticipateAssetIssueContract{}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-	if contract.ToAddress, err = common.DecodeCheck(toAddress); err != nil {
+	if contract.ToAddress, err = common.DecodeCheck(issuerAddress); err != nil {
 		return nil, err
 	}
 
-	contract.AssetName = []byte(assetName)
+	contract.AssetName = []byte(tokenID)
 	contract.Amount = amount
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)

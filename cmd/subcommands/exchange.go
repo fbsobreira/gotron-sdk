@@ -245,7 +245,7 @@ func exchangeSub() []*cobra.Command {
 				}
 			}
 
-			tx, err := conn.ExchangeInject(
+			tx, err := conn.ExchangeWithdraw(
 				signerAddress.String(),
 				exchangeID,
 				tokenID1,
@@ -284,7 +284,7 @@ func exchangeSub() []*cobra.Command {
 				"netFee":       ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":     ctrlr.Receipt.Receipt.NetUsage,
 				"TokenAmount1": int64(tokenValue1),
-				"TokenAmount2": ctrlr.Receipt.ExchangeInjectAnotherAmount,
+				"TokenAmount2": ctrlr.Receipt.ExchangeWithdrawAnotherAmount,
 			}
 
 			asJSON, _ := json.Marshal(result)

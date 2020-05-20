@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
@@ -154,7 +155,7 @@ func trc10Sub() []*cobra.Command {
 	}
 	// Asset issue extras
 	cmdIssue.Flags().StringVar(&issueStartDate, "start", time.Now().Add(10*time.Minute).String(), "start time")
-	cmdIssue.Flags().Uint32VarP(&issueDuration, "duration", "d", 1, "ico duration in days")
+	cmdIssue.Flags().Uint32VarP(&issueDuration, "duration", "d", 30, "ico duration in days")
 	cmdIssue.Flags().StringSliceVarP(&issueFrozen, "frozen", "0", []string{}, "frozen supply day1:amount1,day2:amount2")
 	cmdIssue.Flags().Int32VarP(&issueDecimals, "decimals", "p", 0, "decimals precision (max 6)")
 
@@ -193,6 +194,8 @@ func trc10Sub() []*cobra.Command {
 					if string(asset.Name) == args[2] {
 						tokenID = asset.Id
 						tokenDecimals = asset.Precision
+					} else {
+						return fmt.Errorf("TRC10 not found: %s", args[3])
 					}
 				} else {
 					return fmt.Errorf("TRC10 not found: %s", args[3])
@@ -241,7 +244,97 @@ func trc10Sub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdIssue, cmdSend}
+	cmdICO := &cobra.Command{
+		Use:   "ico <TOKEN_ID or TOKEN_NAME> <AMOUNT>",
+		Short: "participate TOKEN ICO",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			// get amount
+			value, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				return err
+			}
+
+			// Get asset information
+			// check if possible id
+			tokenID := ""
+			issuerAddress := ""
+			tokenDecimals := int32(0)
+			if _, err := strconv.Atoi(args[0]); err == nil {
+				if asset, err := conn.GetAssetIssueByID(args[0]); err == nil {
+					if asset.Id == args[0] {
+						tokenID = args[0]
+						tokenDecimals = asset.Precision
+						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
+					}
+				} else {
+					return fmt.Errorf("TRC10 not found: %s", args[0])
+				}
+			}
+			if len(tokenID) == 0 {
+				// try by name
+				if asset, err := conn.GetAssetIssueByName(args[0]); err == nil {
+					fmt.Println("NAME", asset.Name)
+					if string(asset.Name) == args[0] {
+						tokenID = asset.Id
+						tokenDecimals = asset.Precision
+						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
+					} else {
+						return fmt.Errorf("TRC10 not found: %s", args[0])
+					}
+				} else {
+					return fmt.Errorf("TRC10 not found: %s", args[0])
+				}
+			}
+
+			valueInt := int64(value * math.Pow10(int(tokenDecimals)))
+			fmt.Println("Requesting....", signerAddress.String(), issuerAddress)
+			tx, err := conn.ParticipateAssetIssue(signerAddress.String(), issuerAddress, tokenID, valueInt)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":         ctrlr.Receipt.Fee,
+				"netFee":      ctrlr.Receipt.Receipt.NetFee,
+				"netUsage":    ctrlr.Receipt.Receipt.NetUsage,
+				"tokenAmount": value,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdIssue, cmdSend, cmdICO}
 }
 
 func init() {
