@@ -3,6 +3,7 @@ package address
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -58,6 +59,15 @@ func Base58ToAddress(s string) (Address, error) {
 		return nil, err
 	}
 	return addr, nil
+}
+
+// Base64ToAddress returns Address with byte values of s.
+func Base64ToAddress(s string) (Address, error) {
+	decoded, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, err
+	}
+	return Address(decoded), nil
 }
 
 // String implements fmt.Stringer.

@@ -59,9 +59,7 @@
     - [ ] last
     - [ ] byid
     - [ ] byhash
-  - [ ] tx
-    - [ ] byid
-    - [ ] byhash
+  - [x] tx
 
 - [x] keys
   - [x] add
