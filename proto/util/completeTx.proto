@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "core/Tron.proto";
 import "api/api.proto";
+import "core/contract/asset_issue_contract.proto";
 
 package protocol;
 
@@ -12,4 +13,6 @@ message ProtoCompleteTransaction {
     uint64 BlockTime = 2;
     TransactionExtention Tx = 3;
     TransactionInfo Info = 4;
+    Exchange ExchangeInfo = 5;
+    AssetIssueContract AssetInfo  = 6;
 }
