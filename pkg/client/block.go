@@ -40,6 +40,23 @@ func (g *GrpcClient) GetBlockByNum(num int64) (*api.BlockExtention, error) {
 	return result, nil
 }
 
+// GetBlockInfoByNum block from number
+func (g *GrpcClient) GetBlockInfoByNum(num int64) (*api.TransactionInfoList, error) {
+	numMessage := new(api.NumberMessage)
+	numMessage.Num = num
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	result, err := g.Client.GetTransactionInfoByBlockNum(ctx, numMessage)
+
+	if err != nil {
+		return nil, fmt.Errorf("Get block info by num: %v", err)
+
+	}
+	return result, nil
+}
+
 // GetBlockByID block from hash
 func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error) {
 	blockID := new(api.BytesMessage)
