@@ -22,11 +22,12 @@ func (g *GrpcClient) ListWitnesses() (*api.WitnessList, error) {
 func (g *GrpcClient) CreateWitness(from, urlStr string) (*api.TransactionExtention, error) {
 	var err error
 
-	contract := &core.WitnessCreateContract{}
+	contract := &core.WitnessCreateContract{
+		Url: []byte(urlStr),
+	}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-	contract.Url = []byte(urlStr)
 
 	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
 	defer cancel()

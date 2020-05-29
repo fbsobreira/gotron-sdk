@@ -5,7 +5,10 @@ import (
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 )
 
@@ -37,13 +40,17 @@ func srSub() []*cobra.Command {
 				if electedOnly && !witness.IsJobs {
 					continue
 				}
+				prod := float64(0)
+				if witness.TotalProduced+witness.TotalMissed > 0 {
+					prod = (float64(witness.TotalProduced) / float64(witness.TotalProduced+witness.TotalMissed)) * 100
+				}
 				data := map[string]interface{}{
 					"address":        address.Address(witness.Address).String(),
 					"votes":          witness.VoteCount,
 					"elected":        witness.IsJobs,
 					"blocksMissed":   witness.TotalMissed,
 					"blocksProduced": witness.TotalProduced,
-					"productivity":   (float64(witness.TotalProduced) / float64(witness.TotalProduced+witness.TotalMissed)) * 100,
+					"productivity":   prod,
 					"url":            witness.Url,
 				}
 				if brokerage {
@@ -66,7 +73,7 @@ func srSub() []*cobra.Command {
 			result["totalCount"] = len(list.Witnesses)
 			result["filterCount"] = len(wList)
 			result["witnesses"] = wList
-
+			fmt.Println(result)
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
@@ -75,7 +82,57 @@ func srSub() []*cobra.Command {
 	cmdList.Flags().BoolVar(&electedOnly, "elected", false, "if true return elected only")
 	cmdList.Flags().BoolVar(&brokerage, "brokerage", false, "add brokerage result")
 
-	return []*cobra.Command{cmdList}
+	cmdCreate := &cobra.Command{
+		Use:   "create <URL>",
+		Short: "create new SR",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			tx, err := conn.CreateWitness(signerAddress.String(), args[0])
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdList, cmdCreate}
 }
 
 func init() {
