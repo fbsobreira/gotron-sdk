@@ -151,6 +151,9 @@ func (C *Controller) txConfirmation() {
 			time.Sleep(time.Second)
 			start--
 		}
+	} else {
+		C.Receipt = &core.TransactionInfo{}
+		C.Receipt.Receipt = &core.ResourceReceipt{}
 	}
 
 }

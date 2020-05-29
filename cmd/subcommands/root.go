@@ -27,6 +27,7 @@ var (
 	signerAddress   tronAddress
 	verbose         bool
 	dryRun          bool
+	noWait          bool
 	useLedgerWallet bool
 	noPrettyOutput  bool
 	node            string
@@ -85,6 +86,7 @@ func init() {
 	RootCmd.PersistentFlags().BoolVar(
 		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)
+	RootCmd.PersistentFlags().BoolVar(&noWait, "no-wait", false, "do not wait for TX confirmation")
 	RootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
 	RootCmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
 
@@ -215,7 +217,9 @@ func opts(ctlr *transaction.Controller) {
 	if useLedgerWallet {
 		ctlr.Behavior.SigningImpl = transaction.Ledger
 	}
-	if timeout > 0 {
+	if noWait {
+		ctlr.Behavior.ConfirmationWaitTime = 0
+	} else if timeout > 0 {
 		ctlr.Behavior.ConfirmationWaitTime = timeout
 	}
 }
