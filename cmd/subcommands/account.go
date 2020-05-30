@@ -21,6 +21,7 @@ var (
 	resourcesType     int
 	resourcesDelegate string
 	voteList          []string
+	permissionList    []string
 )
 
 func accountSub() []*cobra.Command {
@@ -427,7 +428,180 @@ func accountSub() []*cobra.Command {
 	}
 	cmdVote.Flags().StringSliceVar(&voteList, "wv", []string{}, "witness1:vote1,witness2:vote2")
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote}
+	cmdPermission := &cobra.Command{
+		Use:   "permission",
+		Short: "Update account permission",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			if len(permissionList) < 1 {
+				return fmt.Errorf("at least one rule is expected")
+			}
+
+			var owner map[string]interface{}
+			var witness map[string]interface{}
+			actives := make([]map[string]interface{}, 0)
+
+			activesCounter := 0
+
+			for _, p := range permissionList {
+				ps := strings.Split(p, ":")
+				if len(ps) != 3 {
+					return fmt.Errorf("invalid format: %s", p)
+				}
+				switch ps[0] {
+				case "O", "o":
+					if owner != nil {
+						return fmt.Errorf("can have only one owner permission")
+					}
+
+					threshold, err := strconv.ParseInt(ps[1], 10, 64)
+					if err != nil {
+						return fmt.Errorf("invalid threshold: %s", ps[1])
+					}
+
+					keysMap := make(map[string]int64)
+					// get keys
+					keys := strings.Split(ps[2], "+")
+					for _, k := range keys {
+						values := strings.Split(k, "-")
+						if len(values) != 2 {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						i, err := strconv.ParseInt(values[1], 10, 64)
+						if err != nil {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						keysMap[values[0]] = i
+					}
+					owner = map[string]interface{}{
+						"name":      "owner",
+						"threshold": threshold,
+						"keys":      keysMap,
+					}
+				case "W", "w":
+					if witness != nil {
+						return fmt.Errorf("can have only one witness permission")
+					}
+
+					threshold, err := strconv.ParseInt(ps[1], 10, 64)
+					if err != nil {
+						return fmt.Errorf("invalid threshold: %s", ps[1])
+					}
+
+					keysMap := make(map[string]int64)
+					// get keys
+					keys := strings.Split(ps[2], "+")
+					for _, k := range keys {
+						values := strings.Split(k, "-")
+						if len(values) != 2 {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						i, err := strconv.ParseInt(values[1], 10, 64)
+						if err != nil {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						keysMap[values[0]] = i
+					}
+					witness = map[string]interface{}{
+						"name":      "witness",
+						"threshold": threshold,
+						"keys":      keysMap,
+					}
+				case "A", "a":
+
+					threshold, err := strconv.ParseInt(ps[1], 10, 64)
+					if err != nil {
+						return fmt.Errorf("invalid threshold: %s", ps[1])
+					}
+
+					keysMap := make(map[string]int64)
+					// get keys
+					keys := strings.Split(ps[2], "+")
+					for _, k := range keys {
+						values := strings.Split(k, "-")
+						if len(values) != 2 {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						i, err := strconv.ParseInt(values[1], 10, 64)
+						if err != nil {
+							return fmt.Errorf("invalid key: %s", k)
+						}
+						keysMap[values[0]] = i
+					}
+					// add all permission
+					op := make(map[string]bool)
+					for _, name := range core.Transaction_Contract_ContractType_name {
+						if name != "UpdateBrokerageContract" && name != "ShieldedTransferContract" {
+							op[name] = true
+						}
+					}
+
+					actives = append(actives, map[string]interface{}{
+						"name":       fmt.Sprintf("active%d", activesCounter),
+						"threshold":  threshold,
+						"keys":       keysMap,
+						"operations": op,
+					})
+
+				default:
+					return fmt.Errorf("invalid type: %s", ps[0])
+				}
+			}
+
+			// TODO: make more than one actives and allow different permissions
+			tx, err := conn.UpdateAccountPermission(
+				signerAddress.String(),
+				owner,
+				witness,
+				actives,
+			)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	cmdPermission.Flags().StringSliceVar(&permissionList, "allow", []string{}, "TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT")
+
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote, cmdPermission}
 }
 
 func init() {

@@ -10,7 +10,7 @@
   - [x] withdraw
   - [x] resources
   - [x] vote
-  - [ ] permission
+  - [x] permission
 
 - [ ] sr
   - [x] list
