@@ -107,6 +107,16 @@ func DefaultLocation() string {
 	return path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
 }
 
+// SetDefaultLocation set deafault location
+func SetDefaultLocation(directory string) {
+	c.DefaultConfigDirName = directory
+	uDir, _ := homedir.Dir()
+	tronCTLDir := path.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName)
+	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
+		os.MkdirAll(tronCTLDir, 0700)
+	}
+}
+
 // UnlockedKeystore return keystore unlocked
 func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Account, error) {
 	sender, err := address.Base58ToAddress(from)

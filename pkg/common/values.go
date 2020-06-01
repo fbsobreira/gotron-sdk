@@ -6,8 +6,6 @@ import (
 )
 
 const (
-	// DefaultConfigDirName for wallets
-	DefaultConfigDirName = ".tronctl"
 	// DefaultConfigAccountAliasesDirName fro accounts
 	DefaultConfigAccountAliasesDirName = "account-keys"
 	// DefaultPassphrase for accounts
@@ -19,11 +17,13 @@ const (
 )
 
 var (
-	DebugGRPC        = false
-	DebugTransaction = false
-	ErrNotAbsPath    = errors.New("keypath is not absolute path")
-	ErrBadKeyLength  = errors.New("Invalid private key (wrong length)")
-	ErrFoundNoPass   = errors.New("found no passphrase file")
+	// DefaultConfigDirName for wallets
+	DefaultConfigDirName = ".tronctl"
+	DebugGRPC            = false
+	DebugTransaction     = false
+	ErrNotAbsPath        = errors.New("keypath is not absolute path")
+	ErrBadKeyLength      = errors.New("Invalid private key (wrong length)")
+	ErrFoundNoPass       = errors.New("found no passphrase file")
 )
 
 func init() {
