@@ -2,11 +2,8 @@ package cmd
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 
 	"github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
@@ -17,7 +14,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 	"github.com/tyler-smith/go-bip39"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 const (
@@ -26,79 +22,16 @@ const (
 )
 
 var (
-	quietImport            bool
-	recoverFromMnemonic    bool
-	userProvidesPassphrase bool
-	passphraseFilePath     string
-	passphrase             string
-	blsFilePath            string
-	blsShardID             uint32
-	blsCount               uint32
-	ppPrompt               = fmt.Sprintf(
+	quietImport         bool
+	recoverFromMnemonic bool
+	passphrase          string
+	blsFilePath         string
+	blsShardID          uint32
+	blsCount            uint32
+	ppPrompt            = fmt.Sprintf(
 		"prompt for passphrase, otherwise use default passphrase: \"`%s`\"", c.DefaultPassphrase,
 	)
 )
-
-// getPassphrase fetches the correct passphrase depending on if a file is available to
-// read from or if the user wants to enter in their own passphrase. Otherwise, just use
-// the default passphrase. No confirmation of passphrase
-func getPassphrase() (string, error) {
-	if passphraseFilePath != "" {
-		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
-			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
-		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
-		if err != nil {
-			return "", err
-		}
-		pw := strings.TrimSuffix(string(dat), "\n")
-		return pw, nil
-	} else if userProvidesPassphrase {
-		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return "", err
-		}
-		return string(pass), nil
-	} else {
-		return c.DefaultPassphrase, nil
-	}
-}
-
-// getPassphrase fetches the correct passphrase depending on if a file is available to
-// read from or if the user wants to enter in their own passphrase. Otherwise, just use
-// the default passphrase. Passphrase requires a confirmation
-func getPassphraseWithConfirm() (string, error) {
-	if passphraseFilePath != "" {
-		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
-			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
-		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
-		if err != nil {
-			return "", err
-		}
-		pw := strings.TrimSuffix(string(dat), "\n")
-		return pw, nil
-	} else if userProvidesPassphrase {
-		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return "", err
-		}
-		fmt.Println("Repeat the passphrase:")
-		repeatPass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		if err != nil {
-			return "", err
-		}
-		if string(repeatPass) != string(pass) {
-			return "", errors.New("passphrase does not match")
-		}
-		fmt.Println("") // provide feedback when passphrase is entered.
-		return string(repeatPass), nil
-	} else {
-		return c.DefaultPassphrase, nil
-	}
-}
 
 func keysSub() []*cobra.Command {
 	cmdList := &cobra.Command{
@@ -152,8 +85,6 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdAdd.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
-	cmdAdd.Flags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
 
 	cmdRemove := &cobra.Command{
 		Use:   "remove <ACCOUNT_NAME>",
@@ -216,8 +147,6 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdRecoverMnemonic.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
-	cmdRecoverMnemonic.Flags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
 
 	cmdImportKS := &cobra.Command{
 		Use:   "import-ks <KEYSTORE_FILE_PATH> [ACCOUNT_NAME]",
@@ -241,8 +170,6 @@ func keysSub() []*cobra.Command {
 			return err
 		},
 	}
-	cmdImportKS.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
-	cmdImportKS.Flags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
 	cmdImportKS.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
 
 	cmdImportPK := &cobra.Command{
@@ -267,7 +194,6 @@ func keysSub() []*cobra.Command {
 			return err
 		},
 	}
-	cmdImportPK.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
 	cmdImportPK.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
 
 	cmdExportPK := &cobra.Command{
@@ -283,8 +209,6 @@ func keysSub() []*cobra.Command {
 			return account.ExportPrivateKey(addr.address, passphrase)
 		},
 	}
-	cmdExportPK.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
-	cmdExportPK.Flags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
 
 	cmdExportKS := &cobra.Command{
 		Use:     "export-ks <ACCOUNT_ADDRESS> <OUTPUT_DIRECTORY>",
@@ -303,8 +227,6 @@ func keysSub() []*cobra.Command {
 			return e
 		},
 	}
-	cmdExportKS.Flags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
-	cmdExportKS.Flags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
 
 	return []*cobra.Command{cmdList, cmdLocation, cmdAdd, cmdRemove, cmdMnemonic, cmdRecoverMnemonic, cmdImportKS, cmdImportPK,
 		cmdExportKS, cmdExportPK}

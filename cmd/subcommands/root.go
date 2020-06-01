@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -15,26 +16,31 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var (
-	addr            tronAddress
-	signer          string
-	signerAddress   tronAddress
-	verbose         bool
-	dryRun          bool
-	noWait          bool
-	useLedgerWallet bool
-	noPrettyOutput  bool
-	node            string
-	keyStoreDir     string
-	givenFilePath   string
-	timeout         uint32
-	conn            *client.GrpcClient
+	addr                   tronAddress
+	signer                 string
+	signerAddress          tronAddress
+	verbose                bool
+	dryRun                 bool
+	noWait                 bool
+	useLedgerWallet        bool
+	noPrettyOutput         bool
+	userProvidesPassphrase bool
+	passphraseFilePath     string
+	defaultKeystoreDir     string
+	node                   string
+	keyStoreDir            string
+	givenFilePath          string
+	timeout                uint32
+	conn                   *client.GrpcClient
 	// RootCmd is single entry point of the CLI
 	RootCmd = &cobra.Command{
 		Use:          "tronctl",
@@ -58,6 +64,17 @@ var (
 				if signerAddress, err = findAddress(signer); err != nil {
 					return err
 				}
+			}
+
+			var err error
+			passphrase, err = getPassphrase()
+			if err != nil {
+				return err
+			}
+
+			if len(defaultKeystoreDir) > 0 {
+				// set default directory
+				store.SetDefaultLocation(defaultKeystoreDir)
 			}
 
 			return nil
@@ -92,6 +109,12 @@ func init() {
 
 	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", config.Ledger, "Use ledger hardware wallet")
 	RootCmd.PersistentFlags().StringVar(&givenFilePath, "file", "", "Path to file for given command when applicable")
+
+	// Password
+	RootCmd.PersistentFlags().BoolVar(&userProvidesPassphrase, "passphrase", false, ppPrompt)
+	RootCmd.PersistentFlags().StringVar(&passphraseFilePath, "passphrase-file", "", "path to a file containing the passphrase")
+	RootCmd.PersistentFlags().StringVar(&defaultKeystoreDir, "ks-dir", "", "path to keystore")
+
 	RootCmd.AddCommand(&cobra.Command{
 		Use:   "docs",
 		Short: fmt.Sprintf("Generate docs to a local %s directory", tronctlDocsDir),
@@ -221,5 +244,66 @@ func opts(ctlr *transaction.Controller) {
 		ctlr.Behavior.ConfirmationWaitTime = 0
 	} else if timeout > 0 {
 		ctlr.Behavior.ConfirmationWaitTime = timeout
+	}
+}
+
+// getPassphrase fetches the correct passphrase depending on if a file is available to
+// read from or if the user wants to enter in their own passphrase. Otherwise, just use
+// the default passphrase. No confirmation of passphrase
+func getPassphrase() (string, error) {
+	if passphraseFilePath != "" {
+		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
+			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
+		}
+		dat, err := ioutil.ReadFile(passphraseFilePath)
+		if err != nil {
+			return "", err
+		}
+		pw := strings.TrimSuffix(string(dat), "\n")
+		return pw, nil
+	} else if userProvidesPassphrase {
+		fmt.Println("Enter passphrase:")
+		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		return string(pass), nil
+	} else {
+		return c.DefaultPassphrase, nil
+	}
+}
+
+// getPassphrase fetches the correct passphrase depending on if a file is available to
+// read from or if the user wants to enter in their own passphrase. Otherwise, just use
+// the default passphrase. Passphrase requires a confirmation
+func getPassphraseWithConfirm() (string, error) {
+	if passphraseFilePath != "" {
+		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
+			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
+		}
+		dat, err := ioutil.ReadFile(passphraseFilePath)
+		if err != nil {
+			return "", err
+		}
+		pw := strings.TrimSuffix(string(dat), "\n")
+		return pw, nil
+	} else if userProvidesPassphrase {
+		fmt.Println("Enter passphrase:")
+		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		fmt.Println("Repeat the passphrase:")
+		repeatPass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		if err != nil {
+			return "", err
+		}
+		if string(repeatPass) != string(pass) {
+			return "", errors.New("passphrase does not match")
+		}
+		fmt.Println("") // provide feedback when passphrase is entered.
+		return string(repeatPass), nil
+	} else {
+		return c.DefaultPassphrase, nil
 	}
 }
