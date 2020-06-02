@@ -71,7 +71,10 @@
   - [x] export-private-key
   - [x] export-ks
 
-- [ ] utility
+- [x] utility
   - [x] addr-to-base58
   - [x] base58-to-addr
-  - [ ] set default node
+
+- [x] Config
+  - [x] set
+  - [x] get

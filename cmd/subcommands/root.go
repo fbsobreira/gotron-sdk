@@ -92,10 +92,7 @@ CLI interface to Tron blockchain
 
 func init() {
 	initConfig()
-	config, err := LoadConfig()
-	if err != nil {
-		panic(err)
-	}
+
 	vS := "dump out debug information, same as env var GOTRON_SDK_DEBUG=true"
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", config.Verbose, vS)
 	RootCmd.PersistentFlags().StringVarP(&signer, "signer", "s", "", "<signer>")
