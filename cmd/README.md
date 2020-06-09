@@ -18,10 +18,11 @@
   - [x] create
   - [ ] update sr
   - [ ] update brokerage
-  - [ ] proposal
+  
+  [ ] proposal
     - [ ] create
-    - [ ] vote proposal
-    - [ ] list proposals
+    - [x] vote proposal
+    - [x] list proposals
 
 - [ ] trc10
   - [x] issue

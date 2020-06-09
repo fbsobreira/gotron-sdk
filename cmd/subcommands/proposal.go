@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
@@ -12,88 +14,79 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var (
-	electedOnly bool
-	brokerage   bool
-)
-
-func srSub() []*cobra.Command {
-	cmdList := &cobra.Command{
+func proposalSub() []*cobra.Command {
+	cmdProposalList := &cobra.Command{
 		Use:   "list",
-		Short: "List network witnesses",
+		Short: "List network proposals",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			list, err := conn.ListWitnesses()
+			list, err := conn.ProposalsList()
 			if err != nil {
 				return err
 			}
 
 			if noPrettyOutput {
-				fmt.Println(list.Witnesses)
+				fmt.Println(list.Proposals)
 				return nil
 			}
 
 			result := make(map[string]interface{})
 
-			wList := make([]map[string]interface{}, 0)
-			for _, witness := range list.Witnesses {
-				if electedOnly && !witness.IsJobs {
-					continue
+			pList := make([]map[string]interface{}, 0)
+			for _, proposal := range list.Proposals {
+				approvals := make([]string, len(proposal.Approvals))
+				for i, a := range proposal.Approvals {
+					approvals[i] = address.Address(a).String()
 				}
-				prod := float64(0)
-				if witness.TotalProduced+witness.TotalMissed > 0 {
-					prod = (float64(witness.TotalProduced) / float64(witness.TotalProduced+witness.TotalMissed)) * 100
+				expired := false
+				expiration := time.Unix(proposal.ExpirationTime/1000, 0)
+				if expiration.Before(time.Now()) {
+					expired = true
 				}
+
 				data := map[string]interface{}{
-					"address":        address.Address(witness.Address).String(),
-					"votes":          witness.VoteCount,
-					"elected":        witness.IsJobs,
-					"blocksMissed":   witness.TotalMissed,
-					"blocksProduced": witness.TotalProduced,
-					"productivity":   prod,
-					"url":            witness.Url,
+					"ID":             proposal.ProposalId,
+					"Proposer":       address.Address(proposal.ProposerAddress).String(),
+					"CreateTime":     time.Unix(proposal.CreateTime/1000, 0),
+					"ExpirationTime": expiration,
+					"Expired":        expired,
+					"Parameters":     proposal.Parameters,
+					"Approvals":      approvals,
 				}
-				if brokerage {
-					value := float64(10)
-					distType := "need withdraw"
-					if data["address"].(string) == "TKSXDA8HfE9E1y39RczVQ1ZascUEtaSToF" {
-						distType = "directly to wallet"
-					} else {
-						value, err = conn.GetWitnessBrokerage(data["address"].(string))
-						if err != nil {
-							return fmt.Errorf("fetching brokerage from %s", data["address"])
-						}
-					}
-					data["brokerage"] = value
-					data["distribution"] = 100 - value
-					data["distribution"] = distType
-				}
-				wList = append(wList, data)
+				pList = append([]map[string]interface{}{data}, pList...)
 			}
-			result["totalCount"] = len(list.Witnesses)
-			result["filterCount"] = len(wList)
-			result["witnesses"] = wList
+			result["totalCount"] = len(list.Proposals)
+			result["filterCount"] = len(pList)
+			result["proposals"] = pList
+			fmt.Println(result)
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
 		},
 	}
-	cmdList.Flags().BoolVar(&electedOnly, "elected", false, "if true return elected only")
-	cmdList.Flags().BoolVar(&brokerage, "brokerage", false, "add brokerage result")
 
-	cmdCreate := &cobra.Command{
-		Use:   "create <URL>",
-		Short: "create new SR",
-		Args:  cobra.ExactArgs(1),
+	cmdProposalApprove := &cobra.Command{
+		Use:   "approve",
+		Short: "List network proposals",
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if signerAddress.String() == "" {
 				return fmt.Errorf("no signer specified")
 			}
-			tx, err := conn.CreateWitness(signerAddress.String(), args[0])
+
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+			confirm, err := strconv.ParseBool(args[1])
 			if err != nil {
 				return err
 			}
 
+			tx, err := conn.ProposalApprove(signerAddress.String(), id, confirm)
+			if err != nil {
+				return err
+			}
 			var ctrlr *transaction.Controller
 			if useLedgerWallet {
 				account := keystore.Account{Address: signerAddress.GetAddress()}
@@ -131,19 +124,19 @@ func srSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdList, cmdCreate}
+	return []*cobra.Command{cmdProposalList, cmdProposalApprove}
 }
 
 func init() {
-	cmdSR := &cobra.Command{
-		Use:   "sr",
-		Short: "SR Actions",
+	cmdProposal := &cobra.Command{
+		Use:   "proposal",
+		Short: "Network upgrade proposal",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cmd.Help()
 			return nil
 		},
 	}
 
-	cmdSR.AddCommand(srSub()...)
-	RootCmd.AddCommand(cmdSR)
+	cmdProposal.AddCommand(proposalSub()...)
+	RootCmd.AddCommand(cmdProposal)
 }
