@@ -15,6 +15,7 @@ type FrozenResource struct {
 // Account detailed view
 type Account struct {
 	Address         string           `json:"address"`
+	Type            string           `json:"type"`
 	Name            string           `json:"name"`
 	ID              string           `json:"id"`
 	Balance         int64            `json:"balance"`

@@ -179,6 +179,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 
 	accDet := &account.Account{
 		Address:         address.Address(acc.GetAddress()).String(),
+		Type:            acc.Type.String(),
 		Name:            string(acc.GetAccountName()),
 		ID:              string(acc.GetAccountId()),
 		Balance:         acc.GetBalance(),
