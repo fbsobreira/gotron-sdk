@@ -27,7 +27,14 @@ func NewGrpcClient(address string) *GrpcClient {
 // Start initiate grpc  connection
 func (g *GrpcClient) Start() error {
 	var err error
-	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
+	if len(g.Address) == 0 {
+		g.Conn, err = grpc.Dial("",
+			grpc.WithInsecure(),
+			grpc.WithBalancer(grpc.RoundRobin(NewPseudoResolver(GetIPList()))),
+		)
+	} else {
+		g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
+	}
 	if err != nil {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
