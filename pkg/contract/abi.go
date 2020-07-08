@@ -15,7 +15,7 @@ type JSONABI struct {
 		Name    string `json:"name"`
 		Type    string `json:"type"`
 	} `json:"inputs"`
-	Name    string `json:"nome"`
+	Name    string `json:"name"`
 	Outputs []struct {
 		Indexed bool   `json:"indexed"`
 		Name    string `json:"name"`
