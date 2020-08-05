@@ -110,6 +110,12 @@ func trc20Sub() []*cobra.Command {
 				tokenDecimals = big.NewInt(0)
 			}
 
+			// get contract decimals if any
+			symbol, err := conn.TRC20GetSymbol(contract.String())
+			if err != nil {
+				symbol = ""
+			}
+
 			value, err := conn.TRC20ContractBalance(addr.String(), contract.String())
 			if err != nil {
 				return err
@@ -123,7 +129,7 @@ func trc20Sub() []*cobra.Command {
 			}
 
 			result := make(map[string]interface{})
-			result["balance"] = amount.String()
+			result["balance"] = fmt.Sprintf("%s %s", amount.String(), symbol)
 
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
