@@ -184,3 +184,25 @@ func (g *GrpcClient) UpdateHash(tx *api.TransactionExtention) error {
 	tx.Txid = hash
 	return nil
 }
+
+// GetContractABI return smartContract
+func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract_ABI, error) {
+	var err error
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	defer cancel()
+
+	sm, err := g.Client.GetContract(ctx, GetMessageBytes(contractDesc))
+	if err != nil {
+		return nil, err
+	}
+	if sm == nil {
+		return nil, fmt.Errorf("invalid contract abi")
+	}
+
+	return sm.Abi, nil
+}
