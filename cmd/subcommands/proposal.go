@@ -14,6 +14,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	newOnlyProposals = false
+)
+
 func proposalSub() []*cobra.Command {
 	cmdProposalList := &cobra.Command{
 		Use:   "list",
@@ -42,6 +46,9 @@ func proposalSub() []*cobra.Command {
 				expiration := time.Unix(proposal.ExpirationTime/1000, 0)
 				if expiration.Before(time.Now()) {
 					expired = true
+					if newOnlyProposals && expired {
+						continue
+					}
 				}
 
 				data := map[string]interface{}{
@@ -58,16 +65,16 @@ func proposalSub() []*cobra.Command {
 			result["totalCount"] = len(list.Proposals)
 			result["filterCount"] = len(pList)
 			result["proposals"] = pList
-			fmt.Println(result)
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
 		},
 	}
+	cmdProposalList.Flags().BoolVar(&newOnlyProposals, "new", false, "Show only new proposals")
 
 	cmdProposalApprove := &cobra.Command{
 		Use:   "approve",
-		Short: "List network proposals",
+		Short: "Approve network proposal",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if signerAddress.String() == "" {
