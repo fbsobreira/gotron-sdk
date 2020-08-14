@@ -28,13 +28,10 @@ func NewGrpcClient(address string) *GrpcClient {
 func (g *GrpcClient) Start() error {
 	var err error
 	if len(g.Address) == 0 {
-		g.Conn, err = grpc.Dial("",
-			grpc.WithInsecure(),
-			grpc.WithBalancer(grpc.RoundRobin(NewPseudoResolver(GetIPList()))),
-		)
-	} else {
-		g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
+		g.Address = "grp.trongrid.io:50051"
 	}
+	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
+
 	if err != nil {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
