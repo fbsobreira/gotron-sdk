@@ -18,7 +18,7 @@ func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessag
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetAccountResource(ctx, account)
@@ -30,7 +30,7 @@ func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedReso
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	ai, err := g.Client.GetDelegatedResourceAccountIndex(ctx, GetMessageBytes(addrBytes))

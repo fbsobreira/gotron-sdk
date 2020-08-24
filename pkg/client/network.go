@@ -14,7 +14,7 @@ import (
 
 // ListNodes provides list of network nodes
 func (g *GrpcClient) ListNodes() (*api.NodeList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	nodeList, err := g.Client.ListNodes(ctx, new(api.EmptyMessage))
@@ -26,7 +26,7 @@ func (g *GrpcClient) ListNodes() (*api.NodeList, error) {
 
 // GetNextMaintenanceTime get next epoch timestamp
 func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetNextMaintenanceTime(ctx,
@@ -35,7 +35,7 @@ func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error) {
 
 // TotalTransaction return total transciton in network
 func (g *GrpcClient) TotalTransaction() (*api.NumberMessage, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.TotalTransaction(ctx,
@@ -52,7 +52,7 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.GetTransactionById(ctx, transactionID)
@@ -75,7 +75,7 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	txi, err := g.Client.GetTransactionInfoById(ctx, transactionID)
@@ -90,7 +90,7 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 
 // Broadcast broadcast TX
 func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 	result, err := g.Client.BroadcastTransaction(ctx, tx)
 	if err != nil {
@@ -107,7 +107,7 @@ func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 
 // GetNodeInfo current connection
 func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetNodeInfo(ctx, new(api.EmptyMessage))

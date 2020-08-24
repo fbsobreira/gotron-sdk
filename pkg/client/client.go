@@ -8,20 +8,35 @@ import (
 	"google.golang.org/grpc"
 )
 
-const grpcTimeout = 5 * time.Second
-
 // GrpcClient controller structure
 type GrpcClient struct {
-	Address string
-	Conn    *grpc.ClientConn
-	Client  api.WalletClient
+	Address     string
+	Conn        *grpc.ClientConn
+	Client      api.WalletClient
+	grpcTimeout time.Duration
 }
 
 // NewGrpcClient create grpc controller
 func NewGrpcClient(address string) *GrpcClient {
-	client := new(GrpcClient)
-	client.Address = address
+	client := &GrpcClient{
+		Address:     address,
+		grpcTimeout: 5 * time.Second,
+	}
 	return client
+}
+
+// NewGrpcClientWithTimeout create grpc controller
+func NewGrpcClientWithTimeout(address string, timeout time.Duration) *GrpcClient {
+	client := &GrpcClient{
+		Address:     address,
+		grpcTimeout: timeout,
+	}
+	return client
+}
+
+// SetTimeout for Client connections
+func (g *GrpcClient) SetTimeout(timeout time.Duration) {
+	g.grpcTimeout = timeout
 }
 
 // Start initiate grpc  connection

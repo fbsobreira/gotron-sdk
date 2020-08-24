@@ -23,7 +23,7 @@ func (g *GrpcClient) Transfer(from, toAddress string, amount int64) (*api.Transa
 	}
 	contract.Amount = amount
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.CreateTransaction2(ctx, contract)

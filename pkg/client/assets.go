@@ -23,7 +23,7 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetAssetIssueByAccount(ctx, account)
@@ -31,7 +31,7 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList
 
 // GetAssetIssueByName list asset issued by name
 func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetAssetIssueByName(ctx, GetMessageBytes([]byte(name)))
@@ -41,7 +41,7 @@ func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract,
 func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract, error) {
 	bn := new(big.Int).SetBytes([]byte(tokenID))
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetAssetIssueById(ctx, GetMessageBytes(bn.Bytes()))
@@ -49,7 +49,7 @@ func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract
 
 // GetAssetIssueList list all TRC10
 func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssueList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	if page == -1 {
@@ -136,7 +136,7 @@ func (g *GrpcClient) AssetIssue(from, name, description, abbr, urlStr string,
 			FrozenSupply, assetIssueContractFrozenSupply)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.CreateAssetIssue2(ctx, contract)
@@ -167,7 +167,7 @@ func (g *GrpcClient) UpdateAssetIssue(from, description, urlStr string,
 	contract.NewLimit = newLimit
 	contract.NewPublicLimit = newPublicLimit
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.UpdateAsset2(ctx, contract)
@@ -198,7 +198,7 @@ func (g *GrpcClient) TransferAsset(from, toAddress,
 	contract.AssetName = []byte(assetName)
 	contract.Amount = amount
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.TransferAsset2(ctx, contract)
@@ -229,7 +229,7 @@ func (g *GrpcClient) ParticipateAssetIssue(from, issuerAddress,
 	contract.AssetName = []byte(tokenID)
 	contract.Amount = amount
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.ParticipateAssetIssue2(ctx, contract)
@@ -253,7 +253,7 @@ func (g *GrpcClient) UnfreezeAsset(from string) (*api.TransactionExtention, erro
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.UnfreezeAsset2(ctx, contract)

@@ -24,7 +24,7 @@ func (g *GrpcClient) GetAccount(addr string) (*core.Account, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	acc, err := g.Client.GetAccount(ctx, account)
@@ -47,7 +47,7 @@ func (g *GrpcClient) GetAccountNet(addr string) (*api.AccountNetMessage, error) 
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	return g.Client.GetAccountNet(ctx, account)
@@ -64,7 +64,7 @@ func (g *GrpcClient) CreateAccount(from, addr string) (*api.TransactionExtention
 	if contract.AccountAddress, err = common.DecodeCheck(addr); err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.CreateAccount2(ctx, contract)
@@ -89,7 +89,7 @@ func (g *GrpcClient) UpdateAccount(from, accountName string) (*api.TransactionEx
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.UpdateAccount2(ctx, contract)
@@ -210,7 +210,7 @@ func (g *GrpcClient) WithdrawBalance(from string) (*api.TransactionExtention, er
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.WithdrawBalance2(ctx, contract)
@@ -351,7 +351,7 @@ func (g *GrpcClient) UpdateAccountPermission(from string, owner, witness map[str
 		contract.Witness = witnessPermission
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), grpcTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
 
 	tx, err := g.Client.AccountPermissionUpdate(ctx, contract)
