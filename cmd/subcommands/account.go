@@ -42,11 +42,17 @@ func accountSub() []*cobra.Command {
 				return nil
 			}
 
+			rewards, err := conn.GetRewardsInfo(addr.String())
+			if err != nil {
+				return err
+			}
+
 			result := make(map[string]interface{})
 			result["address"] = addr.String()
 			result["type"] = acc.GetType()
 			result["balance"] = float64(acc.GetBalance()) / 1000000
-			result["allowance"] = float64(acc.GetAllowance()) / 1000000
+			result["allowance"] = float64(acc.GetAllowance()+rewards) / 1000000
+			result["rewards"] = float64(acc.GetAllowance()) / 1000000
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
