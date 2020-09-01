@@ -37,6 +37,23 @@ func (g *GrpcClient) GetAccount(addr string) (*core.Account, error) {
 	return acc, nil
 }
 
+// GetRewardsInfo from BASE58 address
+func (g *GrpcClient) GetRewardsInfo(addr string) (int64, error) {
+	addrBytes, err := common.DecodeCheck(addr)
+	if err != nil {
+		return 0, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	defer cancel()
+
+	rewards, err := g.Client.GetRewardInfo(ctx, GetMessageBytes(addrBytes))
+	if err != nil {
+		return 0, err
+	}
+	return rewards.Num, nil
+}
+
 // GetAccountNet return account resources from BASE58 address
 func (g *GrpcClient) GetAccountNet(addr string) (*api.AccountNetMessage, error) {
 	account := new(core.Account)
@@ -123,6 +140,11 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		return nil, err
 	}
 
+	rewards, err := g.GetRewardsInfo(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	// SUM Total freeze
 	totalFrozen := int64(0)
 	frozenList := make([]account.FrozenResource, 0)
@@ -183,7 +205,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		Name:            string(acc.GetAccountName()),
 		ID:              string(acc.GetAccountId()),
 		Balance:         acc.GetBalance(),
-		Allowance:       acc.GetAllowance(),
+		Allowance:       acc.GetAllowance() + rewards,
 		LastWithdraw:    acc.LatestWithdrawTime,
 		IsWitness:       acc.IsWitness,
 		IsElected:       acc.IsCommittee,
