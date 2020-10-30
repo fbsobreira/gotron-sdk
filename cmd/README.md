@@ -11,13 +11,14 @@
   - [x] resources
   - [x] vote
   - [x] permission
+  - [ ] sign message
 
 - [ ] sr
   - [x] list
   - [ ] details
   - [x] create
   - [ ] update sr
-  - [ ] update brokerage
+  - [x] update brokerage
   
   [ ] proposal
     - [ ] create

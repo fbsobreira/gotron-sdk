@@ -126,3 +126,30 @@ func (g *GrpcClient) GetWitnessBrokerage(witness string) (float64, error) {
 	}
 	return float64(result.Num), nil
 }
+
+// UpdateBrokerage change SR comission fees
+func (g *GrpcClient) UpdateBrokerage(from string, comission int32) (*api.TransactionExtention, error) {
+	var err error
+
+	contract := &core.UpdateBrokerageContract{
+		Brokerage: comission,
+	}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	defer cancel()
+
+	tx, err := g.Client.UpdateBrokerage(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+	if proto.Size(tx) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
+	return tx, nil
+}

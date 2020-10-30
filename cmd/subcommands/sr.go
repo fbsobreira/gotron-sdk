@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
@@ -131,7 +132,64 @@ func srSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdList, cmdCreate}
+	cmdUpdateBrokerage := &cobra.Command{
+		Use:   "brokerage <new_comission>",
+		Short: "up SR brokerage comission",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			value, err := strconv.ParseInt(args[0], 10, 32)
+			if err != nil {
+				return err
+			}
+			if value < 0 || value > 100 {
+				return fmt.Errorf("Invalud Brokerage rande 0 > X < 100")
+			}
+			tx, err := conn.UpdateBrokerage(signerAddress.String(), int32(value))
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	return []*cobra.Command{cmdList, cmdCreate, cmdUpdateBrokerage}
 }
 
 func init() {
