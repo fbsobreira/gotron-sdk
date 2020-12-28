@@ -1,6 +1,8 @@
 package abi
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -137,11 +139,63 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 				v = convertToInt(ty, v)
 			}
 
+			if ty.T == eABI.BytesTy || ty.T == eABI.FixedBytesTy {
+				var err error
+				if v, err = convertToBytes(ty, v); err != nil {
+					return nil, err
+				}
+			}
+
 			values = append(values, v)
 		}
 	}
 	// convert params to bytes
 	return arguments.PackValues(values)
+}
+
+func convertToBytes(ty eABI.Type, v interface{}) (interface{}, error) {
+	// if string
+	if data, ok := v.(string); ok {
+		// convert from hex string
+		dataBytes, err := hex.DecodeString(data)
+		if err != nil {
+			// try with base64
+			dataBytes, err = base64.StdEncoding.DecodeString(data)
+			if err != nil {
+				return nil, err
+			}
+		}
+		// if array and size == 0
+		if ty.T == eABI.BytesTy || ty.Size == 0 {
+			return dataBytes, nil
+		}
+		if len(dataBytes) != ty.Size {
+			return nil, fmt.Errorf("invalid size: %d/%d", ty.Size, len(dataBytes))
+		}
+		switch ty.Size {
+		case 1:
+			value := [1]byte{}
+			copy(value[:], dataBytes[:1])
+			return value, nil
+		case 2:
+			value := [2]byte{}
+			copy(value[:], dataBytes[:2])
+			return value, nil
+		case 8:
+			value := [8]byte{}
+			copy(value[:], dataBytes[:8])
+			return value, nil
+		case 16:
+			value := [16]byte{}
+			copy(value[:], dataBytes[:16])
+			return value, nil
+		case 32:
+			value := [32]byte{}
+			copy(value[:], dataBytes[:32])
+			return value, nil
+		}
+	}
+	return v, nil
 }
 
 // Pack data into bytes
