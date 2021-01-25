@@ -92,16 +92,22 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
 	defer cancel()
+
 	result, err := g.Client.BroadcastTransaction(ctx, tx)
 	if err != nil {
 		return nil, err
 	}
+
+	fmt.Printf("BROADCAST RESULT :::: %+v", result)
+
 	if !result.GetResult() {
-		return result, fmt.Errorf("result error: %s", result.GetMessage())
+		return result, fmt.Errorf("result error: %s", string(result.GetMessage()))
 	}
+
 	if result.GetCode() != api.Return_SUCCESS {
-		return result, fmt.Errorf("result error(%s): %s", result.GetCode(), result.GetMessage())
+		return result, fmt.Errorf("result error(%s): %s", result.GetCode(), string(result.GetMessage()))
 	}
+
 	return result, nil
 }
 
