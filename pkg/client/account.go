@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/account"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/golang/protobuf/proto"
+	"github.com/klever-io/gotron-sdk/pkg/account"
+	"github.com/klever-io/gotron-sdk/pkg/address"
+	"github.com/klever-io/gotron-sdk/pkg/common"
+	"github.com/klever-io/gotron-sdk/pkg/proto/api"
+	"github.com/klever-io/gotron-sdk/pkg/proto/core"
 )
 
 // GetAccount from BASE58 address

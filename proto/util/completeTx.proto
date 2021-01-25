@@ -6,7 +6,7 @@ import "core/contract/asset_issue_contract.proto";
 
 package protocol;
 
-option go_package = "github.com/fbsobreira/gotron-sdk/pkg/proto/util";
+option go_package = "github.com/klever-io/gotron-sdk/pkg/proto/util";
 
 message ProtoCompleteTransaction {
     uint64 BlockNumber = 1;

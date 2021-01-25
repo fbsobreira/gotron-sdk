@@ -8,8 +8,8 @@ package api
 
 import (
 	context "context"
-	core "github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	proto "github.com/golang/protobuf/proto"
+	core "github.com/klever-io/gotron-sdk/pkg/proto/core"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
