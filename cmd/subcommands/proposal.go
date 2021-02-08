@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
@@ -16,6 +17,7 @@ import (
 
 var (
 	newOnlyProposals = false
+	proposalList     []string
 )
 
 func proposalSub() []*cobra.Command {
@@ -131,7 +133,82 @@ func proposalSub() []*cobra.Command {
 		},
 	}
 
-	return []*cobra.Command{cmdProposalList, cmdProposalApprove}
+	cmdProposalCreate := &cobra.Command{
+		Use:   "create",
+		Short: "Approve network proposal",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			proposals := make(map[int64]int64)
+			for _, proposal := range proposalList {
+				proposalKeyValue := strings.Split(proposal, ":")
+				if len(proposalKeyValue) != 2 {
+					return fmt.Errorf("invalid proposal %s", proposalKeyValue)
+				}
+				paramID, err := strconv.ParseInt(proposalKeyValue[0], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid param ID: %s %+v", proposalKeyValue[0], err)
+				}
+
+				if proposals[paramID] > 0 {
+					return fmt.Errorf("proposal colision %d:%d -> %s", paramID, proposals[paramID], proposal)
+				}
+				// check proposal value
+				proposalValue, err := strconv.ParseInt(proposalKeyValue[1], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid vote count %s. %+v", proposalKeyValue[1], err)
+				}
+				proposals[paramID] = proposalValue
+			}
+
+			tx, err := conn.ProposalCreate(signerAddress.String(), proposals)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
+	cmdProposalCreate.Flags().StringSliceVar(&proposalList, "params", []string{}, "ID:VALUE,ID:VALUE")
+
+	return []*cobra.Command{cmdProposalList, cmdProposalApprove, cmdProposalCreate}
 }
 
 func init() {
