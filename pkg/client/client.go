@@ -14,6 +14,7 @@ type GrpcClient struct {
 	Conn        *grpc.ClientConn
 	Client      api.WalletClient
 	grpcTimeout time.Duration
+	opts        []grpc.DialOption
 }
 
 // NewGrpcClient create grpc controller
@@ -40,12 +41,13 @@ func (g *GrpcClient) SetTimeout(timeout time.Duration) {
 }
 
 // Start initiate grpc  connection
-func (g *GrpcClient) Start() error {
+func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	var err error
 	if len(g.Address) == 0 {
 		g.Address = "grp.trongrid.io:50051"
 	}
-	g.Conn, err = grpc.Dial(g.Address, grpc.WithInsecure())
+	g.opts = opts
+	g.Conn, err = grpc.Dial(g.Address, opts...)
 
 	if err != nil {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
@@ -67,7 +69,7 @@ func (g *GrpcClient) Reconnect(url string) error {
 	if len(url) > 0 {
 		g.Address = url
 	}
-	g.Start()
+	g.Start(g.opts...)
 	return nil
 }
 

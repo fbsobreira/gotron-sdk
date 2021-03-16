@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"golang.org/x/crypto/ssh/terminal"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -55,7 +56,7 @@ var (
 				node = node + ":50051"
 			}
 			conn = client.NewGrpcClient(node)
-			if err := conn.Start(); err != nil {
+			if err := conn.Start(grpc.WithInsecure()); err != nil {
 				return err
 			}
 
