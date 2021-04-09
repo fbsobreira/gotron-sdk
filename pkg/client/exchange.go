@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -13,7 +12,7 @@ import (
 
 // ExchangeList of bancor TRC10, use page -1 to list all
 func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	if page == -1 {
@@ -29,7 +28,7 @@ func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, 
 
 // ExchangeByID returns exchangeDetails
 func (g *GrpcClient) ExchangeByID(id int64) (*core.Exchange, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 	bID := make([]byte, 8)
 	binary.BigEndian.PutUint64(bID, uint64(id))
@@ -64,7 +63,7 @@ func (g *GrpcClient) ExchangeCreate(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ExchangeCreate(ctx, contract)
@@ -98,7 +97,7 @@ func (g *GrpcClient) ExchangeInject(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ExchangeInject(ctx, contract)
@@ -132,7 +131,7 @@ func (g *GrpcClient) ExchangeWithdraw(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ExchangeWithdraw(ctx, contract)
@@ -168,7 +167,7 @@ func (g *GrpcClient) ExchangeTrade(
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ExchangeTransaction(ctx, contract)

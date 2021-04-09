@@ -61,3 +61,17 @@ based environment variables.
 ```bash
 GOTRON_SDK_DEBUG=true ./tronctl
 ```
+
+
+# GRPC TLS
+
+If you node require TLS connection, use parameter `--withTLS`
+TLS credentials can also be set persistent in config file: `withTLS: true`
+
+# Trongrid API Key
+
+To set trongrid API Key first create you api key at `www.trongrid.io` and use parameter 
+ `--apiKey=25f66928-0b70-48cd-9ac6-da6f8247c663` (replace with your API key)
+Trongrid API Key can also be set persistent in config file: `apiKey: 25f66928-0b70-48cd-9ac6-da6f8247c663` (replace with your API key)
+
+OS environment variable `TRONGRID_APIKEY` will overwrite any prior API key configuration if set.

@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra/doc"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -41,6 +42,8 @@ var (
 	keyStoreDir            string
 	givenFilePath          string
 	timeout                uint32
+	withTLS                bool
+	apiKey                 string
 	conn                   *client.GrpcClient
 	// RootCmd is single entry point of the CLI
 	RootCmd = &cobra.Command{
@@ -56,7 +59,23 @@ var (
 				node = node + ":50051"
 			}
 			conn = client.NewGrpcClient(node)
-			if err := conn.Start(grpc.WithInsecure()); err != nil {
+
+			// load grpc options
+			opts := make([]grpc.DialOption, 0)
+			if withTLS {
+				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
+			} else {
+				opts = append(opts, grpc.WithInsecure())
+			}
+
+			// check for env API Key
+			if trongridKey := os.Getenv("TRONGRID_APIKEY"); len(trongridKey) > 0 {
+				apiKey = trongridKey
+			}
+			// set API
+			conn.SetAPIKey(apiKey)
+
+			if err := conn.Start(opts...); err != nil {
 				return err
 			}
 
@@ -98,6 +117,8 @@ func init() {
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", config.Verbose, vS)
 	RootCmd.PersistentFlags().StringVarP(&signer, "signer", "s", "", "<signer>")
 	RootCmd.PersistentFlags().StringVarP(&node, "node", "n", config.Node, "<host>")
+	RootCmd.PersistentFlags().StringVarP(&apiKey, "apiKey", "k", config.APIKey, "<api-key>")
+	RootCmd.PersistentFlags().BoolVar(&withTLS, "withTLS", config.WithTLS, "<bool>")
 	RootCmd.PersistentFlags().BoolVar(
 		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)

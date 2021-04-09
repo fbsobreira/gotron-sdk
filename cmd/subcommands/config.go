@@ -48,6 +48,12 @@ func init() {
 				if config.NoPretty, err = strconv.ParseBool(args[1]); err != nil {
 					return err
 				}
+			case "apiKey":
+				config.APIKey = args[1]
+			case "withTLS":
+				if config.WithTLS, err = strconv.ParseBool(args[1]); err != nil {
+					return err
+				}
 			default:
 				return fmt.Errorf("parameter not found")
 			}
@@ -71,6 +77,10 @@ func init() {
 				fmt.Println(config.Verbose)
 			case "nopretty":
 				fmt.Println(config.NoPretty)
+			case "apiKey":
+				fmt.Println(config.APIKey)
+			case "withTLS":
+				fmt.Println(config.WithTLS)
 			default:
 				return fmt.Errorf("parameter not found")
 			}
@@ -96,6 +106,8 @@ func initConfig() {
 			config.Verbose = false
 			config.Timeout = defaultTimeout
 			config.NoPretty = false
+			config.APIKey = ""
+			config.WithTLS = false
 			SaveConfig(config)
 		} else {
 			panic(err.Error())

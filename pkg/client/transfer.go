@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -23,7 +22,7 @@ func (g *GrpcClient) Transfer(from, toAddress string, amount int64) (*api.Transa
 	}
 	contract.Amount = amount
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.CreateTransaction2(ctx, contract)

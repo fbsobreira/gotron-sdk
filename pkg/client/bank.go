@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -31,7 +30,7 @@ func (g *GrpcClient) FreezeBalance(from, delegateTo string,
 	}
 	contract.Resource = resource
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.FreezeBalance2(ctx, contract)
@@ -64,7 +63,7 @@ func (g *GrpcClient) UnfreezeBalance(from, delegateTo string, resource core.Reso
 	}
 	contract.Resource = resource
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.UnfreezeBalance2(ctx, contract)

@@ -37,6 +37,8 @@ type Config struct {
 	Verbose  bool   `yaml:"verbose"`
 	Timeout  uint32 `yaml:"timeout"`
 	NoPretty bool   `yaml:"noPretty"`
+	APIKey   string `yaml:"apiKey"`
+	WithTLS  bool   `yaml:"withTLS"`
 }
 
 // ReadConfig represents the current config read from local
