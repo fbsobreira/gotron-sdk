@@ -44,7 +44,7 @@ func (g *GrpcClient) SetTimeout(timeout time.Duration) {
 func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	var err error
 	if len(g.Address) == 0 {
-		g.Address = "grp.trongrid.io:50051"
+		g.Address = "grpc.trongrid.io:50051"
 	}
 	g.opts = opts
 	g.Conn, err = grpc.Dial(g.Address, opts...)
