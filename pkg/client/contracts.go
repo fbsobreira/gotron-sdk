@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"crypto/sha256"
 	"fmt"
 	"strconv"
@@ -50,7 +49,7 @@ func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, json
 
 // triggerConstantContract and return tx result
 func (g *GrpcClient) triggerConstantContract(ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	return g.Client.TriggerConstantContract(ctx, ct)
@@ -100,7 +99,7 @@ func (g *GrpcClient) TriggerContract(from, contractAddress, method, jsonString s
 
 // triggerContract and return tx result
 func (g *GrpcClient) triggerContract(ct *core.TriggerSmartContract, feeLimit int64) (*api.TransactionExtention, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.TriggerContract(ctx, ct)
@@ -156,7 +155,7 @@ func (g *GrpcClient) DeployContract(from, contractName string,
 		},
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.DeployContract(ctx, ct)
@@ -193,7 +192,7 @@ func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	sm, err := g.Client.GetContract(ctx, GetMessageBytes(contractDesc))

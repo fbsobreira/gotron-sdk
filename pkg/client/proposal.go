@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -12,7 +11,7 @@ import (
 
 // ProposalsList return all network proposals
 func (g *GrpcClient) ProposalsList() (*api.ProposalList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	return g.Client.ListProposals(ctx, new(api.EmptyMessage))
@@ -29,7 +28,7 @@ func (g *GrpcClient) ProposalCreate(from string, parameters map[int64]int64) (*a
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ProposalCreate(ctx, contract)
@@ -57,7 +56,7 @@ func (g *GrpcClient) ProposalApprove(from string, id int64, confirm bool) (*api.
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.ProposalApprove(ctx, contract)

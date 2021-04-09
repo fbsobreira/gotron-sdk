@@ -1,8 +1,6 @@
 package client
 
 import (
-	"context"
-
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
@@ -18,7 +16,7 @@ func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessag
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	return g.Client.GetAccountResource(ctx, account)
@@ -30,7 +28,7 @@ func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedReso
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	ai, err := g.Client.GetDelegatedResourceAccountIndex(ctx, GetMessageBytes(addrBytes))

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -12,7 +11,7 @@ import (
 
 // ListWitnesses return all witnesses
 func (g *GrpcClient) ListWitnesses() (*api.WitnessList, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	return g.Client.ListWitnesses(ctx, new(api.EmptyMessage))
@@ -29,7 +28,7 @@ func (g *GrpcClient) CreateWitness(from, urlStr string) (*api.TransactionExtenti
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.CreateWitness2(ctx, contract)
@@ -55,7 +54,7 @@ func (g *GrpcClient) UpdateWitness(from, urlStr string) (*api.TransactionExtenti
 	}
 	contract.UpdateUrl = []byte(urlStr)
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.UpdateWitness2(ctx, contract)
@@ -94,7 +93,7 @@ func (g *GrpcClient) VoteWitnessAccount(from string,
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.VoteWitnessAccount2(ctx, contract)
@@ -117,7 +116,7 @@ func (g *GrpcClient) GetWitnessBrokerage(witness string) (float64, error) {
 		return 0, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	result, err := g.Client.GetBrokerageInfo(ctx, GetMessageBytes(addr))
@@ -138,7 +137,7 @@ func (g *GrpcClient) UpdateBrokerage(from string, comission int32) (*api.Transac
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	ctx, cancel := g.getContext()
 	defer cancel()
 
 	tx, err := g.Client.UpdateBrokerage(ctx, contract)
