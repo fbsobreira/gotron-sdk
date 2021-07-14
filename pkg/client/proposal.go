@@ -71,3 +71,29 @@ func (g *GrpcClient) ProposalApprove(from string, id int64, confirm bool) (*api.
 	}
 	return tx, nil
 }
+
+func (g *GrpcClient) ProposalWithdraw(from string, id int64) (*api.TransactionExtention, error) {
+	var err error
+
+	contract := &core.ProposalDeleteContract{
+		ProposalId: id,
+	}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.ProposalDelete(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+	if proto.Size(tx) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
+	return tx, nil
+}

@@ -20,8 +20,9 @@
   - [ ] update sr
   - [x] update brokerage
   
-  [ ] proposal
-    - [ ] create
+  [x] proposal
+    - [x] create
+    - [x] withdraw
     - [x] vote proposal
     - [x] list proposals
 

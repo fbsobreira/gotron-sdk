@@ -133,6 +133,61 @@ func proposalSub() []*cobra.Command {
 		},
 	}
 
+	cmdProposalWithdraw := &cobra.Command{
+		Use:   "withdraw",
+		Short: "Withdraw network proposal",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			id, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return err
+			}
+
+			tx, err := conn.ProposalWithdraw(signerAddress.String(), id)
+			if err != nil {
+				return err
+			}
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+
 	cmdProposalCreate := &cobra.Command{
 		Use:   "create",
 		Short: "Approve network proposal",
@@ -208,7 +263,7 @@ func proposalSub() []*cobra.Command {
 
 	cmdProposalCreate.Flags().StringSliceVar(&proposalList, "params", []string{}, "ID:VALUE,ID:VALUE")
 
-	return []*cobra.Command{cmdProposalList, cmdProposalApprove, cmdProposalCreate}
+	return []*cobra.Command{cmdProposalList, cmdProposalApprove, cmdProposalWithdraw, cmdProposalCreate}
 }
 
 func init() {
