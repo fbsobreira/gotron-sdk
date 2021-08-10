@@ -6,7 +6,7 @@ require (
 	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1
 	github.com/btcsuite/btcd v0.20.1-beta
 	github.com/deckarep/golang-set v1.7.1
-	github.com/ethereum/go-ethereum v1.9.20
+	github.com/ethereum/go-ethereum v1.9.25
 	github.com/fatih/color v1.9.0
 	github.com/fatih/structs v1.1.0
 	github.com/golang/protobuf v1.4.2
