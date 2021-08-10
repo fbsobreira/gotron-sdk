@@ -8,6 +8,7 @@ import (
 	"math/big"
 	"reflect"
 	"strconv"
+	"strings"
 
 	eABI "github.com/ethereum/go-ethereum/accounts/abi"
 	eCommon "github.com/ethereum/go-ethereum/common"
@@ -79,7 +80,13 @@ func convertToInt(ty eABI.Type, v interface{}) interface{} {
 			v = uint64(tmp)
 		}
 	} else {
-		v, _ = new(big.Int).SetString(v.(string), 10)
+		s := v.(string)
+		// check for hex char
+		if strings.HasPrefix(s, "0x") {
+			v, _ = new(big.Int).SetString(s[2:], 16)
+		} else {
+			v, _ = new(big.Int).SetString(s, 10)
+		}
 	}
 	return v
 }
@@ -124,7 +131,13 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 					reflect.TypeOf(v).Elem().Kind() == reflect.String {
 					tmp := make([]*big.Int, 0)
 					for _, s := range v.([]string) {
-						value, _ := new(big.Int).SetString(s, 10)
+						var value *big.Int
+						// check for hex char
+						if strings.HasPrefix(s, "0x") {
+							value, _ = new(big.Int).SetString(s[2:], 16)
+						} else {
+							value, _ = new(big.Int).SetString(s, 10)
+						}
 						tmp = append(tmp, value)
 					}
 					v = tmp
