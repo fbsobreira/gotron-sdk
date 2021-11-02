@@ -13,9 +13,6 @@ uname := $(shell uname)
 
 env := GO111MODULE=on
 
-DIR := ${CURDIR}
-export CGO_LDFLAGS=-L$(DIR)/bin/lib -Wl,-rpath -Wl,${ORIGIN}/lib
-
 all:
 	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
