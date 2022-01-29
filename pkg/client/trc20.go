@@ -175,13 +175,13 @@ func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLi
 }
 
 // TRC20Approve approve token to address
-func (g *GrpcClient) TRC20Approve(from, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
-	addrA, err := address.Base58ToAddress(contract)
+func (g *GrpcClient) TRC20Approve(from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+	addrB, err := address.Base58ToAddress(to)
 	if err != nil {
 		return nil, err
 	}
 	ab := common.LeftPadBytes(amount.Bytes(), 32)
-	req := trc20ApproveMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrA.Hex())-4:] + addrA.Hex()[4:]
+	req := trc20ApproveMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
 	return g.TRC20Call(from, contract, req, false, feeLimit)
 }
