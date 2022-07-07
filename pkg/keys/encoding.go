@@ -1,7 +1,7 @@
 package keys
 
 import (
-	secp256k1 "github.com/btcsuite/btcd/btcec"
+	secp256k1 "github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 )
 

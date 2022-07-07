@@ -23,7 +23,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 )
 
 // BIP44Params wraps BIP 44 params (5 level BIP 32 path).
@@ -209,7 +209,7 @@ func derivePrivateKey(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32
 		data = append([]byte{byte(0)}, privKeyBytes[:]...)
 	} else {
 		// this can't return an error:
-		_, ecPub := btcec.PrivKeyFromBytes(curve, privKeyBytes[:])
+		_, ecPub := btcec.PrivKeyFromBytes(privKeyBytes[:])
 		pubkeyBytes := ecPub.SerializeCompressed()
 		data = pubkeyBytes
 
