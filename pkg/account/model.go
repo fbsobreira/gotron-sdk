@@ -33,4 +33,5 @@ type Account struct {
 	BWUsed          int64            `json:"bandwidthUsed"`
 	EnergyTotal     int64            `json:"energyTotal"`
 	EnergyUsed      int64            `json:"energyUsed"`
+	Rewards         int64            `json:"rewards"`
 }

@@ -204,7 +204,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		Name:            string(acc.GetAccountName()),
 		ID:              string(acc.GetAccountId()),
 		Balance:         acc.GetBalance(),
-		Allowance:       acc.GetAllowance() + rewards,
+		Allowance:       acc.GetAllowance(),
 		LastWithdraw:    acc.LatestWithdrawTime,
 		IsWitness:       acc.IsWitness,
 		IsElected:       acc.IsCommittee,
@@ -218,6 +218,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		BWUsed:          accR.GetFreeNetUsed() + accR.GetNetUsed(),
 		EnergyTotal:     accR.GetEnergyLimit(),
 		EnergyUsed:      accR.GetEnergyUsed(),
+		Rewards:         rewards,
 	}
 
 	return accDet, nil
