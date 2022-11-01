@@ -11,16 +11,18 @@ import (
 )
 
 var (
-	conn    *client.GrpcClient
-	apiKey  = "622ec85e-7406-431d-9caf-0a19501469a4"
-	address = "grpc.trongrid.io:50051"
+	conn                  *client.GrpcClient
+	apiKey                = "622ec85e-7406-431d-9caf-0a19501469a4"
+	tronAddress           = "grpc.trongrid.io:50051"
+	accountAddress        = "TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b"
+	accountAddressWitness = "TGj1Ej1qRzL9feLTLhjwgxXF4Ct6GTWg2U"
 )
 
 func TestMain(m *testing.M) {
 	opts := make([]grpc.DialOption, 0)
 	opts = append(opts, grpc.WithInsecure())
 
-	conn = client.NewGrpcClient(address)
+	conn = client.NewGrpcClient(tronAddress)
 
 	if err := conn.Start(opts...); err != nil {
 		_ = fmt.Errorf("Error connecting GRPC Client: %v", err)
@@ -32,12 +34,15 @@ func TestMain(m *testing.M) {
 	os.Exit(exitVal)
 }
 
-func TestTRXTRC20Rewards(t *testing.T) {
-	acc, err := conn.GetAccount("TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b")
+func TestGetAccountDetailed(t *testing.T) {
+	acc, err := conn.GetAccountDetailed(accountAddress)
 	require.Nil(t, err)
+	require.NotNil(t, acc.Allowance)
+	require.NotNil(t, acc.Rewards)
 
-	fmt.Println("=========== ", acc)
+	acc2, err := conn.GetAccountDetailed(accountAddressWitness)
+	require.Nil(t, err)
+	require.NotNil(t, acc2.Allowance)
+	require.NotNil(t, acc2.Rewards)
 
-	acc2, _ := conn.GetAccount("TGj1Ej1qRzL9feLTLhjwgxXF4Ct6GTWg2U")
-	fmt.Println("=========== ", acc2)
 }
