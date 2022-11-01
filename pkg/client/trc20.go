@@ -161,7 +161,7 @@ func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.In
 	return r, nil
 }
 
-// TRC20Send send toke to address
+// TRC20Send send token to address
 func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
 	addrB, err := address.Base58ToAddress(to)
 	if err != nil {
