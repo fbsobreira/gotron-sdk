@@ -6,6 +6,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"google.golang.org/grpc"
 )
 
 // GetNowBlock return TIP block
@@ -30,7 +31,8 @@ func (g *GrpcClient) GetBlockByNum(num int64) (*api.BlockExtention, error) {
 	ctx, cancel := g.getContext()
 	defer cancel()
 
-	result, err := g.Client.GetBlockByNum2(ctx, numMessage)
+	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
+	result, err := g.Client.GetBlockByNum2(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
 		return nil, fmt.Errorf("Get block by num: %v", err)
@@ -44,10 +46,11 @@ func (g *GrpcClient) GetBlockInfoByNum(num int64) (*api.TransactionInfoList, err
 	numMessage := new(api.NumberMessage)
 	numMessage.Num = num
 
+	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
 	ctx, cancel := g.getContext()
 	defer cancel()
 
-	result, err := g.Client.GetTransactionInfoByBlockNum(ctx, numMessage)
+	result, err := g.Client.GetTransactionInfoByBlockNum(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
 		return nil, fmt.Errorf("Get block info by num: %v", err)
@@ -69,7 +72,8 @@ func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error) {
 	ctx, cancel := g.getContext()
 	defer cancel()
 
-	return g.Client.GetBlockById(ctx, blockID)
+	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
+	return g.Client.GetBlockById(ctx, blockID, maxSizeOption)
 }
 
 // GetBlockByLimitNext return list of block start/end
@@ -81,7 +85,8 @@ func (g *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockListExtent
 	ctx, cancel := g.getContext()
 	defer cancel()
 
-	return g.Client.GetBlockByLimitNext2(ctx, blockLimit)
+	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
+	return g.Client.GetBlockByLimitNext2(ctx, blockLimit, maxSizeOption)
 }
 
 // GetBlockByLatestNum return block list till num
@@ -92,5 +97,6 @@ func (g *GrpcClient) GetBlockByLatestNum(num int64) (*api.BlockListExtention, er
 	ctx, cancel := g.getContext()
 	defer cancel()
 
-	return g.Client.GetBlockByLatestNum2(ctx, numMessage)
+	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
+	return g.Client.GetBlockByLatestNum2(ctx, numMessage, maxSizeOption)
 }
