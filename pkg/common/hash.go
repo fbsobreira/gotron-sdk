@@ -3,6 +3,8 @@ package common
 import (
 	"fmt"
 	"math/big"
+
+	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -64,4 +66,10 @@ func (h *Hash) SetBytes(b []byte) {
 	}
 
 	copy(h[HashLength-len(b):], b)
+}
+
+func Keccak256(msg []byte) []byte {
+	hasher := sha3.NewLegacyKeccak256()
+	hasher.Write(msg)
+	return hasher.Sum(nil)
 }

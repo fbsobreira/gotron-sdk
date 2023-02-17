@@ -12,7 +12,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	proto "github.com/golang/protobuf/proto"
+	proto "google.golang.org/protobuf/proto"
 )
 
 var (

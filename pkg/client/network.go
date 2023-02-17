@@ -7,8 +7,8 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"github.com/golang/protobuf/proto"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 // ListNodes provides list of network nodes
@@ -41,7 +41,7 @@ func (g *GrpcClient) TotalTransaction() (*api.NumberMessage, error) {
 		new(api.EmptyMessage))
 }
 
-//GetTransactionByID returns transaction details by ID
+// GetTransactionByID returns transaction details by ID
 func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	transactionID := new(api.BytesMessage)
 	var err error
@@ -64,7 +64,7 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	return nil, fmt.Errorf("transaction info not found")
 }
 
-//GetTransactionInfoByID returns transaction receipt by ID
+// GetTransactionInfoByID returns transaction receipt by ID
 func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, error) {
 	transactionID := new(api.BytesMessage)
 	var err error

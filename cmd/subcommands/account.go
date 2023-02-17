@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -53,6 +54,7 @@ func accountSub() []*cobra.Command {
 			result["balance"] = float64(acc.GetBalance()) / 1000000
 			result["allowance"] = float64(acc.GetAllowance()) / 1000000
 			result["rewards"] = float64(rewards) / 1000000
+
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 			return nil
@@ -607,7 +609,88 @@ func accountSub() []*cobra.Command {
 
 	cmdPermission.Flags().StringSliceVar(&permissionList, "allow", []string{}, "TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT")
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote, cmdPermission}
+	var useFixedLength bool
+	var hashMessage bool
+
+	cmdSign := &cobra.Command{
+		Use:   "sign",
+		Short: "sign message",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+
+			message := []byte(args[0])
+			if hashMessage {
+				message = common.Keccak256([]byte(message))
+			}
+
+			var signature []byte
+			if useLedgerWallet {
+				// TODO:
+				// account := keystore.Account{Address: signerAddress.GetAddress()}
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				signature, err = ks.Wallets()[0].SignText(*acct, []byte(message), useFixedLength)
+				if err != nil {
+					return err
+				}
+			}
+
+			result := make(map[string]interface{})
+			result["Signer"] = signerAddress.String()
+			result["Message"] = args[0]
+			result["Signature"] = hex.EncodeToString(signature)
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+	cmdSign.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
+	cmdSign.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+
+	cmdVerify := &cobra.Command{
+		Use:   "verify",
+		Short: "verify message signature",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			message := []byte(args[0])
+			if hashMessage {
+				message = common.Keccak256([]byte(message))
+			}
+
+			// compute message hash
+			hash := keystore.TextHash(message, useFixedLength)
+			signature, err := hex.DecodeString(args[1])
+			if err != nil {
+				fmt.Println("Invalid signature")
+				return err
+			}
+
+			addr, err := keystore.RecoverPubkey(hash, signature)
+			if err != nil {
+				return err
+			}
+
+			result := make(map[string]interface{})
+			result["Message"] = args[0]
+			result["Signature"] = args[1]
+			result["Signer"] = addr.String()
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+	cmdVerify.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
+	cmdVerify.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+
+	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote, cmdPermission, cmdSign, cmdVerify}
 }
 
 func init() {
