@@ -2,7 +2,7 @@ syntax = "proto3";
 
 import "core/Tron.proto";
 import "api/api.proto";
-import "core/contract/asset_issue_contract.proto";
+import "core/asset_issue_contract.proto";
 
 package protocol;
 
