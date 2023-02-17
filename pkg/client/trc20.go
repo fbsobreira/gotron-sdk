@@ -46,10 +46,9 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool
 		ContractAddress: contractDesc.Bytes(),
 		Data:            dataBytes,
 	}
-	result := &api.TransactionExtention{}
+	var result *api.TransactionExtention
 	if constant {
 		result, err = g.triggerConstantContract(ct)
-
 	} else {
 		result, err = g.triggerContract(ct, feeLimit)
 	}
@@ -69,7 +68,7 @@ func (g *GrpcClient) TRC20GetName(contractAddress string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data := common.ToHex(result.GetConstantResult()[0])
+	data := common.BytesToHexString(result.GetConstantResult()[0])
 	return g.ParseTRC20StringProperty(data)
 }
 
@@ -79,7 +78,7 @@ func (g *GrpcClient) TRC20GetSymbol(contractAddress string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data := common.ToHex(result.GetConstantResult()[0])
+	data := common.BytesToHexString(result.GetConstantResult()[0])
 	return g.ParseTRC20StringProperty(data)
 }
 
@@ -89,7 +88,7 @@ func (g *GrpcClient) TRC20GetDecimals(contractAddress string) (*big.Int, error) 
 	if err != nil {
 		return nil, err
 	}
-	data := common.ToHex(result.GetConstantResult()[0])
+	data := common.BytesToHexString(result.GetConstantResult()[0])
 	return g.ParseTRC20NumericProperty(data)
 }
 
@@ -105,7 +104,12 @@ func (g *GrpcClient) ParseTRC20NumericProperty(data string) (*big.Int, error) {
 			return &n, nil
 		}
 	}
-	return nil, fmt.Errorf("Cannot parse %s", data)
+
+	if len(data) == 0 {
+		return big.NewInt(0), nil
+	}
+
+	return nil, fmt.Errorf("cannot parse %s", data)
 }
 
 // ParseTRC20StringProperty get string from data
@@ -137,7 +141,7 @@ func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error) {
 			}
 		}
 	}
-	return "", fmt.Errorf("Cannot parse %s,", data)
+	return "", fmt.Errorf("cannot parse %s,", data)
 }
 
 // TRC20ContractBalance get Address balance
@@ -151,7 +155,7 @@ func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.In
 	if err != nil {
 		return nil, err
 	}
-	data := common.ToHex(result.GetConstantResult()[0])
+	data := common.BytesToHexString(result.GetConstantResult()[0])
 	r, err := g.ParseTRC20NumericProperty(data)
 	if err != nil {
 		return nil, fmt.Errorf("contract address %s: %v", contractAddress, err)
