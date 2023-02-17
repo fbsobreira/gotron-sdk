@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fatih/structs"
@@ -10,6 +11,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 var ()
@@ -106,210 +108,94 @@ func bcSub() []*cobra.Command {
 
 			result["contractName"] = contract.Type.String()
 			//parse contract
+			var c interface{}
 			switch contract.Type {
 			case core.Transaction_Contract_AccountCreateContract:
-				var c core.AccountCreateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.AccountCreateContract{}
 			case core.Transaction_Contract_TransferContract:
-				var c core.TransferContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.TransferContract{}
 			case core.Transaction_Contract_TransferAssetContract:
-				var c core.TransferAssetContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.TransferAssetContract{}
 			case core.Transaction_Contract_VoteWitnessContract:
-				var c core.VoteWitnessContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.VoteWitnessContract{}
 			case core.Transaction_Contract_WitnessCreateContract:
-				var c core.WitnessCreateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.WitnessCreateContract{}
+			case core.Transaction_Contract_WitnessUpdateContract:
+				c = &core.WitnessUpdateContract{}
 			case core.Transaction_Contract_AssetIssueContract:
-				var c core.AssetIssueContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.AssetIssueContract{}
 			case core.Transaction_Contract_ParticipateAssetIssueContract:
-				var c core.ParticipateAssetIssueContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ParticipateAssetIssueContract{}
 			case core.Transaction_Contract_AccountUpdateContract:
-				var c core.AccountUpdateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.AccountUpdateContract{}
 			case core.Transaction_Contract_FreezeBalanceContract:
-				var c core.FreezeBalanceContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.FreezeBalanceContract{}
 			case core.Transaction_Contract_UnfreezeBalanceContract:
-				var c core.UnfreezeBalanceContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.UnfreezeBalanceContract{}
 			case core.Transaction_Contract_WithdrawBalanceContract:
-				var c core.WithdrawBalanceContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.WithdrawBalanceContract{}
 			case core.Transaction_Contract_UnfreezeAssetContract:
-				var c core.UnfreezeAssetContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.UnfreezeAssetContract{}
 			case core.Transaction_Contract_UpdateAssetContract:
-				var c core.UpdateAssetContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
-
+				c = &core.UpdateAssetContract{}
 			case core.Transaction_Contract_ProposalCreateContract:
-				var c core.ProposalCreateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ProposalCreateContract{}
 			case core.Transaction_Contract_ProposalApproveContract:
-				var c core.ProposalApproveContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ProposalApproveContract{}
 			case core.Transaction_Contract_ProposalDeleteContract:
-				var c core.ProposalDeleteContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ProposalDeleteContract{}
 			case core.Transaction_Contract_SetAccountIdContract:
-				var c core.SetAccountIdContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.SetAccountIdContract{}
 			case core.Transaction_Contract_CustomContract:
-				return fmt.Errorf("proto unmarshal any: %+w", err)
+				return fmt.Errorf("proto unmarshal any: %s", "customContract")
 			case core.Transaction_Contract_CreateSmartContract:
-				var c core.CreateSmartContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.CreateSmartContract{}
 			case core.Transaction_Contract_TriggerSmartContract:
-				var c core.TriggerSmartContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.TriggerSmartContract{}
+			case core.Transaction_Contract_GetContract:
+				return fmt.Errorf("proto unmarshal any: %s", "getContract")
 			case core.Transaction_Contract_UpdateSettingContract:
-				var c core.UpdateSettingContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.UpdateSettingContract{}
 			case core.Transaction_Contract_ExchangeCreateContract:
-				var c core.ExchangeCreateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ExchangeCreateContract{}
 			case core.Transaction_Contract_ExchangeInjectContract:
-				var c core.ExchangeInjectContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ExchangeInjectContract{}
 			case core.Transaction_Contract_ExchangeWithdrawContract:
-				var c core.ExchangeWithdrawContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ExchangeWithdrawContract{}
 			case core.Transaction_Contract_ExchangeTransactionContract:
-				var c core.ExchangeTransactionContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ExchangeTransactionContract{}
 			case core.Transaction_Contract_UpdateEnergyLimitContract:
-				var c core.UpdateEnergyLimitContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.UpdateEnergyLimitContract{}
 			case core.Transaction_Contract_AccountPermissionUpdateContract:
-				var c core.AccountPermissionUpdateContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.AccountPermissionUpdateContract{}
 			case core.Transaction_Contract_ClearABIContract:
-				var c core.ClearABIContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ClearABIContract{}
 			case core.Transaction_Contract_UpdateBrokerageContract:
-				var c core.UpdateBrokerageContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.UpdateBrokerageContract{}
 			case core.Transaction_Contract_ShieldedTransferContract:
-				var c core.ShieldedTransferContract
-				if err = contract.GetParameter().UnmarshalTo(&c); err != nil {
-					return fmt.Errorf("proto unmarshal any: %+w", err)
-				}
-				result["contract"] = structs.Map(c)
+				c = &core.ShieldedTransferContract{}
+			case core.Transaction_Contract_MarketSellAssetContract:
+				c = &core.MarketSellAssetContract{}
+			case core.Transaction_Contract_MarketCancelOrderContract:
+				c = &core.MarketCancelOrderContract{}
+			case core.Transaction_Contract_FreezeBalanceV2Contract:
+				c = &core.FreezeBalanceV2Contract{}
+			case core.Transaction_Contract_UnfreezeBalanceV2Contract:
+				c = &core.UnfreezeBalanceV2Contract{}
+			case core.Transaction_Contract_WithdrawExpireUnfreezeContract:
+				c = &core.WithdrawExpireUnfreezeContract{}
+			case core.Transaction_Contract_DelegateResourceContract:
+				c = &core.DelegateResourceContract{}
+			case core.Transaction_Contract_UnDelegateResourceContract:
+				c = &core.UnDelegateResourceContract{}
 			default:
 				return fmt.Errorf("proto unmarshal any: %+w", err)
 			}
 
-			c := result["contract"].(map[string]interface{})
-			delete(c, "XXX_NoUnkeyedLiteral")
-			delete(c, "XXX_sizecache")
-			delete(c, "XXX_unrecognized")
-			if v, ok := c["OwnerAddress"]; ok && len(v.([]uint8)) > 0 {
-				c["OwnerAddress"] = address.Address(v.([]uint8)).String()
+			if err = contract.GetParameter().UnmarshalTo(c.(protoreflect.ProtoMessage)); err != nil {
+				return fmt.Errorf("proto unmarshal any: %+w", err)
 			}
-			if v, ok := c["ReceiverAddress"]; ok && len(v.([]uint8)) > 0 {
-				c["ReceiverAddress"] = address.Address(v.([]uint8)).String()
-			}
-			if v, ok := c["ToAddress"]; ok && len(v.([]uint8)) > 0 {
-				c["ToAddress"] = address.Address(v.([]uint8)).String()
-			}
-
-			if v, ok := c["Votes"]; ok {
-				votes := make(map[string]int64)
-				for _, d := range v.([]interface{}) {
-					dP := d.(map[string]interface{})
-					votes[address.Address(dP["VoteAddress"].([]uint8)).String()] = dP["VoteCount"].(int64)
-				}
-				c["Votes"] = votes
-			}
+			result["contract"] = parseContractHumanReadable(structs.Map(c))
 
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
@@ -318,6 +204,37 @@ func bcSub() []*cobra.Command {
 	}
 
 	return []*cobra.Command{cmdNode, cmdMT, cmdTX}
+}
+
+func parseContractHumanReadable(ck map[string]interface{}) map[string]interface{} {
+	// Addresses fields
+	addresses := map[string]bool{
+		"OwnerAddress":    true,
+		"ReceiverAddress": true,
+		"ToAddress":       true,
+		"ContractAddress": true,
+	}
+	for f, d := range ck {
+		if strings.HasPrefix(f, "XXX_") {
+			delete(ck, f)
+		}
+
+		// convert addresses
+		if addresses[f] {
+			ck[f] = address.Address(d.([]uint8)).String()
+		}
+	}
+
+	if v, ok := ck["Votes"]; ok {
+		votes := make(map[string]int64)
+		for _, d := range v.([]interface{}) {
+			dP := d.(map[string]interface{})
+			votes[address.Address(dP["VoteAddress"].([]uint8)).String()] = dP["VoteCount"].(int64)
+		}
+		ck["Votes"] = votes
+	}
+
+	return ck
 }
 
 func init() {
