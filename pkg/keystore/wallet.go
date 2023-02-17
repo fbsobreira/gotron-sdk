@@ -101,8 +101,8 @@ func (w *keystoreWallet) SignDataWithPassphrase(acc Account, passphrase, mimeTyp
 	return w.keystore.SignHashWithPassphrase(acc, passphrase, crypto.Keccak256(data))
 }
 
-func (w *keystoreWallet) SignText(acc Account, text []byte) ([]byte, error) {
-	return w.signHash(acc, TextHash(text))
+func (w *keystoreWallet) SignText(acc Account, text []byte, useFixedLength ...bool) ([]byte, error) {
+	return w.signHash(acc, TextHash(text, useFixedLength...))
 }
 
 // SignTextWithPassphrase implements Wallet, attempting to sign the

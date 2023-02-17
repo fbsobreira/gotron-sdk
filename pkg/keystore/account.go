@@ -1,11 +1,15 @@
 package keystore
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"golang.org/x/crypto/sha3"
 )
 
 type DerivationPath []uint32
@@ -88,7 +92,7 @@ type Wallet interface {
 	// about which fields or actions are needed. The user may retry by providing
 	// the needed details via SignHashWithPassphrase, or by other means (e.g. unlock
 	// the account in a keystore).
-	SignText(account Account, text []byte) ([]byte, error)
+	SignText(account Account, text []byte, useFixedLength ...bool) ([]byte, error)
 
 	// SignTextWithPassphrase is identical to Signtext, but also takes a password
 	SignTextWithPassphrase(account Account, passphrase string, hash []byte) ([]byte, error)
@@ -136,25 +140,56 @@ type WalletEventType int
 // TextHash is a helper function that calculates a hash for the given message that can be
 // safely used to calculate a signature from.
 //
-// The hash is calulcated as
-//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
+// The hash is calulcated as:
+// keccak256("\x19TRON Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
-func TextHash(data []byte) []byte {
-	hash, _ := TextAndHash(data)
+func TextHash(data []byte, useFixedLength ...bool) []byte {
+	hash, _ := TextAndHash(data, useFixedLength...)
 	return hash
 }
 
 // TextAndHash is a helper function that calculates a hash for the given message that can be
 // safely used to calculate a signature from.
 //
-// The hash is calulcated as
-//   keccak256("\x19Ethereum Signed Message:\n"${message length}${message}).
+// The hash is calulcated as:
+// keccak256("\x19TRON Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
-func TextAndHash(data []byte) ([]byte, string) {
-	msg := fmt.Sprintf("\x19Tron Signed Message:\n%d%s", len(data), string(data))
-	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write([]byte(msg))
-	return hasher.Sum(nil), msg
+func TextAndHash(data []byte, useFixedLength ...bool) ([]byte, string) {
+	length := len(data)
+	if len(useFixedLength) > 0 && useFixedLength[0] {
+		length = 32
+	}
+
+	msg := fmt.Sprintf("\x19TRON Signed Message:\n%d%s", length, string(data))
+	return common.Keccak256([]byte(msg)), msg
+}
+
+func UnmarshalPublic(pbk []byte) (*ecdsa.PublicKey, error) {
+	x, y := elliptic.Unmarshal(crypto.S256(), pbk)
+	if x == nil {
+		return nil, fmt.Errorf("invalid publickey")
+	}
+
+	return &ecdsa.PublicKey{Curve: crypto.S256(), X: x, Y: y}, nil
+}
+
+func RecoverPubkey(hash []byte, signature []byte) (address.Address, error) {
+
+	if signature[64] >= 27 {
+		signature[64] -= 27
+	}
+
+	sigPublicKey, err := secp256k1.RecoverPubkey(hash, signature)
+	if err != nil {
+		return nil, err
+	}
+	pubKey, err := UnmarshalPublic(sigPublicKey)
+	if err != nil {
+		return nil, err
+	}
+
+	addr := address.PubkeyToAddress(*pubKey)
+	return addr, nil
 }
