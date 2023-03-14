@@ -145,6 +145,11 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		return nil, err
 	}
 
+	accUnfreezeLeft, err := g.GetAvailableUnfreezeCount(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	rewards, err := g.GetRewardsInfo(addr)
 	if err != nil {
 		return nil, err
@@ -286,6 +291,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		Rewards:             rewards,
 		WithdrawableBalance: withdrawableAmount.GetAmount(),
 		UnfrozenResource:    unfrozenListV2,
+		UnfreezeLeft:        accUnfreezeLeft.GetCount(),
 	}
 
 	return accDet, nil

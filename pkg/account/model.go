@@ -45,4 +45,5 @@ type Account struct {
 	EnergyUsed          int64              `json:"energyUsed"`
 	Rewards             int64              `json:"rewards"`
 	WithdrawableBalance int64              `json:"withdrawableBalance"`
+	UnfreezeLeft        int64              `json:"countUnfreezeLeft"`
 }

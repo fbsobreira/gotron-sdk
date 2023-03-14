@@ -47,7 +47,7 @@ func (g *GrpcClient) FreezeBalance(from, delegateTo string,
 }
 
 // FreezeBalance from base58 address
-func (g *GrpcClient) FreezeBalanceV2(from, delegateTo string,
+func (g *GrpcClient) FreezeBalanceV2(from string,
 	resource core.ResourceCode, frozenBalance int64) (*api.TransactionExtention, error) {
 	var err error
 
@@ -109,7 +109,7 @@ func (g *GrpcClient) UnfreezeBalance(from, delegateTo string, resource core.Reso
 }
 
 // UnfreezeBalance from base58 address
-func (g *GrpcClient) UnfreezeBalanceV2(from string, unfreezeBalance int64, resource core.ResourceCode) (*api.TransactionExtention, error) {
+func (g *GrpcClient) UnfreezeBalanceV2(from string, resource core.ResourceCode, unfreezeBalance int64) (*api.TransactionExtention, error) {
 	var err error
 
 	contract := &core.UnfreezeBalanceV2Contract{}

@@ -124,6 +124,7 @@ func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCod
 	contract.Resource = resource
 	contract.OwnerAddress = addrFromBytes
 	contract.ReceiverAddress = addrToBytes
+	contract.Balance = delegateBalance
 	contract.Lock = lock
 
 	response, err := g.Client.DelegateResource(ctx, contract)
@@ -155,6 +156,7 @@ func (g *GrpcClient) UnDelegateResource(owner, receiver string, resource core.Re
 	contract.Resource = resource
 	contract.OwnerAddress = addrOwnerBytes
 	contract.ReceiverAddress = addrReceiverBytes
+	contract.Balance = delegateBalance
 
 	response, err := g.Client.UnDelegateResource(ctx, contract)
 	if err != nil {
