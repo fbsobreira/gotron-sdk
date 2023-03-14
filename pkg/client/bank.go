@@ -136,6 +136,7 @@ func (g *GrpcClient) UnfreezeBalanceV2(from string, unfreezeBalance int64, resou
 	return tx, nil
 }
 
+// GetAvailableUnfreezeCount from base58 address
 func (g *GrpcClient) GetAvailableUnfreezeCount(from string) (*api.GetAvailableUnfreezeCountResponseMessage, error) {
 	var err error
 
@@ -148,6 +149,49 @@ func (g *GrpcClient) GetAvailableUnfreezeCount(from string) (*api.GetAvailableUn
 	defer cancel()
 
 	tx, err := g.Client.GetAvailableUnfreezeCount(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+	if proto.Size(tx) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	return tx, nil
+}
+
+// GetCanWithdrawUnfreezeAmount from base58 address
+func (g *GrpcClient) GetCanWithdrawUnfreezeAmount(from string, timestamp int64) (*api.CanWithdrawUnfreezeAmountResponseMessage, error) {
+	var err error
+
+	contract := &api.CanWithdrawUnfreezeAmountRequestMessage{}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+	contract.Timestamp = timestamp
+
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.GetCanWithdrawUnfreezeAmount(ctx, contract)
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
+}
+
+// WithdrawExpireUnfreeze from base58 address
+func (g *GrpcClient) WithdrawExpireUnfreeze(from string, timestamp int64) (*api.TransactionExtention, error) {
+	var err error
+
+	contract := &core.WithdrawExpireUnfreezeContract{}
+	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
+		return nil, err
+	}
+
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.WithdrawExpireUnfreeze(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

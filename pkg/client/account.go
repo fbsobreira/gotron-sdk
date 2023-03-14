@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
@@ -139,12 +140,22 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		return nil, err
 	}
 
+	accDeleagatedV2, err := g.GetDelegatedResourcesV2(addr)
+	if err != nil {
+		return nil, err
+	}
+
 	rewards, err := g.GetRewardsInfo(addr)
 	if err != nil {
 		return nil, err
 	}
 
-	// SUM Total freeze
+	withdrawableAmount, err := g.GetCanWithdrawUnfreezeAmount(addr, time.Now().UnixMilli())
+	if err != nil {
+		return nil, err
+	}
+
+	// SUM Total freeze V1
 	totalFrozen := int64(0)
 	frozenList := make([]account.FrozenResource, 0)
 	if acc.GetAccountResource().GetFrozenBalanceForEnergy().GetFrozenBalance() > 0 {
@@ -166,7 +177,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		totalFrozen += f.GetFrozenBalance()
 	}
 
-	// Fill Delegated
+	// Fill Delegated V1
 	for _, delegated := range accDeleagated {
 		for _, d := range delegated.GetDelegatedResource() {
 			if d.GetFrozenBalanceForBandwidth() > 0 {
@@ -190,6 +201,58 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		}
 	}
 
+	// SUM Total freeze V2
+	totalFrozenV2 := int64(0)
+	frozenListV2 := make([]account.FrozenResource, 0)
+
+	// Energy Delegated
+	totalFrozen += acc.GetAccountResource().GetDelegatedFrozenV2BalanceForEnergy()
+	// Bandwidth Delegated
+	totalFrozen += acc.GetDelegatedFrozenV2BalanceForBandwidth()
+
+	// Frozen not delegated
+	for _, f := range acc.FrozenV2 {
+		frozenListV2 = append(frozenListV2, account.FrozenResource{
+			Type:       f.GetType(),
+			Amount:     f.GetAmount(),
+			DelegateTo: "",
+		})
+		totalFrozen += f.GetAmount()
+	}
+
+	// Fill Delegated V2
+	for _, delegated := range accDeleagatedV2 {
+		for _, d := range delegated.GetDelegatedResource() {
+			if d.GetFrozenBalanceForBandwidth() > 0 {
+				frozenListV2 = append(frozenListV2, account.FrozenResource{
+					Type:       core.ResourceCode_BANDWIDTH,
+					Amount:     d.GetFrozenBalanceForBandwidth(),
+					Expire:     d.GetExpireTimeForBandwidth(),
+					DelegateTo: address.Address(d.GetTo()).String(),
+				})
+				totalFrozenV2 += d.GetFrozenBalanceForBandwidth()
+			}
+			if d.GetFrozenBalanceForEnergy() > 0 {
+				frozenListV2 = append(frozenListV2, account.FrozenResource{
+					Type:       core.ResourceCode_ENERGY,
+					Amount:     d.GetFrozenBalanceForEnergy(),
+					Expire:     d.GetExpireTimeForEnergy(),
+					DelegateTo: address.Address(d.GetTo()).String(),
+				})
+				totalFrozenV2 += d.GetFrozenBalanceForEnergy()
+			}
+		}
+	}
+
+	unfrozenListV2 := make([]account.UnfrozenResource, 0)
+	for _, uf := range acc.UnfrozenV2 {
+		unfrozenListV2 = append(unfrozenListV2, account.UnfrozenResource{
+			Type:   uf.GetType(),
+			Amount: uf.GetUnfreezeAmount(),
+			Expire: uf.GetUnfreezeExpireTime(),
+		})
+	}
+
 	voteList := make(map[string]int64)
 
 	totalVotes := int64(0)
@@ -199,26 +262,30 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 	}
 
 	accDet := &account.Account{
-		Address:         address.Address(acc.GetAddress()).String(),
-		Type:            acc.Type.String(),
-		Name:            string(acc.GetAccountName()),
-		ID:              string(acc.GetAccountId()),
-		Balance:         acc.GetBalance(),
-		Allowance:       acc.GetAllowance(),
-		LastWithdraw:    acc.LatestWithdrawTime,
-		IsWitness:       acc.IsWitness,
-		IsElected:       acc.IsCommittee,
-		Assets:          acc.GetAssetV2(),
-		TronPower:       totalFrozen / 1000000,
-		TronPowerUsed:   totalVotes,
-		FrozenBalance:   totalFrozen,
-		FrozenResources: frozenList,
-		Votes:           voteList,
-		BWTotal:         accR.GetFreeNetLimit() + accR.GetNetLimit(),
-		BWUsed:          accR.GetFreeNetUsed() + accR.GetNetUsed(),
-		EnergyTotal:     accR.GetEnergyLimit(),
-		EnergyUsed:      accR.GetEnergyUsed(),
-		Rewards:         rewards,
+		Address:            address.Address(acc.GetAddress()).String(),
+		Type:               acc.Type.String(),
+		Name:               string(acc.GetAccountName()),
+		ID:                 string(acc.GetAccountId()),
+		Balance:            acc.GetBalance(),
+		Allowance:          acc.GetAllowance(),
+		LastWithdraw:       acc.LatestWithdrawTime,
+		IsWitness:          acc.IsWitness,
+		IsElected:          acc.IsCommittee,
+		Assets:             acc.GetAssetV2(),
+		TronPower:          totalFrozen / 1000000,
+		TronPowerUsed:      totalVotes,
+		FrozenBalance:      totalFrozen,
+		FrozenBalanceV2:    totalFrozenV2,
+		FrozenResourcesV2:  frozenListV2,
+		FrozenResources:    frozenList,
+		Votes:              voteList,
+		BWTotal:            accR.GetFreeNetLimit() + accR.GetNetLimit(),
+		BWUsed:             accR.GetFreeNetUsed() + accR.GetNetUsed(),
+		EnergyTotal:        accR.GetEnergyLimit(),
+		EnergyUsed:         accR.GetEnergyUsed(),
+		Rewards:            rewards,
+		WithdrawableAmount: withdrawableAmount.GetAmount(),
+		UnfrozenResource:   unfrozenListV2,
 	}
 
 	return accDet, nil
