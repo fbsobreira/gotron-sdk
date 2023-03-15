@@ -7,6 +7,9 @@ import (
 	"github.com/shengdoushi/base58"
 )
 
+const addressLength = 20
+const prefixMainnet = 0x41
+
 func Encode(input []byte) string {
 	return base58.Encode(input, base58.BitcoinAlphabet)
 }
@@ -32,13 +35,22 @@ func Decode(input string) ([]byte, error) {
 
 func DecodeCheck(input string) ([]byte, error) {
 	decodeCheck, err := Decode(input)
-
 	if err != nil {
 		return nil, err
 	}
 
 	if len(decodeCheck) < 4 {
 		return nil, fmt.Errorf("b58 check error")
+	}
+
+	// tron address should should have 20 bytes + 4 checksum + 1 Prefix
+	if len(decodeCheck) != addressLength+4+1 {
+		return nil, fmt.Errorf("invalid address length: %d", len(decodeCheck))
+	}
+
+	// check prefix
+	if decodeCheck[0] != prefixMainnet {
+		return nil, fmt.Errorf("invalid prefix")
 	}
 
 	decodeData := decodeCheck[:len(decodeCheck)-4]
@@ -55,7 +67,9 @@ func DecodeCheck(input string) ([]byte, error) {
 		h1[1] == decodeCheck[len(decodeData)+1] &&
 		h1[2] == decodeCheck[len(decodeData)+2] &&
 		h1[3] == decodeCheck[len(decodeData)+3] {
+
 		return decodeData, nil
 	}
+
 	return nil, fmt.Errorf("b58 check error")
 }
