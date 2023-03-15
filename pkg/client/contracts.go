@@ -13,6 +13,72 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// UpdateEnergyLimitContract update contract enery limit
+func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.UpdateEnergyLimitContract{
+		OwnerAddress:      fromDesc.Bytes(),
+		ContractAddress:   contractDesc.Bytes(),
+		OriginEnergyLimit: value,
+	}
+
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.UpdateEnergyLimit(ctx, ct)
+	if err != nil {
+		return nil, err
+	}
+
+	if tx.Result.Code > 0 {
+		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	}
+
+	return tx, err
+}
+
+// UpdateSettingContract change contract owner consumption ratio
+func (g *GrpcClient) UpdateSettingContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.UpdateSettingContract{
+		OwnerAddress:               fromDesc.Bytes(),
+		ContractAddress:            contractDesc.Bytes(),
+		ConsumeUserResourcePercent: value,
+	}
+
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.UpdateSetting(ctx, ct)
+	if err != nil {
+		return nil, err
+	}
+
+	if tx.Result.Code > 0 {
+		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	}
+
+	return tx, err
+}
+
 // TriggerConstantContract and return tx result
 func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
 	var err error
