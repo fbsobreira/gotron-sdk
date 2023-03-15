@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1
-	github.com/btcsuite/btcd v0.22.0-beta
+	github.com/btcsuite/btcd v0.22.1
 	github.com/deckarep/golang-set v1.7.1
 	github.com/ethereum/go-ethereum v1.10.11
 	github.com/fatih/color v1.9.0
