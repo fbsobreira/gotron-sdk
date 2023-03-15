@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/karalabe/hid"
+	"github.com/zondax/hid"
 )
 
 const (
