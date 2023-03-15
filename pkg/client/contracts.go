@@ -118,6 +118,65 @@ func (g *GrpcClient) triggerContract(ct *core.TriggerSmartContract, feeLimit int
 	return tx, err
 }
 
+// EstimateEnergy returns enery required
+func (g *GrpcClient) EstimateEnergy(from, contractAddress, method, jsonString string,
+	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	param, err := abi.LoadFromJSON(jsonString)
+	if err != nil {
+		return nil, err
+	}
+
+	dataBytes, err := abi.Pack(method, param)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            dataBytes,
+	}
+	if tAmount > 0 {
+		ct.CallValue = tAmount
+	}
+	if len(tTokenID) > 0 && tTokenAmount > 0 {
+		ct.CallTokenValue = tTokenAmount
+		ct.TokenId, err = strconv.ParseInt(tTokenID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return g.estimateEnergy(ct)
+}
+
+// triggerContract and return tx result
+func (g *GrpcClient) estimateEnergy(ct *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	tx, err := g.Client.EstimateEnergy(ctx, ct)
+	if err != nil {
+		return nil, err
+	}
+
+	if tx.Result.Code > 0 {
+		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	}
+
+	return tx, err
+}
+
 // DeployContract and return tx result
 func (g *GrpcClient) DeployContract(from, contractName string,
 	abi *core.SmartContract_ABI, codeStr string,

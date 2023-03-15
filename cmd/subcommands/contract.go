@@ -27,6 +27,7 @@ var (
 	tAmount      float64
 	tTokenID     string
 	tTokenAmount float64
+	estimate     bool
 )
 
 func contractSub() []*cobra.Command {
@@ -202,6 +203,38 @@ func contractSub() []*cobra.Command {
 				param = args[2]
 			}
 
+			if estimate {
+				estimate, err := conn.EstimateEnergy(
+					signerAddress.String(),
+					addr.String(),
+					args[1],
+					param,
+					valueInt,
+					tTokenID,
+					tokenInt,
+				)
+
+				if err != nil {
+					return err
+				}
+
+				if noPrettyOutput {
+					fmt.Println(estimate)
+					return nil
+				}
+
+				result := make(map[string]interface{})
+				result["EnergyRequired"] = estimate.EnergyRequired
+				result["result"] = map[string]interface{}{
+					"code":    estimate.Result.Code.String(),
+					"message": string(estimate.Result.Message),
+					"result":  estimate.Result.Result,
+				}
+
+				asJSON, _ := json.Marshal(result)
+				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			}
+
 			tx, err := conn.TriggerContract(
 				signerAddress.String(),
 				addr.String(),
@@ -265,6 +298,7 @@ func contractSub() []*cobra.Command {
 	cmdTrigger.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
 	cmdTrigger.Flags().StringVar(&tTokenID, "token", "", "token id")
 	cmdTrigger.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
+	cmdTrigger.Flags().BoolVar(&estimate, "estiamte", false, "estimate energy required")
 
 	return []*cobra.Command{cmdDeploy, cmdConstant, cmdTrigger}
 }

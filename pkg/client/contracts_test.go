@@ -31,6 +31,45 @@ func TestProtoParse(t *testing.T) {
 	assert.Equal(t, hex.EncodeToString(trig.Data), "97a5d5b50000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d")
 }
 
+func TestProtoParseR(t *testing.T) {
+	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
+	err := conn.Start(grpc.WithInsecure())
+	require.Nil(t, err)
+	block, err := conn.GetBlockByNum(48763870)
+	require.Nil(t, err)
+
+	for _, tx := range block.Transactions {
+		for _, contract := range tx.GetTransaction().GetRawData().GetContract() {
+			switch contract.Type {
+			case core.Transaction_Contract_TriggerSmartContract:
+				tsc := core.TriggerSmartContract{}
+				err := contract.Parameter.UnmarshalTo(&tsc)
+				require.Nil(t, err)
+				fmt.Println("Its ok.... test contract data")
+			default:
+				fmt.Println("handle not SC case")
+			}
+		}
+	}
+}
+
+func TestEstimateEnergy(t *testing.T) {
+	conn := client.NewGrpcClient("grpc.nile.trongrid.io:50051")
+	err := conn.Start(grpc.WithInsecure())
+	require.Nil(t, err)
+
+	estimate, err := conn.EstimateEnergy(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"transfer(address,uint256)",
+		`[{"address": "TE4c73WubeWPhSF1nAovQDmQytjcaLZyY9"},{"uint256": "100"}]`,
+		0, "", 0,
+	)
+	require.Nil(t, err)
+	assert.True(t, estimate.Result.Result)
+	assert.Equal(t, estimate.EnergyRequired, int64(14910))
+}
+
 func TestGetAccount(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
 	err := conn.Start(grpc.WithInsecure())
