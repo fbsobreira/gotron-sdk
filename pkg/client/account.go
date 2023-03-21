@@ -266,32 +266,43 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		totalVotes += vote.GetVoteCount()
 	}
 
+	maxCanDelegateBandwidth, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_BANDWIDTH))
+	if err != nil {
+		return nil, err
+	}
+	maxCanDelegateEnergy, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_ENERGY))
+	if err != nil {
+		return nil, err
+	}
+
 	accDet := &account.Account{
-		Address:             address.Address(acc.GetAddress()).String(),
-		Type:                acc.Type.String(),
-		Name:                string(acc.GetAccountName()),
-		ID:                  string(acc.GetAccountId()),
-		Balance:             acc.GetBalance(),
-		Allowance:           acc.GetAllowance(),
-		LastWithdraw:        acc.LatestWithdrawTime,
-		IsWitness:           acc.IsWitness,
-		IsElected:           acc.IsCommittee,
-		Assets:              acc.GetAssetV2(),
-		TronPower:           totalFrozen / 1000000,
-		TronPowerUsed:       totalVotes,
-		FrozenBalance:       totalFrozen,
-		FrozenBalanceV2:     totalFrozenV2,
-		FrozenResourcesV2:   frozenListV2,
-		FrozenResources:     frozenList,
-		Votes:               voteList,
-		BWTotal:             accR.GetFreeNetLimit() + accR.GetNetLimit(),
-		BWUsed:              accR.GetFreeNetUsed() + accR.GetNetUsed(),
-		EnergyTotal:         accR.GetEnergyLimit(),
-		EnergyUsed:          accR.GetEnergyUsed(),
-		Rewards:             rewards,
-		WithdrawableBalance: withdrawableAmount.GetAmount(),
-		UnfrozenResource:    unfrozenListV2,
-		UnfreezeLeft:        accUnfreezeLeft.GetCount(),
+		Address:                 address.Address(acc.GetAddress()).String(),
+		Type:                    acc.Type.String(),
+		Name:                    string(acc.GetAccountName()),
+		ID:                      string(acc.GetAccountId()),
+		Balance:                 acc.GetBalance(),
+		Allowance:               acc.GetAllowance(),
+		LastWithdraw:            acc.LatestWithdrawTime,
+		IsWitness:               acc.IsWitness,
+		IsElected:               acc.IsCommittee,
+		Assets:                  acc.GetAssetV2(),
+		TronPower:               totalFrozen / 1000000,
+		TronPowerUsed:           totalVotes,
+		FrozenBalance:           totalFrozen,
+		FrozenBalanceV2:         totalFrozenV2,
+		FrozenResourcesV2:       frozenListV2,
+		FrozenResources:         frozenList,
+		Votes:                   voteList,
+		BWTotal:                 accR.GetFreeNetLimit() + accR.GetNetLimit(),
+		BWUsed:                  accR.GetFreeNetUsed() + accR.GetNetUsed(),
+		EnergyTotal:             accR.GetEnergyLimit(),
+		EnergyUsed:              accR.GetEnergyUsed(),
+		Rewards:                 rewards,
+		WithdrawableBalance:     withdrawableAmount.GetAmount(),
+		UnfrozenResource:        unfrozenListV2,
+		UnfreezeLeft:            accUnfreezeLeft.GetCount(),
+		MaxCanDelegateBandwidth: maxCanDelegateBandwidth.GetMaxSize(),
+		MaxCanDelegateEnergy:    maxCanDelegateEnergy.GetMaxSize(),
 	}
 
 	return accDet, nil
