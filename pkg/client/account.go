@@ -160,6 +160,15 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		return nil, err
 	}
 
+	maxCanDelegateBandwidth, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_BANDWIDTH))
+	if err != nil {
+		return nil, err
+	}
+	maxCanDelegateEnergy, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_ENERGY))
+	if err != nil {
+		return nil, err
+	}
+
 	// SUM Total freeze V1
 	totalFrozen := int64(0)
 	frozenList := make([]account.FrozenResource, 0)
@@ -264,15 +273,6 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 	for _, vote := range acc.GetVotes() {
 		voteList[address.Address(vote.GetVoteAddress()).String()] = vote.GetVoteCount()
 		totalVotes += vote.GetVoteCount()
-	}
-
-	maxCanDelegateBandwidth, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_BANDWIDTH))
-	if err != nil {
-		return nil, err
-	}
-	maxCanDelegateEnergy, err := g.GetCanDelegatedMaxSize(addr, int32(core.ResourceCode_ENERGY))
-	if err != nil {
-		return nil, err
 	}
 
 	accDet := &account.Account{
