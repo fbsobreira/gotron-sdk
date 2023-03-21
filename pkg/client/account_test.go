@@ -57,6 +57,9 @@ func TestGetAccountDetailedV2(t *testing.T) {
 	require.NotNil(t, acc.Allowance)
 	require.NotNil(t, acc.Rewards)
 
+	require.NotNil(t, acc.MaxCanDelegateBandwidth)
+	require.NotNil(t, acc.MaxCanDelegateEnergy)
+
 }
 
 func TestFreezeV2(t *testing.T) {
