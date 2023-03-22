@@ -72,6 +72,10 @@ func Base64ToAddress(s string) (Address, error) {
 
 // String implements fmt.Stringer.
 func (a Address) String() string {
+	if len(a) == 0 {
+		return ""
+	}
+
 	if a[0] == 0 {
 		return new(big.Int).SetBytes(a.Bytes()).String()
 	}
