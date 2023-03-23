@@ -220,9 +220,9 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 	frozenListV2 := make([]account.FrozenResource, 0)
 
 	// Energy Delegated
-	totalFrozen += acc.GetAccountResource().GetDelegatedFrozenV2BalanceForEnergy()
+	totalFrozenV2 += acc.GetAccountResource().GetDelegatedFrozenV2BalanceForEnergy()
 	// Bandwidth Delegated
-	totalFrozen += acc.GetDelegatedFrozenV2BalanceForBandwidth()
+	totalFrozenV2 += acc.GetDelegatedFrozenV2BalanceForBandwidth()
 
 	// Frozen not delegated
 	for _, f := range acc.FrozenV2 {
@@ -231,7 +231,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 			Amount:     f.GetAmount(),
 			DelegateTo: "",
 		})
-		totalFrozen += f.GetAmount()
+		totalFrozenV2 += f.GetAmount()
 	}
 
 	// Fill Delegated V2
@@ -244,7 +244,6 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 					Expire:     d.GetExpireTimeForBandwidth(),
 					DelegateTo: address.Address(d.GetTo()).String(),
 				})
-				totalFrozenV2 += d.GetFrozenBalanceForBandwidth()
 			}
 			if d.GetFrozenBalanceForEnergy() > 0 {
 				frozenListV2 = append(frozenListV2, account.FrozenResource{
@@ -253,7 +252,6 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 					Expire:     d.GetExpireTimeForEnergy(),
 					DelegateTo: address.Address(d.GetTo()).String(),
 				})
-				totalFrozenV2 += d.GetFrozenBalanceForEnergy()
 			}
 		}
 	}
