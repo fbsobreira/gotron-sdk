@@ -115,7 +115,10 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 
 			if ty.T == eABI.SliceTy || ty.T == eABI.ArrayTy {
 				if ty.Elem.T == eABI.AddressTy {
-					tmp := v.([]string)
+					tmp, ok := v.([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("unable to convert array of addresses %+v", p)
+					}
 					v = make([]eCommon.Address, 0)
 					for i := range tmp {
 						addr, err := convetToAddress(tmp[i])
