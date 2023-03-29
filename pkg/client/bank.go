@@ -152,9 +152,7 @@ func (g *GrpcClient) GetAvailableUnfreezeCount(from string) (*api.GetAvailableUn
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
+
 	return tx, nil
 }
 
