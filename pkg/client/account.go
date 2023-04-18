@@ -284,7 +284,7 @@ func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error) {
 		IsWitness:               acc.IsWitness,
 		IsElected:               acc.IsCommittee,
 		Assets:                  acc.GetAssetV2(),
-		TronPower:               totalFrozen / 1000000,
+		TronPower:               (totalFrozen + totalFrozenV2) / 1000000,
 		TronPowerUsed:           totalVotes,
 		FrozenBalance:           totalFrozen,
 		FrozenBalanceV2:         totalFrozenV2,
