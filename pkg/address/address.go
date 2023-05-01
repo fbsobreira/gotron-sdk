@@ -3,7 +3,9 @@ package address
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"database/sql/driver"
 	"encoding/base64"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -90,4 +92,22 @@ func PubkeyToAddress(p ecdsa.PublicKey) Address {
 	addressTron = append(addressTron, TronBytePrefix)
 	addressTron = append(addressTron, address.Bytes()...)
 	return addressTron
+}
+
+// Scan implements Scanner for database/sql.
+func (a *Address) Scan(src interface{}) error {
+	srcB, ok := src.([]byte)
+	if !ok {
+		return fmt.Errorf("can't scan %T into Address", src)
+	}
+	if len(srcB) != AddressLength {
+		return fmt.Errorf("can't scan []byte of len %d into Address, want %d", len(srcB), AddressLength)
+	}
+	*a = Address(srcB)
+	return nil
+}
+
+// Value implements valuer for database/sql.
+func (a Address) Value() (driver.Value, error) {
+	return []byte(a), nil
 }
