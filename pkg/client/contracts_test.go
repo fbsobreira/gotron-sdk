@@ -6,12 +6,12 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/abi"
-	"github.com/fbsobreira/gotron-sdk/pkg/client"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/syr2bill/gotron-sdk/pkg/abi"
+	"github.com/syr2bill/gotron-sdk/pkg/client"
+	"github.com/syr2bill/gotron-sdk/pkg/proto/api"
+	"github.com/syr2bill/gotron-sdk/pkg/proto/core"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
