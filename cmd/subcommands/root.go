@@ -13,14 +13,14 @@ import (
 	"time"
 
 	color "github.com/fatih/color"
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
+	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	c "github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
-	"github.com/syr2bill/gotron-sdk/pkg/client"
-	"github.com/syr2bill/gotron-sdk/pkg/client/transaction"
-	"github.com/syr2bill/gotron-sdk/pkg/common"
-	c "github.com/syr2bill/gotron-sdk/pkg/common"
-	"github.com/syr2bill/gotron-sdk/pkg/store"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -155,7 +155,7 @@ var (
 	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
 
-// GitHubReleaseAssets json struct
+//GitHubReleaseAssets json struct
 type GitHubReleaseAssets struct {
 	ID   json.Number `json:"id"`
 	Name string      `json:"name"`
@@ -163,7 +163,7 @@ type GitHubReleaseAssets struct {
 	URL  string      `json:"browser_download_url"`
 }
 
-// GitHubRelease json struct
+//GitHubRelease json struct
 type GitHubRelease struct {
 	Prerelease      bool                  `json:"prerelease"`
 	TagName         string                `json:"tag_name"`
@@ -172,7 +172,7 @@ type GitHubRelease struct {
 	Assets          []GitHubReleaseAssets `json:"assets"`
 }
 
-// GitHubTag json struct
+//GitHubTag json struct
 type GitHubTag struct {
 	Ref    string `json:"ref"`
 	NodeID string `json:"node_id"`

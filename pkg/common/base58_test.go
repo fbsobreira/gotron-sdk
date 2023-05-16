@@ -3,8 +3,8 @@ package common_test
 import (
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/syr2bill/gotron-sdk/pkg/common"
 )
 
 func Test_DecodeBase58(t *testing.T) {

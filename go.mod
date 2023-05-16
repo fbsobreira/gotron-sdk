@@ -1,4 +1,4 @@
-module github.com/syr2bill/gotron-sdk
+module github.com/fbsobreira/gotron-sdk
 
 go 1.19
 
