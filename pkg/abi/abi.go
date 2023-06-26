@@ -132,17 +132,17 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 				if (ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy) &&
 					ty.Elem.Size > 64 {
 					tmp := make([]*big.Int, 0)
-					tmpSlice, ok := v.([]interface{})
+					tmpSlice, ok := v.([]string)
 					if !ok {
 						return nil, fmt.Errorf("unable to convert array of unints %+v", p)
 					}
 					for i := range tmpSlice {
 						var value *big.Int
 						// check for hex char
-						if strings.HasPrefix(tmpSlice[i].(string), "0x") {
-							value, _ = new(big.Int).SetString(tmpSlice[i].(string)[2:], 16)
+						if strings.HasPrefix(tmpSlice[i], "0x") {
+							value, _ = new(big.Int).SetString(tmpSlice[i][2:], 16)
 						} else {
-							value, _ = new(big.Int).SetString(tmpSlice[i].(string), 10)
+							value, _ = new(big.Int).SetString(tmpSlice[i], 10)
 						}
 						tmp = append(tmp, value)
 					}
