@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"github.com/btcsuite/btcd/btcec"
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/require"
@@ -47,7 +47,7 @@ func TestSend(t *testing.T) {
 	hash := h256h.Sum(nil)
 
 	// btcec.PrivKeyFromBytes only returns a secret key and public key
-	sk, _ := btcec.PrivKeyFromBytes(btcec.S256(), privateKeyBytes)
+	sk, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
 
 	signature, err := crypto.Sign(hash, sk.ToECDSA())
 	require.Nil(t, err)
