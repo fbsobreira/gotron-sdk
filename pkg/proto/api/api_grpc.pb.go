@@ -92,6 +92,7 @@ type WalletClient interface {
 	WithdrawExpireUnfreeze(ctx context.Context, in *core.WithdrawExpireUnfreezeContract, opts ...grpc.CallOption) (*TransactionExtention, error)
 	DelegateResource(ctx context.Context, in *core.DelegateResourceContract, opts ...grpc.CallOption) (*TransactionExtention, error)
 	UnDelegateResource(ctx context.Context, in *core.UnDelegateResourceContract, opts ...grpc.CallOption) (*TransactionExtention, error)
+	CancelAllUnfreezeV2(ctx context.Context, in *core.CancelAllUnfreezeV2Contract, opts ...grpc.CallOption) (*TransactionExtention, error)
 	// Please use UpdateAsset2 instead of this function.
 	UpdateAsset(ctx context.Context, in *core.UpdateAssetContract, opts ...grpc.CallOption) (*core.Transaction, error)
 	// Use this function instead of UpdateAsset.
@@ -165,27 +166,8 @@ type WalletClient interface {
 	GetPaginatedAssetIssueList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*AssetIssueList, error)
 	TotalTransaction(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*NumberMessage, error)
 	GetNextMaintenanceTime(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*NumberMessage, error)
-	// Warning: do not invoke this interface provided by others.
-	// Please use GetTransactionSign2 instead of this function.
-	GetTransactionSign(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*core.Transaction, error)
-	// Warning: do not invoke this interface provided by others.
-	// Use this function instead of GetTransactionSign.
-	GetTransactionSign2(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*TransactionExtention, error)
-	// Warning: do not invoke this interface provided by others.
-	CreateAddress(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*BytesMessage, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferAsset(ctx context.Context, in *EasyTransferAssetMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferAssetByPrivate(ctx context.Context, in *EasyTransferAssetByPrivateMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransfer(ctx context.Context, in *EasyTransferMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferByPrivate(ctx context.Context, in *EasyTransferByPrivateMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	GenerateAddress(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*AddressPrKeyPairMessage, error)
 	GetTransactionInfoById(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.TransactionInfo, error)
 	AccountPermissionUpdate(ctx context.Context, in *core.AccountPermissionUpdateContract, opts ...grpc.CallOption) (*TransactionExtention, error)
-	AddSign(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*TransactionExtention, error)
 	GetTransactionSignWeight(ctx context.Context, in *core.Transaction, opts ...grpc.CallOption) (*TransactionSignWeight, error)
 	GetTransactionApprovedList(ctx context.Context, in *core.Transaction, opts ...grpc.CallOption) (*TransactionApprovedList, error)
 	GetNodeInfo(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*core.NodeInfo, error)
@@ -581,6 +563,15 @@ func (c *walletClient) DelegateResource(ctx context.Context, in *core.DelegateRe
 func (c *walletClient) UnDelegateResource(ctx context.Context, in *core.UnDelegateResourceContract, opts ...grpc.CallOption) (*TransactionExtention, error) {
 	out := new(TransactionExtention)
 	err := c.cc.Invoke(ctx, "/protocol.Wallet/UnDelegateResource", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletClient) CancelAllUnfreezeV2(ctx context.Context, in *core.CancelAllUnfreezeV2Contract, opts ...grpc.CallOption) (*TransactionExtention, error) {
+	out := new(TransactionExtention)
+	err := c.cc.Invoke(ctx, "/protocol.Wallet/CancelAllUnfreezeV2", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1154,78 +1145,6 @@ func (c *walletClient) GetNextMaintenanceTime(ctx context.Context, in *EmptyMess
 	return out, nil
 }
 
-func (c *walletClient) GetTransactionSign(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*core.Transaction, error) {
-	out := new(core.Transaction)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/GetTransactionSign", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) GetTransactionSign2(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*TransactionExtention, error) {
-	out := new(TransactionExtention)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/GetTransactionSign2", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) CreateAddress(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*BytesMessage, error) {
-	out := new(BytesMessage)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/CreateAddress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) EasyTransferAsset(ctx context.Context, in *EasyTransferAssetMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error) {
-	out := new(EasyTransferResponse)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/EasyTransferAsset", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) EasyTransferAssetByPrivate(ctx context.Context, in *EasyTransferAssetByPrivateMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error) {
-	out := new(EasyTransferResponse)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/EasyTransferAssetByPrivate", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) EasyTransfer(ctx context.Context, in *EasyTransferMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error) {
-	out := new(EasyTransferResponse)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/EasyTransfer", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) EasyTransferByPrivate(ctx context.Context, in *EasyTransferByPrivateMessage, opts ...grpc.CallOption) (*EasyTransferResponse, error) {
-	out := new(EasyTransferResponse)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/EasyTransferByPrivate", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) GenerateAddress(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*AddressPrKeyPairMessage, error) {
-	out := new(AddressPrKeyPairMessage)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/GenerateAddress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *walletClient) GetTransactionInfoById(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.TransactionInfo, error) {
 	out := new(core.TransactionInfo)
 	err := c.cc.Invoke(ctx, "/protocol.Wallet/GetTransactionInfoById", in, out, opts...)
@@ -1238,15 +1157,6 @@ func (c *walletClient) GetTransactionInfoById(ctx context.Context, in *BytesMess
 func (c *walletClient) AccountPermissionUpdate(ctx context.Context, in *core.AccountPermissionUpdateContract, opts ...grpc.CallOption) (*TransactionExtention, error) {
 	out := new(TransactionExtention)
 	err := c.cc.Invoke(ctx, "/protocol.Wallet/AccountPermissionUpdate", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *walletClient) AddSign(ctx context.Context, in *core.TransactionSign, opts ...grpc.CallOption) (*TransactionExtention, error) {
-	out := new(TransactionExtention)
-	err := c.cc.Invoke(ctx, "/protocol.Wallet/AddSign", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1668,6 +1578,7 @@ type WalletServer interface {
 	WithdrawExpireUnfreeze(context.Context, *core.WithdrawExpireUnfreezeContract) (*TransactionExtention, error)
 	DelegateResource(context.Context, *core.DelegateResourceContract) (*TransactionExtention, error)
 	UnDelegateResource(context.Context, *core.UnDelegateResourceContract) (*TransactionExtention, error)
+	CancelAllUnfreezeV2(context.Context, *core.CancelAllUnfreezeV2Contract) (*TransactionExtention, error)
 	// Please use UpdateAsset2 instead of this function.
 	UpdateAsset(context.Context, *core.UpdateAssetContract) (*core.Transaction, error)
 	// Use this function instead of UpdateAsset.
@@ -1741,27 +1652,8 @@ type WalletServer interface {
 	GetPaginatedAssetIssueList(context.Context, *PaginatedMessage) (*AssetIssueList, error)
 	TotalTransaction(context.Context, *EmptyMessage) (*NumberMessage, error)
 	GetNextMaintenanceTime(context.Context, *EmptyMessage) (*NumberMessage, error)
-	// Warning: do not invoke this interface provided by others.
-	// Please use GetTransactionSign2 instead of this function.
-	GetTransactionSign(context.Context, *core.TransactionSign) (*core.Transaction, error)
-	// Warning: do not invoke this interface provided by others.
-	// Use this function instead of GetTransactionSign.
-	GetTransactionSign2(context.Context, *core.TransactionSign) (*TransactionExtention, error)
-	// Warning: do not invoke this interface provided by others.
-	CreateAddress(context.Context, *BytesMessage) (*BytesMessage, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferAsset(context.Context, *EasyTransferAssetMessage) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferAssetByPrivate(context.Context, *EasyTransferAssetByPrivateMessage) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransfer(context.Context, *EasyTransferMessage) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	EasyTransferByPrivate(context.Context, *EasyTransferByPrivateMessage) (*EasyTransferResponse, error)
-	// Warning: do not invoke this interface provided by others.
-	GenerateAddress(context.Context, *EmptyMessage) (*AddressPrKeyPairMessage, error)
 	GetTransactionInfoById(context.Context, *BytesMessage) (*core.TransactionInfo, error)
 	AccountPermissionUpdate(context.Context, *core.AccountPermissionUpdateContract) (*TransactionExtention, error)
-	AddSign(context.Context, *core.TransactionSign) (*TransactionExtention, error)
 	GetTransactionSignWeight(context.Context, *core.Transaction) (*TransactionSignWeight, error)
 	GetTransactionApprovedList(context.Context, *core.Transaction) (*TransactionApprovedList, error)
 	GetNodeInfo(context.Context, *EmptyMessage) (*core.NodeInfo, error)
@@ -1925,6 +1817,9 @@ func (UnimplementedWalletServer) DelegateResource(context.Context, *core.Delegat
 }
 func (UnimplementedWalletServer) UnDelegateResource(context.Context, *core.UnDelegateResourceContract) (*TransactionExtention, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UnDelegateResource not implemented")
+}
+func (UnimplementedWalletServer) CancelAllUnfreezeV2(context.Context, *core.CancelAllUnfreezeV2Contract) (*TransactionExtention, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelAllUnfreezeV2 not implemented")
 }
 func (UnimplementedWalletServer) UpdateAsset(context.Context, *core.UpdateAssetContract) (*core.Transaction, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method UpdateAsset not implemented")
@@ -2115,38 +2010,11 @@ func (UnimplementedWalletServer) TotalTransaction(context.Context, *EmptyMessage
 func (UnimplementedWalletServer) GetNextMaintenanceTime(context.Context, *EmptyMessage) (*NumberMessage, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNextMaintenanceTime not implemented")
 }
-func (UnimplementedWalletServer) GetTransactionSign(context.Context, *core.TransactionSign) (*core.Transaction, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionSign not implemented")
-}
-func (UnimplementedWalletServer) GetTransactionSign2(context.Context, *core.TransactionSign) (*TransactionExtention, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionSign2 not implemented")
-}
-func (UnimplementedWalletServer) CreateAddress(context.Context, *BytesMessage) (*BytesMessage, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateAddress not implemented")
-}
-func (UnimplementedWalletServer) EasyTransferAsset(context.Context, *EasyTransferAssetMessage) (*EasyTransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EasyTransferAsset not implemented")
-}
-func (UnimplementedWalletServer) EasyTransferAssetByPrivate(context.Context, *EasyTransferAssetByPrivateMessage) (*EasyTransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EasyTransferAssetByPrivate not implemented")
-}
-func (UnimplementedWalletServer) EasyTransfer(context.Context, *EasyTransferMessage) (*EasyTransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EasyTransfer not implemented")
-}
-func (UnimplementedWalletServer) EasyTransferByPrivate(context.Context, *EasyTransferByPrivateMessage) (*EasyTransferResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method EasyTransferByPrivate not implemented")
-}
-func (UnimplementedWalletServer) GenerateAddress(context.Context, *EmptyMessage) (*AddressPrKeyPairMessage, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateAddress not implemented")
-}
 func (UnimplementedWalletServer) GetTransactionInfoById(context.Context, *BytesMessage) (*core.TransactionInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionInfoById not implemented")
 }
 func (UnimplementedWalletServer) AccountPermissionUpdate(context.Context, *core.AccountPermissionUpdateContract) (*TransactionExtention, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AccountPermissionUpdate not implemented")
-}
-func (UnimplementedWalletServer) AddSign(context.Context, *core.TransactionSign) (*TransactionExtention, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddSign not implemented")
 }
 func (UnimplementedWalletServer) GetTransactionSignWeight(context.Context, *core.Transaction) (*TransactionSignWeight, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionSignWeight not implemented")
@@ -2973,6 +2841,24 @@ func _Wallet_UnDelegateResource_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServer).UnDelegateResource(ctx, req.(*core.UnDelegateResourceContract))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Wallet_CancelAllUnfreezeV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(core.CancelAllUnfreezeV2Contract)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServer).CancelAllUnfreezeV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/protocol.Wallet/CancelAllUnfreezeV2",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServer).CancelAllUnfreezeV2(ctx, req.(*core.CancelAllUnfreezeV2Contract))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -4111,150 +3997,6 @@ func _Wallet_GetNextMaintenanceTime_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Wallet_GetTransactionSign_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(core.TransactionSign)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).GetTransactionSign(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/GetTransactionSign",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).GetTransactionSign(ctx, req.(*core.TransactionSign))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_GetTransactionSign2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(core.TransactionSign)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).GetTransactionSign2(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/GetTransactionSign2",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).GetTransactionSign2(ctx, req.(*core.TransactionSign))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_CreateAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(BytesMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).CreateAddress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/CreateAddress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).CreateAddress(ctx, req.(*BytesMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_EasyTransferAsset_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EasyTransferAssetMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).EasyTransferAsset(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/EasyTransferAsset",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).EasyTransferAsset(ctx, req.(*EasyTransferAssetMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_EasyTransferAssetByPrivate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EasyTransferAssetByPrivateMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).EasyTransferAssetByPrivate(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/EasyTransferAssetByPrivate",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).EasyTransferAssetByPrivate(ctx, req.(*EasyTransferAssetByPrivateMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_EasyTransfer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EasyTransferMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).EasyTransfer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/EasyTransfer",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).EasyTransfer(ctx, req.(*EasyTransferMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_EasyTransferByPrivate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EasyTransferByPrivateMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).EasyTransferByPrivate(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/EasyTransferByPrivate",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).EasyTransferByPrivate(ctx, req.(*EasyTransferByPrivateMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_GenerateAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EmptyMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).GenerateAddress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/GenerateAddress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).GenerateAddress(ctx, req.(*EmptyMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _Wallet_GetTransactionInfoById_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(BytesMessage)
 	if err := dec(in); err != nil {
@@ -4287,24 +4029,6 @@ func _Wallet_AccountPermissionUpdate_Handler(srv interface{}, ctx context.Contex
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletServer).AccountPermissionUpdate(ctx, req.(*core.AccountPermissionUpdateContract))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Wallet_AddSign_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(core.TransactionSign)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletServer).AddSign(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.Wallet/AddSign",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletServer).AddSign(ctx, req.(*core.TransactionSign))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -5157,6 +4881,10 @@ var Wallet_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Wallet_UnDelegateResource_Handler,
 		},
 		{
+			MethodName: "CancelAllUnfreezeV2",
+			Handler:    _Wallet_CancelAllUnfreezeV2_Handler,
+		},
+		{
 			MethodName: "UpdateAsset",
 			Handler:    _Wallet_UpdateAsset_Handler,
 		},
@@ -5409,48 +5137,12 @@ var Wallet_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Wallet_GetNextMaintenanceTime_Handler,
 		},
 		{
-			MethodName: "GetTransactionSign",
-			Handler:    _Wallet_GetTransactionSign_Handler,
-		},
-		{
-			MethodName: "GetTransactionSign2",
-			Handler:    _Wallet_GetTransactionSign2_Handler,
-		},
-		{
-			MethodName: "CreateAddress",
-			Handler:    _Wallet_CreateAddress_Handler,
-		},
-		{
-			MethodName: "EasyTransferAsset",
-			Handler:    _Wallet_EasyTransferAsset_Handler,
-		},
-		{
-			MethodName: "EasyTransferAssetByPrivate",
-			Handler:    _Wallet_EasyTransferAssetByPrivate_Handler,
-		},
-		{
-			MethodName: "EasyTransfer",
-			Handler:    _Wallet_EasyTransfer_Handler,
-		},
-		{
-			MethodName: "EasyTransferByPrivate",
-			Handler:    _Wallet_EasyTransferByPrivate_Handler,
-		},
-		{
-			MethodName: "GenerateAddress",
-			Handler:    _Wallet_GenerateAddress_Handler,
-		},
-		{
 			MethodName: "GetTransactionInfoById",
 			Handler:    _Wallet_GetTransactionInfoById_Handler,
 		},
 		{
 			MethodName: "AccountPermissionUpdate",
 			Handler:    _Wallet_AccountPermissionUpdate_Handler,
-		},
-		{
-			MethodName: "AddSign",
-			Handler:    _Wallet_AddSign_Handler,
 		},
 		{
 			MethodName: "GetTransactionSignWeight",
@@ -5641,8 +5333,6 @@ type WalletSolidityClient interface {
 	ListExchanges(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*ExchangeList, error)
 	GetTransactionById(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.Transaction, error)
 	GetTransactionInfoById(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.TransactionInfo, error)
-	// Warning: do not invoke this interface provided by others.
-	GenerateAddress(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*AddressPrKeyPairMessage, error)
 	GetMerkleTreeVoucherInfo(ctx context.Context, in *core.OutputPointInfo, opts ...grpc.CallOption) (*core.IncrementalMerkleVoucherInfo, error)
 	ScanNoteByIvk(ctx context.Context, in *IvkDecryptParameters, opts ...grpc.CallOption) (*DecryptNotes, error)
 	ScanAndMarkNoteByIvk(ctx context.Context, in *IvkDecryptAndMarkParameters, opts ...grpc.CallOption) (*DecryptNotesMarked, error)
@@ -5889,15 +5579,6 @@ func (c *walletSolidityClient) GetTransactionInfoById(ctx context.Context, in *B
 	return out, nil
 }
 
-func (c *walletSolidityClient) GenerateAddress(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*AddressPrKeyPairMessage, error) {
-	out := new(AddressPrKeyPairMessage)
-	err := c.cc.Invoke(ctx, "/protocol.WalletSolidity/GenerateAddress", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *walletSolidityClient) GetMerkleTreeVoucherInfo(ctx context.Context, in *core.OutputPointInfo, opts ...grpc.CallOption) (*core.IncrementalMerkleVoucherInfo, error) {
 	out := new(core.IncrementalMerkleVoucherInfo)
 	err := c.cc.Invoke(ctx, "/protocol.WalletSolidity/GetMerkleTreeVoucherInfo", in, out, opts...)
@@ -6110,8 +5791,6 @@ type WalletSolidityServer interface {
 	ListExchanges(context.Context, *EmptyMessage) (*ExchangeList, error)
 	GetTransactionById(context.Context, *BytesMessage) (*core.Transaction, error)
 	GetTransactionInfoById(context.Context, *BytesMessage) (*core.TransactionInfo, error)
-	// Warning: do not invoke this interface provided by others.
-	GenerateAddress(context.Context, *EmptyMessage) (*AddressPrKeyPairMessage, error)
 	GetMerkleTreeVoucherInfo(context.Context, *core.OutputPointInfo) (*core.IncrementalMerkleVoucherInfo, error)
 	ScanNoteByIvk(context.Context, *IvkDecryptParameters) (*DecryptNotes, error)
 	ScanAndMarkNoteByIvk(context.Context, *IvkDecryptAndMarkParameters) (*DecryptNotesMarked, error)
@@ -6210,9 +5889,6 @@ func (UnimplementedWalletSolidityServer) GetTransactionById(context.Context, *By
 }
 func (UnimplementedWalletSolidityServer) GetTransactionInfoById(context.Context, *BytesMessage) (*core.TransactionInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetTransactionInfoById not implemented")
-}
-func (UnimplementedWalletSolidityServer) GenerateAddress(context.Context, *EmptyMessage) (*AddressPrKeyPairMessage, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GenerateAddress not implemented")
 }
 func (UnimplementedWalletSolidityServer) GetMerkleTreeVoucherInfo(context.Context, *core.OutputPointInfo) (*core.IncrementalMerkleVoucherInfo, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetMerkleTreeVoucherInfo not implemented")
@@ -6719,24 +6395,6 @@ func _WalletSolidity_GetTransactionInfoById_Handler(srv interface{}, ctx context
 	return interceptor(ctx, in, info, handler)
 }
 
-func _WalletSolidity_GenerateAddress_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(EmptyMessage)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(WalletSolidityServer).GenerateAddress(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/protocol.WalletSolidity/GenerateAddress",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WalletSolidityServer).GenerateAddress(ctx, req.(*EmptyMessage))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _WalletSolidity_GetMerkleTreeVoucherInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(core.OutputPointInfo)
 	if err := dec(in); err != nil {
@@ -7199,10 +6857,6 @@ var WalletSolidity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetTransactionInfoById",
 			Handler:    _WalletSolidity_GetTransactionInfoById_Handler,
-		},
-		{
-			MethodName: "GenerateAddress",
-			Handler:    _WalletSolidity_GenerateAddress_Handler,
 		},
 		{
 			MethodName: "GetMerkleTreeVoucherInfo",
