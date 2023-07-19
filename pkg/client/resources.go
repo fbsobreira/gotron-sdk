@@ -105,7 +105,7 @@ func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*ap
 }
 
 // DelegateResource from BASE58 address
-func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCode, delegateBalance int64, lock bool) (*api.TransactionExtention, error) {
+func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCode, delegateBalance int64, lock bool, lockPeriod int64) (*api.TransactionExtention, error) {
 	addrFromBytes, err := common.DecodeCheck(from)
 	if err != nil {
 		return nil, err
@@ -126,6 +126,7 @@ func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCod
 	contract.ReceiverAddress = addrToBytes
 	contract.Balance = delegateBalance
 	contract.Lock = lock
+	contract.LockPeriod = lockPeriod
 
 	response, err := g.Client.DelegateResource(ctx, contract)
 	if err != nil {
