@@ -16,6 +16,12 @@ env := GO111MODULE=on
 all:
 	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
+windows:
+	$(env) GOOS=windows GOARCH=amd64 go build -o $(cli).exe -ldflags="$(ldflags)" cmd/main.go
+
+run:
+	$(env) go run -ldflags="$(ldflags)" cmd/main.go
+
 debug:
 	$(env) go build $(flags) -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
