@@ -2,12 +2,17 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/hex"
 	"fmt"
 	"os"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
@@ -25,9 +30,6 @@ var (
 	quietImport         bool
 	recoverFromMnemonic bool
 	passphrase          string
-	blsFilePath         string
-	blsShardID          uint32
-	blsCount            uint32
 	ppPrompt            = fmt.Sprintf(
 		"prompt for passphrase, otherwise use default passphrase: \"`%s`\"", c.DefaultPassphrase,
 	)
@@ -228,8 +230,52 @@ func keysSub() []*cobra.Command {
 		},
 	}
 
+	randomPrivateKey := &cobra.Command{
+		Use:   "random-pk",
+		Short: "export a random private key",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			key, err := bip39.NewEntropy(256)
+			if err != nil {
+				return err
+			}
+			fmt.Println(hex.EncodeToString(key))
+			return nil
+		},
+	}
+
+	addressFromPrivateKey := &cobra.Command{
+		Use:   "address-pk",
+		Short: "export address from private key",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fmt.Println("Enter privete key hex format:")
+			data, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			if err != nil {
+				return err
+			}
+
+			// decode hex
+			privateKeyBytes, err := hex.DecodeString(string(data))
+			if err != nil {
+				return err
+			}
+
+			if len(privateKeyBytes) != common.Secp256k1PrivateKeyBytesLength {
+				return common.ErrBadKeyLength
+			}
+
+			// btcec.PrivKeyFromBytes only returns a secret key and public key
+			sk, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+
+			addr := address.PubkeyToAddress(*sk.PubKey().ToECDSA())
+			fmt.Println(addr)
+			return nil
+		},
+	}
+
 	return []*cobra.Command{cmdList, cmdLocation, cmdAdd, cmdRemove, cmdMnemonic, cmdRecoverMnemonic, cmdImportKS, cmdImportPK,
-		cmdExportKS, cmdExportPK}
+		cmdExportKS, cmdExportPK, randomPrivateKey, addressFromPrivateKey}
 }
 
 func init() {
