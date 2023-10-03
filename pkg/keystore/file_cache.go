@@ -17,7 +17,6 @@
 package keystore
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +40,14 @@ func (fc *fileCache) scan(keyDir string) (mapset.Set, mapset.Set, mapset.Set, er
 	t0 := time.Now()
 
 	// List all the failes from the keystore folder
-	files, err := ioutil.ReadDir(keyDir)
+	dir, err := os.Open(keyDir)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	defer dir.Close()
+
+	files, err := dir.Readdir(-1)
+
 	if err != nil {
 		return nil, nil, nil, err
 	}

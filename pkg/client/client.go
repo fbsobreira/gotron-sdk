@@ -53,7 +53,7 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	g.Conn, err = grpc.Dial(g.Address, opts...)
 
 	if err != nil {
-		return fmt.Errorf("Connecting GRPC Client: %v", err)
+		return fmt.Errorf("connecting GRPC client: %v", err)
 	}
 	g.Client = api.NewWalletClient(g.Conn)
 	return nil

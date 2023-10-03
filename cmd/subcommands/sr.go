@@ -145,7 +145,7 @@ func srSub() []*cobra.Command {
 				return err
 			}
 			if value < 0 || value > 100 {
-				return fmt.Errorf("Invalud Brokerage rande 0 > X < 100")
+				return fmt.Errorf("invalid brokerage range 0 > X < 100")
 			}
 			tx, err := conn.UpdateBrokerage(signerAddress.String(), int32(value))
 			if err != nil {

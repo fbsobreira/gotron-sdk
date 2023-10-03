@@ -7,5 +7,5 @@ import (
 
 func TestKeyStore(t *testing.T) {
 	fmt.Println("Hello world")
-	t.Errorf("Testing pipeline")
+	// t.Errorf("Testing pipeline")
 }
