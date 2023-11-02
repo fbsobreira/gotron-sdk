@@ -4,11 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -16,7 +15,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -39,12 +37,12 @@ var (
 	passphraseFilePath     string
 	defaultKeystoreDir     string
 	node                   string
-	keyStoreDir            string
-	givenFilePath          string
-	timeout                uint32
-	withTLS                bool
-	apiKey                 string
-	conn                   *client.GrpcClient
+	// keyStoreDir            string
+	givenFilePath string
+	timeout       uint32
+	withTLS       bool
+	apiKey        string
+	conn          *client.GrpcClient
 	// RootCmd is single entry point of the CLI
 	RootCmd = &cobra.Command{
 		Use:          "tronctl",
@@ -152,7 +150,7 @@ var (
 	VersionWrapDump = ""
 	versionLink     = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases/latest"
 	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
-	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
+	// versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
 
 // GitHubReleaseAssets json struct
@@ -188,7 +186,9 @@ func getGitVersion() (string, error) {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	// if error, no op
 	if resp != nil && resp.StatusCode == 200 {
 		buf := new(bytes.Buffer)
@@ -213,7 +213,7 @@ func getGitVersion() (string, error) {
 
 			if releaseTag.DATA.SHA[:8] != commit[1] {
 				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
-				fmt.Fprintf(os.Stderr, color.RedString(warnMsg))
+				fmt.Fprintf(os.Stderr, "%s", color.RedString(warnMsg))
 				return release.TagName, fmt.Errorf(warnMsg)
 			}
 			return release.TagName, nil
@@ -251,7 +251,7 @@ func findAddress(value string) (tronAddress, error) {
 		if acc, err := store.AddressFromAccountName(value); err == nil {
 			return tronAddress{acc}, nil
 		}
-		return address, fmt.Errorf("Invalid address/Invalid account name: %s", value)
+		return address, fmt.Errorf("invalid address/invalid account name: %s", value)
 	}
 	return address, nil
 }
@@ -278,7 +278,13 @@ func getPassphrase() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		file, err := os.Open(passphraseFilePath)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+
+		dat, err := io.ReadAll(file)
 		if err != nil {
 			return "", err
 		}
@@ -292,7 +298,7 @@ func getPassphrase() (string, error) {
 		}
 		return string(pass), nil
 	} else {
-		return c.DefaultPassphrase, nil
+		return common.DefaultPassphrase, nil
 	}
 }
 
@@ -304,7 +310,13 @@ func getPassphraseWithConfirm() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		file, err := os.Open(passphraseFilePath)
+		if err != nil {
+			return "", err
+		}
+		defer file.Close()
+
+		dat, err := io.ReadAll(file)
 		if err != nil {
 			return "", err
 		}
@@ -327,6 +339,6 @@ func getPassphraseWithConfirm() (string, error) {
 		fmt.Println("") // provide feedback when passphrase is entered.
 		return string(repeatPass), nil
 	} else {
-		return c.DefaultPassphrase, nil
+		return common.DefaultPassphrase, nil
 	}
 }

@@ -43,15 +43,17 @@ func Signature(method string) []byte {
 }
 
 func convetToAddress(v interface{}) (eCommon.Address, error) {
-	switch v.(type) {
+	switch v := v.(type) {
 	case string:
-		addr, err := address.Base58ToAddress(v.(string))
+		addr, err := address.Base58ToAddress(v)
 		if err != nil {
-			return eCommon.Address{}, fmt.Errorf("invalid address %s: %+v", v.(string), err)
+			return eCommon.Address{}, fmt.Errorf("invalid address %s: %+v", v, err)
 		}
 		return eCommon.BytesToAddress(addr.Bytes()[len(addr.Bytes())-20:]), nil
+	case []byte:
+		return eCommon.BytesToAddress(v), nil
 	}
-	return eCommon.Address{}, fmt.Errorf("invalid address %v", v)
+	return eCommon.Address{}, fmt.Errorf("unexpected address type %T", v)
 }
 
 func convertToInt(ty eABI.Type, v interface{}) interface{} {

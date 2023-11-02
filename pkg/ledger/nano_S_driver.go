@@ -242,7 +242,7 @@ func OpenNanoS() (*NanoS, error) {
 	if len(devices) == 0 {
 		return nil, errors.New("Nano S not detected")
 	} else if len(devices) > 1 {
-		return nil, errors.New("Unexpected error -- Is the one wallet app running?")
+		return nil, errors.New("unexpected error -- Is the one wallet app running?")
 	}
 
 	// open the device

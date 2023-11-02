@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -97,14 +96,17 @@ func writeToFile(path string, data string) error {
 
 // ImportKeyStore imports a keystore along with a password
 func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
-	keyPath, err := filepath.Abs(keyPath)
+	file, err := os.Open(keyPath)
 	if err != nil {
 		return "", err
 	}
-	keyJSON, readError := ioutil.ReadFile(keyPath)
-	if readError != nil {
-		return "", readError
+	defer file.Close()
+
+	keyJSON, err := io.ReadAll(file)
+	if err != nil {
+		return "", err
 	}
+
 	if name == "" {
 		name = generateName() + "-imported"
 		for store.DoesNamedAccountExist(name) {

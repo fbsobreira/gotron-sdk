@@ -3,8 +3,9 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
+	"os"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
@@ -39,7 +40,13 @@ func contractSub() []*cobra.Command {
 
 			if abiSTR == "" {
 				if abiFile != "" {
-					abiBytes, err := ioutil.ReadFile(abiFile)
+					file, err := os.Open(abiFile)
+					if err != nil {
+						return fmt.Errorf("cannot open ABI file: %s %v", abiFile, err)
+					}
+					defer file.Close()
+
+					abiBytes, err := io.ReadAll(file)
 					if err != nil {
 						return fmt.Errorf("cannot read ABI file: %s %v", abiFile, err)
 					}
@@ -55,7 +62,13 @@ func contractSub() []*cobra.Command {
 
 			if bcSTR == "" {
 				if bcFile != "" {
-					bcBytes, err := ioutil.ReadFile(bcFile)
+					file, err := os.Open(bcFile)
+					if err != nil {
+						return fmt.Errorf("cannot open Bytecode file: %s %v", bcFile, err)
+					}
+					defer file.Close()
+
+					bcBytes, err := io.ReadAll(file)
 					if err != nil {
 						return fmt.Errorf("cannot read Bytecode file: %s %v", bcFile, err)
 					}
@@ -165,7 +178,7 @@ func contractSub() []*cobra.Command {
 
 			result := make(map[string]interface{})
 			//TODO: parse based on contract ABI
-			result["Result"] = common.ToHex(cResult[0])
+			result["Result"] = common.BytesToHexString(cResult[0])
 
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))

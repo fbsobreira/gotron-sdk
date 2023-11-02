@@ -63,7 +63,7 @@ func TestGetAccountDetailedV2(t *testing.T) {
 }
 
 func TestFreezeV2(t *testing.T) {
-	t.Skip() // Only in testnet nile
+	// t.Skip() // Only in testnet nile
 	freezeTx, err := conn.FreezeBalanceV2(testnetNileAddressExample, core.ResourceCode_BANDWIDTH, 1000000)
 
 	require.Nil(t, err)
@@ -72,7 +72,7 @@ func TestFreezeV2(t *testing.T) {
 }
 
 func TestUnfreezeV2(t *testing.T) {
-	t.Skip() // Only in testnet nile
+	// t.Skip() // Only in testnet nile
 	unfreezeTx, err := conn.UnfreezeBalanceV2(testnetNileAddressExample, core.ResourceCode_BANDWIDTH, 1000000)
 
 	require.Nil(t, err)
@@ -81,15 +81,15 @@ func TestUnfreezeV2(t *testing.T) {
 }
 
 func TestDelegate(t *testing.T) {
-	t.Skip() // Only in testnet nile
-	tx, err := conn.DelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000, false)
+	// t.Skip() // Only in testnet nile
+	tx, err := conn.DelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, int64(1000000), false, int64(0))
 
 	require.Nil(t, err)
 	require.NotNil(t, tx.GetTxid())
 }
 
 func TestUndelegate(t *testing.T) {
-	t.Skip() // Only in testnet nile
+	// t.Skip() // Only in testnet nile
 	tx, err := conn.UnDelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000, false)
 
 	require.Nil(t, err)
@@ -97,7 +97,7 @@ func TestUndelegate(t *testing.T) {
 }
 
 func TestDelegateMaxSize(t *testing.T) {
-	t.Skip() // Only in testnet nile
+	// t.Skip() // Only in testnet nile
 	tx, err := conn.GetCanDelegatedMaxSize(testnetNileAddressExample, int32(core.ResourceCode_BANDWIDTH.Number()))
 
 	require.Nil(t, err)
@@ -105,7 +105,7 @@ func TestDelegateMaxSize(t *testing.T) {
 }
 
 func TestUnfreezeLeftCount(t *testing.T) {
-	t.Skip() // Only in testnet nile
+	// t.Skip() // Only in testnet nile
 	tx, err := conn.GetAvailableUnfreezeCount(testnetNileAddressExample)
 
 	require.Nil(t, err)

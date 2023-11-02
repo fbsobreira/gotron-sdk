@@ -5,4 +5,5 @@ type SignerImpl int
 const (
 	Software SignerImpl = iota
 	Ledger
+	PrivateKey
 )

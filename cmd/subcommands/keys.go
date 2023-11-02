@@ -11,8 +11,8 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	c "github.com/fbsobreira/gotron-sdk/pkg/common"
-	"golang.org/x/crypto/ssh/terminal"
+
+	"golang.org/x/term"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
@@ -31,7 +31,7 @@ var (
 	recoverFromMnemonic bool
 	passphrase          string
 	ppPrompt            = fmt.Sprintf(
-		"prompt for passphrase, otherwise use default passphrase: \"`%s`\"", c.DefaultPassphrase,
+		"prompt for passphrase, otherwise use default passphrase: \"`%s`\"", common.DefaultPassphrase,
 	)
 )
 
@@ -250,7 +250,7 @@ func keysSub() []*cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Enter privete key hex format:")
-			data, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			data, err := term.ReadPassword(int(os.Stdin.Fd()))
 			if err != nil {
 				return err
 			}
