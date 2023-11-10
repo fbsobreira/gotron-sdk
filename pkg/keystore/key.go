@@ -30,7 +30,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/luoxiandong/gotron-sdk/pkg/address"
 	"github.com/pborman/uuid"
 )
 
