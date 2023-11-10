@@ -20,7 +20,7 @@ const (
 	// AddressLengthBase58 is the expected length of the address in base58format
 	AddressLengthBase58 = 34
 	// TronBytePrefix is the hex prefix to address
-	TronBytePrefix = byte(0x41)
+	TronBytePrefix = byte(0x7d)
 )
 
 // Address represents the 21 byte address of an Tron account.
