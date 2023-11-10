@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.28.0
 // 	protoc        v3.21.12
-// source: core/Discover.proto
+// source: core/DiscoverSmart.proto
 
 package core
 

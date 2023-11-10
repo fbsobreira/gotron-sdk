@@ -8,7 +8,7 @@ import (
 )
 
 const addressLength = 20
-const prefixMainnet = 0x41
+const prefixMainnet = 0x7d
 
 func Encode(input []byte) string {
 	return base58.Encode(input, base58.BitcoinAlphabet)
