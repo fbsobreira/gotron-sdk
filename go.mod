@@ -1,4 +1,4 @@
-module github.com/fbsobreira/gotron-sdk
+module github.com/cordialsys/gotron-sdk
 
 go 1.19
 
