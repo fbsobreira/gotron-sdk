@@ -1,5 +1,5 @@
-//go:build !windows
-// +build !windows
+//go:build !windows && !tronsdk_compat
+// +build !windows,!tronsdk_compat
 
 package keystore
 
