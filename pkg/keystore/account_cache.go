@@ -28,8 +28,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/bizvip/gotron/pkg/address"
 	mapset "github.com/deckarep/golang-set"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"go.uber.org/zap"
 )
 

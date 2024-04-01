@@ -12,18 +12,19 @@ import (
 	"strings"
 	"time"
 
-	color "github.com/fatih/color"
-	"github.com/fbsobreira/gotron-sdk/pkg/client"
-	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	c "github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/store"
+	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"golang.org/x/crypto/ssh/terminal"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+
+	"github.com/bizvip/gotron/pkg/client"
+	"github.com/bizvip/gotron/pkg/client/transaction"
+	"github.com/bizvip/gotron/pkg/common"
+	c "github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/store"
 )
 
 var (
@@ -150,8 +151,8 @@ func init() {
 var (
 	// VersionWrapDump meant to be set from main.go
 	VersionWrapDump = ""
-	versionLink     = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases/latest"
-	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
+	versionLink     = "https://api.github.com/repos/bizvip/gotron/releases/latest"
+	versionTagLink  = "https://api.github.com/repos/bizvip/gotron/git/ref/tags/"
 	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
 

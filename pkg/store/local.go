@@ -7,10 +7,10 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	c "github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/bizvip/gotron/pkg/address"
+	"github.com/bizvip/gotron/pkg/common"
+	c "github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/keystore"
 )
 
 var uDir string

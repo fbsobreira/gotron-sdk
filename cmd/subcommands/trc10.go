@@ -9,12 +9,12 @@ import (
 	"time"
 
 	"github.com/araddon/dateparse"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"github.com/fbsobreira/gotron-sdk/pkg/store"
+	"github.com/bizvip/gotron/pkg/address"
+	"github.com/bizvip/gotron/pkg/client/transaction"
+	"github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/keystore"
+	"github.com/bizvip/gotron/pkg/proto/core"
+	"github.com/bizvip/gotron/pkg/store"
 	"github.com/spf13/cobra"
 )
 
@@ -109,7 +109,7 @@ func trc10Sub() []*cobra.Command {
 				totalSupply,
 				t.UTC().Unix()*1000,
 				t.Add(time.Duration(issueDuration)*time.Hour*24).UTC().Unix()*1000,
-				0, 0, //AssetLimit
+				0, 0, // AssetLimit
 				int32(trxNum),
 				int32(tokenNum),
 				0,            // Vote scores
@@ -264,12 +264,12 @@ func trc10Sub() []*cobra.Command {
 			tokenID := ""
 			issuerAddress := ""
 			price := float64(0)
-			//tokenDecimals := int32(0)
+			// tokenDecimals := int32(0)
 			if _, err := strconv.Atoi(args[0]); err == nil {
 				if asset, err := conn.GetAssetIssueByID(args[0]); err == nil {
 					if asset.Id == args[0] {
 						tokenID = args[0]
-						//tokenDecimals = asset.Precision
+						// tokenDecimals = asset.Precision
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
 						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					}
@@ -282,7 +282,7 @@ func trc10Sub() []*cobra.Command {
 				if asset, err := conn.GetAssetIssueByName(args[0]); err == nil {
 					if string(asset.Name) == args[0] {
 						tokenID = asset.Id
-						//tokenDecimals = asset.Precision
+						// tokenDecimals = asset.Precision
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
 						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					} else {

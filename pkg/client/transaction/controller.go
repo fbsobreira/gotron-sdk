@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/client"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/bizvip/gotron/pkg/client"
+	"github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/keystore"
+	"github.com/bizvip/gotron/pkg/ledger"
+	"github.com/bizvip/gotron/pkg/proto/api"
+	"github.com/bizvip/gotron/pkg/proto/core"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -131,7 +131,7 @@ func (C *Controller) txConfirmation() {
 			C.executionError = fmt.Errorf("could not get tx hash")
 			return
 		}
-		//fmt.Printf("TX hash: %s\nWaiting for confirmation....", txHash)
+		// fmt.Printf("TX hash: %s\nWaiting for confirmation....", txHash)
 		start := int(C.Behavior.ConfirmationWaitTime)
 		for {
 			// GETTX by ID

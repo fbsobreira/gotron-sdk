@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bizvip/gotron/pkg/address"
+	"github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/proto/core"
 	"github.com/fatih/structs"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/spf13/cobra"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
@@ -107,7 +107,7 @@ func bcSub() []*cobra.Command {
 			}
 
 			result["contractName"] = contract.Type.String()
-			//parse contract
+			// parse contract
 			var c interface{}
 			switch contract.Type {
 			case core.Transaction_Contract_AccountCreateContract:

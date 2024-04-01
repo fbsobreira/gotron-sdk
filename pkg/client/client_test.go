@@ -5,9 +5,9 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"github.com/bizvip/gotron/pkg/client"
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"

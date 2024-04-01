@@ -8,12 +8,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"github.com/fbsobreira/gotron-sdk/pkg/store"
+	"github.com/bizvip/gotron/pkg/address"
+	"github.com/bizvip/gotron/pkg/client/transaction"
+	"github.com/bizvip/gotron/pkg/common"
+	"github.com/bizvip/gotron/pkg/keystore"
+	"github.com/bizvip/gotron/pkg/proto/core"
+	"github.com/bizvip/gotron/pkg/store"
 	"github.com/spf13/cobra"
 )
 
