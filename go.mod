@@ -1,4 +1,4 @@
-module github.com/bizvip/gotron
+module github.com/bizvip/gotron/v2
 
 go 1.22
 
