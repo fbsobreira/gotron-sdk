@@ -102,14 +102,14 @@ func FromAccountName(name string) *keystore.KeyStore {
 	return keystore.ForPath(p)
 }
 
-// DefaultLocation get deafault location
+// DefaultLocation get default location
 func DefaultLocation() string {
 	// uDir, _ := homedir.Dir()
 	// uDir, _ := os.Getwd()
 	return path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
 }
 
-// SetDefaultLocation set deafault location
+// SetDefaultLocation set default location
 func SetDefaultLocation(directory string) {
 	c.DefaultConfigDirName = directory
 	// uDir, _ := homedir.Dir()
