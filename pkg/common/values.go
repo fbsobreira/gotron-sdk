@@ -6,8 +6,8 @@ import (
 )
 
 const (
-	// DefaultConfigAccountAliasesDirName fro accounts
-	DefaultConfigAccountAliasesDirName = "account-keys"
+	// DefaultConfigAccountAliasesDirName from accounts
+	DefaultConfigAccountAliasesDirName = "keys"
 	// DefaultPassphrase for accounts
 	DefaultPassphrase = ""
 	// Secp256k1PrivateKeyBytesLength privete key
@@ -18,11 +18,11 @@ const (
 
 var (
 	// DefaultConfigDirName for wallets
-	DefaultConfigDirName = ".tronctl"
+	DefaultConfigDirName = "storage/crypto_coins/.tron"
 	DebugGRPC            = false
 	DebugTransaction     = false
 	ErrNotAbsPath        = errors.New("keypath is not absolute path")
-	ErrBadKeyLength      = errors.New("Invalid private key (wrong length)")
+	ErrBadKeyLength      = errors.New("invalid private key (wrong length)")
 	ErrFoundNoPass       = errors.New("found no passphrase file")
 )
 
