@@ -7,7 +7,7 @@ import (
 
 const (
 	// DefaultConfigAccountAliasesDirName from accounts
-	DefaultConfigAccountAliasesDirName = "keys"
+	DefaultConfigAccountAliasesDirName = ".keys"
 	// DefaultPassphrase for accounts
 	DefaultPassphrase = ""
 	// Secp256k1PrivateKeyBytesLength privete key
@@ -18,7 +18,7 @@ const (
 
 var (
 	// DefaultConfigDirName for wallets
-	DefaultConfigDirName = "storage/crypto_coins/.tron"
+	DefaultConfigDirName = "storage/cryptocoins/tron"
 	DebugGRPC            = false
 	DebugTransaction     = false
 	ErrNotAbsPath        = errors.New("keypath is not absolute path")
