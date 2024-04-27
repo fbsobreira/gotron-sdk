@@ -1,6 +1,6 @@
 module github.com/bizvip/gotron
 
-go 1.21
+go 1.22
 
 require (
 	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1
