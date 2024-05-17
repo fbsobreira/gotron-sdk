@@ -243,6 +243,32 @@ func (g *GrpcClient) estimateEnergy(ct *core.TriggerSmartContract) (*api.Estimat
 	return tx, err
 }
 
+// GetBandwidthPrices retrieves bandwidth prices
+func (g *GrpcClient) GetBandwidthPrices() (*api.PricesResponseMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	result, err := g.Client.GetBandwidthPrices(ctx, new(api.EmptyMessage))
+	if err != nil {
+		return nil, fmt.Errorf("get bandwidth prices: %v", err)
+	}
+
+	return result, nil
+}
+
+// GetEnergyPrices retrieves energy prices
+func (g *GrpcClient) GetEnergyPrices() (*api.PricesResponseMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	result, err := g.Client.GetEnergyPrices(ctx, new(api.EmptyMessage))
+	if err != nil {
+		return nil, fmt.Errorf("get energy prices: %v", err)
+	}
+
+	return result, nil
+}
+
 // DeployContract and return tx result
 func (g *GrpcClient) DeployContract(from, contractName string,
 	abi *core.SmartContract_ABI, codeStr string,

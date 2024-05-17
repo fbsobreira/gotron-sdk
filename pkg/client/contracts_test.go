@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/abi"
@@ -129,4 +130,59 @@ func TestGetAccountMigrationContract(t *testing.T) {
 	err = arg.UnpackIntoMap(result, tx.ConstantResult[0])
 	fmt.Println(result["amount"].(*big.Int).Int64())
 	require.Nil(t, err)
+}
+
+// TestGetEnergyPrices tests the GetEnergyPrices function
+func TestGetEnergyPrices(t *testing.T) {
+	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
+	err := conn.Start(grpc.WithInsecure())
+	require.Nil(t, err)
+
+	prices, err := conn.GetEnergyPrices()
+	require.Nil(t, err)
+
+	// Extract the last price from the prices string
+	pricesStr := prices.Prices
+	require.NotEmpty(t, pricesStr)
+
+	pricesList := strings.Split(pricesStr, ",")
+	require.NotEmpty(t, pricesList)
+
+	// Get the last price component
+	lastPriceComponent := pricesList[len(pricesList)-1]
+	require.NotEmpty(t, lastPriceComponent)
+
+	// Extract the price value from the last component
+	lastPriceParts := strings.Split(lastPriceComponent, ":")
+	require.Len(t, lastPriceParts, 2)
+
+	lastPriceValue := lastPriceParts[1]
+
+	// Ensure the last price value is "420"
+	require.Equal(t, "420", lastPriceValue)
+}
+
+// TestGetBandwidthPrices tests the GetBandwidthPrices function
+func TestGetBandwidthPrices(t *testing.T) {
+	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
+	err := conn.Start(grpc.WithInsecure())
+	require.Nil(t, err)
+
+	prices, err := conn.GetBandwidthPrices()
+	require.Nil(t, err)
+
+	// Assert prices are not empty
+	pricesStr := prices.Prices
+	require.NotEmpty(t, pricesStr)
+
+	// Further validation (e.g., checking format)
+	pricesList := strings.Split(pricesStr, ",")
+	require.NotEmpty(t, pricesList)
+
+	// checking that each price component has a valid format
+	for _, priceComponent := range pricesList {
+		parts := strings.Split(priceComponent, ":")
+		require.Len(t, parts, 2)
+		// We could add more checks here, like validating the timestamp and price values
+	}
 }
