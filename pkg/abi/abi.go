@@ -127,6 +127,7 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 						}
 						v = append(v.([]eCommon.Address), addr)
 					}
+
 				}
 
 				if (ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy) &&
@@ -147,6 +148,54 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 						tmp = append(tmp, value)
 					}
 					v = tmp
+				}
+
+				// handle bytes[]
+				if ty.Elem.T == eABI.BytesTy || ty.Elem.T == eABI.FixedBytesTy {
+					// Type handling is needed as GetPaddedParams is public and different inputs can be passed in which results in different types of v
+					switch v.(type) {
+					case []interface{}:
+						tmp, ok := v.([]interface{})
+						if !ok {
+							return nil, fmt.Errorf("unable to convert array of bytes %+v", p)
+						}
+						bytesSlice := make([][]byte, len(tmp))
+
+						for i := range tmp {
+							if tmp[i] == nil {
+								// Handle empty byte array
+								bytesSlice[i] = []byte{}
+							} else {
+								value, err := convertToBytes(*ty.Elem, tmp[i])
+								if err != nil {
+									return nil, fmt.Errorf("unable to convert bytes element %+v: %v", tmp[i], err)
+								}
+								bytesSlice[i] = value.([]byte)
+							}
+						}
+						v = bytesSlice
+					case string:
+						tmp := v.(string)
+						v, err = processJSONArray(tmp)
+						if err != nil {
+							return nil, err
+						}
+					case []uint8:
+						tmp, ok := v.([][]uint8)
+						bytesSlice := make([][]byte, len(tmp))
+						for i := range tmp {
+							if !ok {
+								return nil, fmt.Errorf("unable to convert array of bytes %+v", p)
+							}
+							if len(tmp[i]) == 0 {
+								// Handle empty byte array
+								bytesSlice[i] = nil
+							} else {
+								bytesSlice[i] = tmp[i]
+							}
+						}
+						v = bytesSlice
+					}
 				}
 			}
 			if ty.T == eABI.AddressTy {
@@ -170,6 +219,22 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 	}
 	// convert params to bytes
 	return arguments.PackValues(values)
+}
+
+func processJSONArray(input string) ([][]byte, error) {
+	var jsonArray []string
+	err := json.Unmarshal([]byte(input), &jsonArray)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse JSON array from string %+v: %v", input, err)
+	}
+	bytesSlice := make([][]byte, len(jsonArray))
+	for i, elem := range jsonArray {
+		bytesSlice[i], err = hex.DecodeString(strings.TrimPrefix(elem, "0x"))
+		if err != nil {
+			return nil, fmt.Errorf("error decoding byte string from element [%d] %+v: %v", i, elem, err)
+		}
+	}
+	return bytesSlice, nil
 }
 
 func convertToBytes(ty eABI.Type, v interface{}) (interface{}, error) {
