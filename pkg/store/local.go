@@ -2,13 +2,11 @@ package store
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/pkg/errors"
 
@@ -26,7 +24,7 @@ func init() {
 // LocalAccounts returns a slice of local account alias names
 func LocalAccounts() []string {
 	uDir, _ := homedir.Dir()
-	files, _ := ioutil.ReadDir(path.Join(
+	files, _ := os.ReadDir(path.Join(
 		uDir,
 		common.DefaultConfigDirName,
 		common.DefaultConfigAccountAliasesDirName,
@@ -97,19 +95,19 @@ func FromAddress(addr string) *keystore.KeyStore {
 // FromAccountName get account from name
 func FromAccountName(name string) *keystore.KeyStore {
 	uDir, _ := homedir.Dir()
-	p := path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName, name)
+	p := path.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName, name)
 	return keystore.ForPath(p)
 }
 
 // DefaultLocation get deafault location
 func DefaultLocation() string {
 	uDir, _ := homedir.Dir()
-	return path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
+	return path.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName)
 }
 
 // SetDefaultLocation set deafault location
 func SetDefaultLocation(directory string) {
-	c.DefaultConfigDirName = directory
+	common.DefaultConfigDirName = directory
 	uDir, _ := homedir.Dir()
 	tronCTLDir := path.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName)
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {

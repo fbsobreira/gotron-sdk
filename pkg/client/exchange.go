@@ -38,7 +38,7 @@ func (g *GrpcClient) ExchangeByID(id int64) (*core.Exchange, error) {
 		return nil, err
 	}
 	if result.ExchangeId != id {
-		return nil, fmt.Errorf("Exchange does not exists")
+		return nil, fmt.Errorf("exchange does not exist")
 	}
 	return result, nil
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
@@ -109,6 +110,34 @@ func (C *Controller) hardwareSignTxForSending() {
 	C.tx.Signature = append(C.tx.Signature, signature)
 }
 
+func (C *Controller) pKeySignTxForSending() {
+	if C.executionError != nil {
+		return
+	}
+
+	key, err := crypto.HexToECDSA(C.sender.account.PrivateKey)
+	if err != nil {
+		C.executionError = err
+		return
+	}
+
+	rawData, err := proto.Marshal(C.tx.GetRawData())
+	if err != nil {
+		C.executionError = fmt.Errorf("proto marshal tx raw data error: %v", err)
+		return
+	}
+	h256h := sha256.New()
+	h256h.Write(rawData)
+	hash := h256h.Sum(nil)
+	signature, err := crypto.Sign(hash, key)
+	if err != nil {
+		C.executionError = fmt.Errorf("sign error: %v", err)
+		return
+	}
+
+	C.tx.Signature = append(C.tx.Signature, signature)
+}
+
 // TransactionHash extract hash from TX
 func (C *Controller) TransactionHash() (string, error) {
 	rawData, err := C.GetRawData()
@@ -118,7 +147,7 @@ func (C *Controller) TransactionHash() (string, error) {
 	h256h := sha256.New()
 	h256h.Write(rawData)
 	hash := h256h.Sum(nil)
-	return common.ToHex(hash), nil
+	return common.BytesToHexString(hash), nil
 }
 
 func (C *Controller) txConfirmation() {
@@ -172,6 +201,8 @@ func (C *Controller) ExecuteTransaction() error {
 		C.signTxForSending()
 	case Ledger:
 		C.hardwareSignTxForSending()
+	case PrivateKey:
+		C.pKeySignTxForSending()
 	}
 	C.sendSignedTx()
 	C.txConfirmation()
