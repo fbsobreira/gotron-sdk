@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/fbsobreira/gotron-sdk/pkg/client"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
-	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/kima-finance/gotron-sdk/pkg/client"
+	"github.com/kima-finance/gotron-sdk/pkg/common"
+	"github.com/kima-finance/gotron-sdk/pkg/keystore"
+	"github.com/kima-finance/gotron-sdk/pkg/ledger"
+	"github.com/kima-finance/gotron-sdk/pkg/proto/api"
+	"github.com/kima-finance/gotron-sdk/pkg/proto/core"
 	proto "google.golang.org/protobuf/proto"
 )
 

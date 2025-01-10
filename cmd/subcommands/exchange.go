@@ -7,11 +7,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/store"
+	"github.com/kima-finance/gotron-sdk/pkg/address"
+	"github.com/kima-finance/gotron-sdk/pkg/client/transaction"
+	"github.com/kima-finance/gotron-sdk/pkg/common"
+	"github.com/kima-finance/gotron-sdk/pkg/keystore"
+	"github.com/kima-finance/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 )
 
