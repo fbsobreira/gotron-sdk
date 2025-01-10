@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
-	"github.com/fbsobreira/gotron-sdk/pkg/keys/hd"
+	"github.com/kima-finance/gotron-sdk/pkg/keys/hd"
 	"github.com/tyler-smith/go-bip39"
 )
 

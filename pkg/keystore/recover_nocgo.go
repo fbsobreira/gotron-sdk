@@ -8,7 +8,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	btc_ecdsa "github.com/btcsuite/btcd/btcec/v2/ecdsa"
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/kima-finance/gotron-sdk/pkg/address"
 )
 
 // SignatureLength indicates the byte length required to carry a signature with recovery id.

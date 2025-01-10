@@ -1,4 +1,4 @@
-module github.com/fbsobreira/gotron-sdk
+module github.com/kima-finance/gotron-sdk
 
 go 1.19
 
@@ -50,4 +50,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace github.com/fbsobreira/gotron-sdk v0.0.0-20230907131216-1e824406fe8c => github.com/sunbankio/gotron-sdk v0.0.0-20231003155243-a269b0d040c3
+replace github.com/kima-finance/gotron-sdk v0.0.0-20230907131216-1e824406fe8c => github.com/sunbankio/gotron-sdk v0.0.0-20231003155243-a269b0d040c3
