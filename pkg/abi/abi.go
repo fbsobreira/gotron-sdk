@@ -43,17 +43,15 @@ func Signature(method string) []byte {
 }
 
 func convetToAddress(v interface{}) (eCommon.Address, error) {
-	switch v := v.(type) {
+	switch v.(type) {
 	case string:
-		addr, err := address.Base58ToAddress(v)
+		addr, err := address.Base58ToAddress(v.(string))
 		if err != nil {
-			return eCommon.Address{}, fmt.Errorf("invalid address %s: %+v", v, err)
+			return eCommon.Address{}, fmt.Errorf("invalid address %s: %+v", v.(string), err)
 		}
 		return eCommon.BytesToAddress(addr.Bytes()[len(addr.Bytes())-20:]), nil
-	case []byte:
-		return eCommon.BytesToAddress(v), nil
 	}
-	return eCommon.Address{}, fmt.Errorf("unexpected address type %T", v)
+	return eCommon.Address{}, fmt.Errorf("invalid address %v", v)
 }
 
 func convertToInt(ty eABI.Type, v interface{}) interface{} {
@@ -129,22 +127,41 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 						}
 						v = append(v.([]eCommon.Address), addr)
 					}
-				}
-
-				if (ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy) &&
-					ty.Elem.Size > 64 {
+				} else if ty.Elem.T == eABI.StringTy {
+					tmp, ok := v.([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("unable to convert array of strings %+v", p)
+					}
+					strSlice := make([]string, len(tmp))
+					for i, v := range tmp {
+						str, ok := v.(string)
+						if !ok {
+							return nil, fmt.Errorf("unable to convert array of unints %+v", p)
+						}
+						strSlice[i] = str
+					}
+					v = strSlice
+				} else if ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy {
 					tmp := make([]*big.Int, 0)
-					tmpSlice, ok := v.([]string)
+					tmpSlice, ok := v.([]interface{})
 					if !ok {
 						return nil, fmt.Errorf("unable to convert array of unints %+v", p)
 					}
-					for i := range tmpSlice {
+					strSlice := make([]string, len(tmpSlice))
+					for i, v := range tmpSlice {
+						str, ok := v.(string)
+						if !ok {
+							return nil, fmt.Errorf("unable to convert array of unints %+v", p)
+						}
+						strSlice[i] = str
+					}
+					for i := range strSlice {
 						var value *big.Int
 						// check for hex char
-						if strings.HasPrefix(tmpSlice[i], "0x") {
-							value, _ = new(big.Int).SetString(tmpSlice[i][2:], 16)
+						if strings.HasPrefix(strSlice[i], "0x") {
+							value, _ = new(big.Int).SetString(strSlice[i][2:], 16)
 						} else {
-							value, _ = new(big.Int).SetString(tmpSlice[i], 10)
+							value, _ = new(big.Int).SetString(strSlice[i], 10)
 						}
 						tmp = append(tmp, value)
 					}

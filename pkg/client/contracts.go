@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strconv"
+	"strings"
 
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/kima-finance/gotron-sdk/pkg/abi"
 	"github.com/kima-finance/gotron-sdk/pkg/address"
 	"github.com/kima-finance/gotron-sdk/pkg/common"
@@ -329,4 +331,46 @@ func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract
 	}
 
 	return sm.Abi, nil
+}
+
+// TriggerSmartContract and return tx result
+func (g *GrpcClient) TriggerSmartContract(from, contractAddress, data string,
+	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	var dataBytes []byte
+	if strings.HasPrefix(data, "0x") {
+		dataBytes, err = hexutil.Decode(data)
+	} else {
+		dataBytes, err = common.Hex2Bytes(data)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            dataBytes,
+	}
+	if tAmount > 0 {
+		ct.CallValue = tAmount
+	}
+	if len(tTokenID) > 0 && tTokenAmount > 0 {
+		ct.CallTokenValue = tTokenAmount
+		ct.TokenId, err = strconv.ParseInt(tTokenID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return g.triggerContract(ct, feeLimit)
 }
