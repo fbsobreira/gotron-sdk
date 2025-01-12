@@ -10,6 +10,8 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+type APIKeyType string
+
 // GrpcClient controller structure
 type GrpcClient struct {
 	Address     string
@@ -18,7 +20,15 @@ type GrpcClient struct {
 	grpcTimeout time.Duration
 	opts        []grpc.DialOption
 	apiKey      string
+	apiKeyType  APIKeyType
 }
+
+const (
+	TronGrid APIKeyType = "TronGrid"
+	Bearer   APIKeyType = "Bearer"
+	Basic    APIKeyType = "Basic"
+	TronQL   APIKeyType = "TronQL"
+)
 
 // NewGrpcClient create grpc controller
 func NewGrpcClient(address string) *GrpcClient {
@@ -59,16 +69,48 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	return nil
 }
 
-// SetAPIKey enable API on connection
+// SetAPIKey enable API on connection with trongrid
 func (g *GrpcClient) SetAPIKey(apiKey string) error {
 	g.apiKey = apiKey
+	g.apiKeyType = TronGrid
+	return nil
+}
+
+// SetBearerKey enable API on connection with bearer (typically JWT)
+func (g *GrpcClient) SetBearerKey(apiKey string) error {
+	g.apiKey = apiKey
+	g.apiKeyType = Bearer
+	return nil
+}
+
+// SetBasicKey enable API on connection with basic auth
+func (g *GrpcClient) SetBasicKey(apiKey string) error {
+	g.apiKey = apiKey
+	g.apiKeyType = Basic
+	return nil
+}
+
+// SetTronQLKey enable API on connection with TronQL
+func (g *GrpcClient) SetTronQLKey(apiKey string) error {
+	g.apiKey = apiKey
+	g.apiKeyType = TronQL
 	return nil
 }
 
 func (g *GrpcClient) getContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	// since there is no error handling for getContext, we have to silently ignore incorrect api key type values
 	if len(g.apiKey) > 0 {
-		ctx = metadata.AppendToOutgoingContext(ctx, "TRON-PRO-API-KEY", g.apiKey)
+		switch g.apiKeyType {
+		case TronGrid:
+			ctx = metadata.AppendToOutgoingContext(ctx, "TRON-PRO-API-KEY", g.apiKey)
+		case TronQL:
+			ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", g.apiKey)
+		case Bearer:
+			ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", "Bearer "+g.apiKey)
+		case Basic:
+			ctx = metadata.AppendToOutgoingContext(ctx, "Authorization", "Basic "+g.apiKey)
+		}
 	}
 	return ctx, cancel
 }
