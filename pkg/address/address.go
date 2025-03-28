@@ -33,7 +33,7 @@ func (a Address) Bytes() []byte {
 
 // Hex get bytes from address in string
 func (a Address) Hex() string {
-	return common.ToHex(a[:])
+	return common.BytesToHexString(a[:])
 }
 
 // BigToAddress returns Address with byte values of b.

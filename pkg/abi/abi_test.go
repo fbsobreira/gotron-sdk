@@ -32,14 +32,14 @@ func TestABIParam(t *testing.T) {
 }
 
 func TestABIParamArray(t *testing.T) {
-	param, err := LoadFromJSON(fmt.Sprintf(`
+	param, _ := LoadFromJSON(`
 	[
 		{"address[2]":["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"]}
 	]
-	`))
+	`)
 	b, err := GetPaddedParam(param)
 	require.Nil(t, err)
-	assert.Len(t, b, 64, fmt.Sprintf("Wrong length %d/%d", len(b), 64))
+	assert.Len(t, b, 64, "Wrong length")
 	assert.Equal(t, "000000000000000000000000364b03e0815687edaf90b81ff58e496dea7383d7000000000000000000000000364b03e0815687edaf90b81ff58e496dea7383d7", hex.EncodeToString(b))
 }
 
@@ -52,15 +52,15 @@ func TestABIParamArrayUint256(t *testing.T) {
 
 func TestABIParamArrayBytes(t *testing.T) {
 
-	param, err := LoadFromJSON(fmt.Sprintf(`
+	param, err := LoadFromJSON(`
 	[
 		{"bytes32": "0001020001020001020001020001020001020001020001020001020001020001"}
 	]
-	`))
+	`)
 	require.Nil(t, err)
 	b, err := GetPaddedParam(param)
 	require.Nil(t, err)
-	assert.Len(t, b, 32, fmt.Sprintf("Wrong length %d/%d", len(b), 64))
+	assert.Len(t, b, 32, "Wrong length")
 	assert.Equal(t, "0001020001020001020001020001020001020001020001020001020001020001", hex.EncodeToString(b))
 }
 

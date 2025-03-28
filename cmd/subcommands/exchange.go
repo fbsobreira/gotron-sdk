@@ -393,7 +393,7 @@ func exchangeSub() []*cobra.Command {
 					}
 					ratio = (float64(e.SecondTokenBalance) + tokenValue1) / float64(e.FirstTokenBalance)
 				default:
-					return fmt.Errorf("Token ID provided does not match excahnge %s/%s", T1, T2)
+					return fmt.Errorf("token ID provided does not match excahnge %s/%s", T1, T2)
 				}
 				if expectedAmount != 0 {
 					expectedAmount = expectedAmount * math.Pow10(tokenDecimal)
@@ -401,7 +401,7 @@ func exchangeSub() []*cobra.Command {
 					expectedAmount = math.Floor(tokenValue1/ratio + 0.5)
 				}
 			} else {
-				return fmt.Errorf("Cannot fetch echange info: %+v", err)
+				return fmt.Errorf("cannot fetch exchange info: %+v", err)
 			}
 
 			tx, err := conn.ExchangeTrade(

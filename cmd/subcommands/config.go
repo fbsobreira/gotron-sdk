@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -117,13 +117,19 @@ func initConfig() {
 
 // LoadConfig loads config file in yaml format
 func LoadConfig() (*Config, error) {
-	in, err := ioutil.ReadFile(DefaultConfigFile)
 	readConfig := &Config{}
-	if err == nil {
-		if err := yaml.Unmarshal(in, readConfig); err != nil {
-			return readConfig, err
-		}
+	file, err := os.Open(DefaultConfigFile)
+	if err != nil {
+		return readConfig, err
 	}
+
+	in, err := io.ReadAll(file)
+	if err != nil {
+		return readConfig, err
+	}
+
+	err = yaml.Unmarshal(in, readConfig)
+
 	return readConfig, err
 }
 
@@ -133,8 +139,14 @@ func SaveConfig(conf *Config) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(DefaultConfigFile, out, 0600); err != nil {
-		panic(fmt.Sprintf("Failed to write to config file %s.", DefaultConfigFile))
+	file, err := os.OpenFile(DefaultConfigFile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		panic(fmt.Sprintf("Failed to open config file %s for writing: %v", DefaultConfigFile, err))
+	}
+	defer file.Close()
+
+	if _, err := io.WriteString(file, string(out)); err != nil {
+		panic(fmt.Sprintf("Failed to write to config file %s: %v", DefaultConfigFile, err))
 	}
 	return nil
 }
