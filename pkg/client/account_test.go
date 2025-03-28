@@ -16,7 +16,7 @@ var (
 	apiKey                            = "622ec85e-7406-431d-9caf-0a19501469a4"
 	tronAddress                       = "grpc.nile.trongrid.io:50051"
 	accountAddress                    = "TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b"
-	accountAddressWitness             = "TGj1Ej1qRzL9feLTLhjwgxXF4Ct6GTWg2U"
+	accountAddressWitness             = "TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH"
 	testnetNileAddressExample         = "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM"
 	testnetNileAddressDelegateExample = "TZ4UXDV5ZhNW7fb2AMSbgfAEZ7hWsnYS2g"
 )
@@ -82,7 +82,7 @@ func TestUnfreezeV2(t *testing.T) {
 
 func TestDelegate(t *testing.T) {
 	t.Skip() // Only in testnet nile
-	tx, err := conn.DelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000, false)
+	tx, err := conn.DelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000, false, 0)
 
 	require.Nil(t, err)
 	require.NotNil(t, tx.GetTxid())

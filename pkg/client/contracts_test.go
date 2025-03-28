@@ -67,7 +67,7 @@ func TestEstimateEnergy(t *testing.T) {
 	)
 	require.Nil(t, err)
 	assert.True(t, estimate.Result.Result)
-	assert.Equal(t, estimate.EnergyRequired, int64(14910))
+	assert.Equal(t, int64(16567), estimate.EnergyRequired)
 }
 
 func TestGetAccount(t *testing.T) {

@@ -213,8 +213,8 @@ func getGitVersion() (string, error) {
 
 			if releaseTag.DATA.SHA[:8] != commit[1] {
 				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
-				fmt.Fprintf(os.Stderr, color.RedString(warnMsg))
-				return release.TagName, fmt.Errorf(warnMsg)
+				fmt.Fprintf(os.Stderr, "%s", color.RedString(warnMsg))
+				return release.TagName, fmt.Errorf("%s", warnMsg)
 			}
 			return release.TagName, nil
 		}
@@ -230,7 +230,7 @@ func Execute() {
 			VersionWrapDump += ":" + tag
 		}
 		errMsg := errors.Wrapf(err, "commit: %s, error", VersionWrapDump).Error()
-		fmt.Fprintf(os.Stderr, errMsg+"\n")
+		fmt.Fprintf(os.Stderr, "%s\n", errMsg)
 		fmt.Fprintf(os.Stderr, "try adding a `--help` flag\n")
 		os.Exit(1)
 	}

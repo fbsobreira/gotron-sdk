@@ -57,7 +57,7 @@ func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool
 		return nil, err
 	}
 	if result.Result.Code > 0 {
-		return result, fmt.Errorf(string(result.Result.Message))
+		return result, fmt.Errorf("%s", string(result.Result.Message))
 	}
 	return result, nil
 
