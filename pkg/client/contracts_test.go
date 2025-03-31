@@ -12,7 +12,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -33,7 +32,7 @@ func TestProtoParse(t *testing.T) {
 
 func TestProtoParseR(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 	block, err := conn.GetBlockByNum(48763870)
 	require.Nil(t, err)
@@ -55,7 +54,7 @@ func TestProtoParseR(t *testing.T) {
 
 func TestEstimateEnergy(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.nile.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	estimate, err := conn.EstimateEnergy(
@@ -72,7 +71,7 @@ func TestEstimateEnergy(t *testing.T) {
 
 func TestGetAccount(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	tx, err := conn.TriggerConstantContract("",
@@ -99,7 +98,7 @@ func TestGetAccount(t *testing.T) {
 
 func TestGetAccount2(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	tx, err := conn.GetAccountDetailed("TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b")
@@ -109,7 +108,7 @@ func TestGetAccount2(t *testing.T) {
 
 func TestGetAccountMigrationContract(t *testing.T) {
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	tx, err := conn.TriggerConstantContract("TX8h6Df74VpJsXF6sTDz1QJsq3Ec8dABc3",

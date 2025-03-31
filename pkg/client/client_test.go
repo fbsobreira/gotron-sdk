@@ -9,13 +9,12 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 )
 
 func TestTRC20(t *testing.T) {
 	c := client.NewGrpcClient("")
-	err := c.Start(grpc.WithInsecure())
+	err := c.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	value, err := c.TRC20GetDecimals("TN7EWmuVWrdehLwKGnU2rk42GWodbAXGUM")
@@ -35,7 +34,7 @@ func TestSend(t *testing.T) {
 	privateKeyBytes, _ := hex.DecodeString("ABCD")
 
 	c := client.NewGrpcClient("")
-	err := c.Start(grpc.WithInsecure())
+	err := c.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 	tx, err := c.Transfer(fromAddress, toAddress, 1000)
 	require.Nil(t, err)

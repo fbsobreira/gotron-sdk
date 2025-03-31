@@ -23,7 +23,7 @@ var (
 
 func TestMain(m *testing.M) {
 	opts := make([]grpc.DialOption, 0)
-	opts = append(opts, grpc.WithInsecure())
+	opts = append(opts, client.GRPCInsecure())
 
 	conn = client.NewGrpcClient(tronAddress)
 

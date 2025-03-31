@@ -6,7 +6,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
 )
 
 func TestTRC20_Balance(t *testing.T) {
@@ -14,7 +13,7 @@ func TestTRC20_Balance(t *testing.T) {
 	address := "TMuA6YqfCeX8EhbfYEg5y7S4DqzSJireY9"
 
 	conn := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := conn.Start(grpc.WithInsecure())
+	err := conn.Start(client.GRPCInsecure())
 	require.Nil(t, err)
 
 	balance, err := conn.TRC20ContractBalance(address, trc20Contract)

@@ -65,7 +65,7 @@ var (
 			if withTLS {
 				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
 			} else {
-				opts = append(opts, grpc.WithInsecure())
+				opts = append(opts, client.GRPCInsecure())
 			}
 
 			// check for env API Key
