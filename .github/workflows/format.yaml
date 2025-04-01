@@ -39,8 +39,8 @@ jobs:
             exit 1
           fi
 
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v7
-        with:
-          version: v1.64.8
-          args: --timeout=5m
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+      - name: Check golangci-lint
+        run: make lint
