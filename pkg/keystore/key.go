@@ -206,14 +206,6 @@ func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 	return f.Name(), nil
 }
 
-func writeKeyFile(file string, content []byte) error {
-	name, err := writeTemporaryKeyFile(file, content)
-	if err != nil {
-		return err
-	}
-	return os.Rename(name, file)
-}
-
 // keyFileName implements the naming convention for keyfiles:
 // UTC--<created_at UTC ISO8601>-<address hex>
 func keyFileName(keyAddr address.Address) string {
