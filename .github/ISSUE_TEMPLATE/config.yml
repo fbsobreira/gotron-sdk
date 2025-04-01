@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: TRON SDK Documentation
+    url: https://github.com/fbsobreira/gotron-sdk/wiki
+    about: Check if your question is answered in the documentation.
+  - name: TRON Network Documentation
+    url: https://developers.tron.network/
+    about: Learn more about TRON network specifications and APIs.
