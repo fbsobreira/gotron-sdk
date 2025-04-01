@@ -2,7 +2,6 @@ package keystore
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -166,10 +165,5 @@ func TextAndHash(data []byte, useFixedLength ...bool) ([]byte, string) {
 }
 
 func UnmarshalPublic(pbk []byte) (*ecdsa.PublicKey, error) {
-	x, y := elliptic.Unmarshal(crypto.S256(), pbk)
-	if x == nil {
-		return nil, fmt.Errorf("invalid publickey")
-	}
-
-	return &ecdsa.PublicKey{Curve: crypto.S256(), X: x, Y: y}, nil
+	return crypto.UnmarshalPubkey(pbk)
 }
