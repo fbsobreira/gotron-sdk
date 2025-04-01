@@ -17,8 +17,7 @@ func init() {
 Add the line to your ~/.bashrc to enable completion for each bash session.
 `,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			RootCmd.GenBashCompletion(os.Stdout)
-			return nil
+			return RootCmd.GenBashCompletion(os.Stdout)
 		},
 	}
 	RootCmd.AddCommand(cmdCompletion)

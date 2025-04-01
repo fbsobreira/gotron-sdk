@@ -165,7 +165,7 @@ func contractSub() []*cobra.Command {
 
 			result := make(map[string]interface{})
 			//TODO: parse based on contract ABI
-			result["Result"] = common.ToHex(cResult[0])
+			result["Result"] = common.BytesToHexString(cResult[0])
 
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
@@ -308,8 +308,7 @@ func init() {
 		Use:   "contract",
 		Short: "SmartContract actions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

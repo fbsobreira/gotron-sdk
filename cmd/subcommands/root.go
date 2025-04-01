@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -39,7 +38,6 @@ var (
 	passphraseFilePath     string
 	defaultKeystoreDir     string
 	node                   string
-	keyStoreDir            string
 	givenFilePath          string
 	timeout                uint32
 	withTLS                bool
@@ -73,7 +71,9 @@ var (
 				apiKey = trongridKey
 			}
 			// set API
-			conn.SetAPIKey(apiKey)
+			if err := conn.SetAPIKey(apiKey); err != nil {
+				return err
+			}
 
 			if err := conn.Start(opts...); err != nil {
 				return err
@@ -104,8 +104,7 @@ CLI interface to Tron blockchain
 
 %s`, g("type 'tronclt --help' for details")),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 )
@@ -140,8 +139,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, _ := os.Getwd()
 			docDir := path.Join(cwd, tronctlDocsDir)
-			os.Mkdir(docDir, 0700)
-			err := doc.GenMarkdownTree(RootCmd, docDir)
+			err := os.Mkdir(docDir, 0700)
+			if err != nil && !os.IsExist(err) {
+				return fmt.Errorf("could not create %s directory: %v", tronctlDocsDir, err)
+			}
+			err = doc.GenMarkdownTree(RootCmd, docDir)
 			return err
 		},
 	})
@@ -152,7 +154,6 @@ var (
 	VersionWrapDump = ""
 	versionLink     = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases/latest"
 	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
-	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
 
 // GitHubReleaseAssets json struct
@@ -188,11 +189,16 @@ func getGitVersion() (string, error) {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	// if error, no op
 	if resp != nil && resp.StatusCode == 200 {
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
+		_, err = buf.ReadFrom(resp.Body)
+		if err != nil {
+			return "", err
+		}
 		release := &GitHubRelease{}
 		if err := json.Unmarshal(buf.Bytes(), release); err != nil {
 			return "", err
@@ -203,7 +209,10 @@ func getGitVersion() (string, error) {
 		// if error, no op
 		if respTag != nil && respTag.StatusCode == 200 {
 			buf.Reset()
-			buf.ReadFrom(respTag.Body)
+			_, err := buf.ReadFrom(respTag.Body)
+			if err != nil {
+				return "", err
+			}
 
 			releaseTag := &GitHubTag{}
 			if err := json.Unmarshal(buf.Bytes(), releaseTag); err != nil {

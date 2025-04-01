@@ -698,8 +698,7 @@ func init() {
 		Use:   "account",
 		Short: "Account Actions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

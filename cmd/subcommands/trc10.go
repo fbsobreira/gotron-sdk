@@ -36,7 +36,7 @@ func trc10Sub() []*cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 
-			trxNum := int64(1)
+			var trxNum int64
 			tokenNum := int64(1)
 			t, err := dateparse.ParseAny(issueStartDate)
 			if err != nil {
@@ -450,8 +450,7 @@ func init() {
 		Use:   "trc10",
 		Short: "Assets Manager",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

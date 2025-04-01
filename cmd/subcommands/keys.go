@@ -284,8 +284,7 @@ func init() {
 		Short: "Add or view local private keys",
 		Long:  "Manage your local keys",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

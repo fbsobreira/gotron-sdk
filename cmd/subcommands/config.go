@@ -18,8 +18,7 @@ func init() {
 		Use:   "config",
 		Short: "update default config",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 
@@ -108,7 +107,9 @@ func initConfig() {
 			config.NoPretty = false
 			config.APIKey = ""
 			config.WithTLS = false
-			SaveConfig(config)
+			if err = SaveConfig(config); err != nil {
+				panic(fmt.Sprintf("Failed to write to config file %s.", DefaultConfigFile))
+			}
 		} else {
 			panic(err.Error())
 		}

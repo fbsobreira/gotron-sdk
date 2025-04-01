@@ -88,7 +88,7 @@ func isHexCharacter(c byte) bool {
 }
 
 // isHex validates whether each byte is valid hexadecimal string.
-func isHex(str string) bool {
+func IsHex(str string) bool {
 	if len(str)%2 != 0 {
 		return false
 	}
