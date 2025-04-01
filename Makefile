@@ -11,7 +11,8 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
-env := GO111MODULE=on
+
+.PHONY: all windows run debug install clean test lint
 
 all:
 	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
@@ -25,9 +26,17 @@ run:
 debug:
 	$(env) go build $(flags) -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
-install:all
+install: all
 	cp $(cli) ~/.local/bin
 
 clean:
 	@rm -f $(cli)
 	@rm -rf ./bin
+
+# Test target for CI
+test:
+	$(env) go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# Lint target for CI
+lint:
+	$(env) golangci-lint run --timeout=5m
