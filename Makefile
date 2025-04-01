@@ -11,7 +11,7 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
-.PHONY: all build build-windows run debug install clean test lint goimports tidy
+.PHONY: all build build-windows run debug install clean test lint goimports tidy hooks
 
 all: build
 
@@ -47,3 +47,17 @@ goimports:
 	@goimports -w -d $(shell find . -type f -name '*.go' \
 		! -name '*.pb.go' \
 		! -path "./vendor/*")
+
+# Go mod tidy check
+tidy:
+	$(env) go mod tidy
+	@if [ -n "$$(git status --porcelain go.mod go.sum)" ]; then \
+		echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"; \
+		exit 1; \
+	else \
+		echo "go.mod and go.sum are tidy."; \
+	fi
+
+# Install git hooks
+hooks:
+	@bash .githooks/install.sh
