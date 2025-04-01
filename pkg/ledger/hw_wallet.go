@@ -41,7 +41,7 @@ func GetAddress() string {
 	return addr
 }
 
-//ProcessAddressCommand list the address associated with Ledger Nano S
+// ProcessAddressCommand list the address associated with Ledger Nano S
 func ProcessAddressCommand() {
 	n := getLedger()
 	addr, err := n.GetAddress()

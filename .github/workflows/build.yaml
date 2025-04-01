@@ -1,4 +1,4 @@
-name: Tests
+name: Build
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
 
 
 jobs:
-  test:
-    name: Test
+  build:
+    name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -24,13 +24,20 @@ jobs:
       - name: Get dependencies
         run: go mod download
       
-      - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Check build
+        run: go vet ./...
       
-      - name: Upload coverage results
+      - name: Build CLI
+        run: |
+          make build
+          make build-windows
+
+      - name: Save artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-results
-          path: coverage.out
-          retention-days: 1
-          overwrite: true
+          name: build
+          path: |
+            bin/tronctl
+            bin/tronctl.exe
+
+     

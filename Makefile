@@ -11,13 +11,14 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
+.PHONY: all build build-windows run debug install clean test lint goimports tidy
 
-.PHONY: all windows run debug install clean test lint
+all: build
 
-all:
+build:
 	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
-windows:
+build-windows:
 	$(env) GOOS=windows GOARCH=amd64 go build -o $(cli).exe -ldflags="$(ldflags)" cmd/main.go
 
 run:
@@ -39,4 +40,10 @@ test:
 
 # Lint target for CI
 lint:
-	$(env) golangci-lint run --timeout=5m
+	@golangci-lint run --timeout=5m
+
+# Format check target (using goimports via golangci-lint)
+goimports:
+	@goimports -w -d $(shell find . -type f -name '*.go' \
+		! -name '*.pb.go' \
+		! -path "./vendor/*")
