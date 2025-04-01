@@ -611,7 +611,7 @@ func MaxDec(d1, d2 Dec) Dec {
 }
 
 var (
-	pattern, _ = regexp.Compile("[0-9]+\\.{0,1}[0-9]*e-{0,1}[0-9]+")
+	pattern, _ = regexp.Compile(`[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+`)
 )
 
 // Pow calcs power of numeric with int

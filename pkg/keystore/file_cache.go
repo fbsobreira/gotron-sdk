@@ -17,7 +17,6 @@
 package keystore
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,7 +40,7 @@ func (fc *fileCache) scan(keyDir string) (mapset.Set, mapset.Set, mapset.Set, er
 	t0 := time.Now()
 
 	// List all the failes from the keystore folder
-	files, err := ioutil.ReadDir(keyDir)
+	files, err := os.ReadDir(keyDir)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -55,7 +54,12 @@ func (fc *fileCache) scan(keyDir string) (mapset.Set, mapset.Set, mapset.Set, er
 	mods := mapset.NewThreadUnsafeSet()
 
 	var newLastMod time.Time
-	for _, fi := range files {
+	for _, fid := range files {
+		fi, err := fid.Info()
+		if err != nil {
+			zap.L().Error("Error reading file info", zap.String("path", fid.Name()), zap.Error(err))
+			continue
+		}
 		path := filepath.Join(keyDir, fi.Name())
 		// Skip any non-key files from the folder
 		if nonKeyFile(fi) {

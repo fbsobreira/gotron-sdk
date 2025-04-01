@@ -102,7 +102,9 @@ func (w *watcher) loop() {
 				rescanTriggered = true
 			}
 		case <-debounce.C:
-			w.ac.scanAccounts()
+			if err := w.ac.scanAccounts(); err != nil {
+				logger.Error("Failed to reload keystore contents", "err", err)
+			}
 			rescanTriggered = false
 		}
 	}

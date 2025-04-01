@@ -19,7 +19,11 @@ func checkAndMakeKeyDirIfNeeded() string {
 	tronCTLDir := path.Join(userDir, ".tronctl", "keystore")
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		// Double check with Leo what is right file persmission
-		os.Mkdir(tronCTLDir, 0700)
+		err := os.Mkdir(tronCTLDir, 0700)
+		if err != nil {
+			fmt.Printf("create keystore dir error: %v\n", err)
+			return ""
+		}
 	}
 
 	return tronCTLDir

@@ -214,7 +214,9 @@ func (ac *accountCache) maybeReload() {
 	ac.watcher.start()
 	ac.throttle.Reset(minReloadInterval)
 	ac.mu.Unlock()
-	ac.scanAccounts()
+	if err := ac.scanAccounts(); err != nil {
+		zap.L().Error("Failed to scan accounts", zap.Error(err))
+	}
 }
 
 func (ac *accountCache) close() {

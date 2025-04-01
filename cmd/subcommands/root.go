@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -14,13 +13,12 @@ import (
 	color "github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -50,7 +48,7 @@ var (
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if verbose {
-				common.EnableAllVerbose()
+				c.EnableAllVerbose()
 			}
 			switch URLcomponents := strings.Split(node, ":"); len(URLcomponents) {
 			case 1:
@@ -287,7 +285,7 @@ func getPassphrase() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		dat, err := os.ReadFile(passphraseFilePath)
 		if err != nil {
 			return "", err
 		}
@@ -295,7 +293,7 @@ func getPassphrase() (string, error) {
 		return pw, nil
 	} else if userProvidesPassphrase {
 		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
@@ -313,7 +311,7 @@ func getPassphraseWithConfirm() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		dat, err := os.ReadFile(passphraseFilePath)
 		if err != nil {
 			return "", err
 		}
@@ -321,12 +319,12 @@ func getPassphraseWithConfirm() (string, error) {
 		return pw, nil
 	} else if userProvidesPassphrase {
 		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Println("Repeat the passphrase:")
-		repeatPass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		repeatPass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}

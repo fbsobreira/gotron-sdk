@@ -32,11 +32,12 @@ func TestABIParam(t *testing.T) {
 }
 
 func TestABIParamArray(t *testing.T) {
-	param, err := LoadFromJSON(fmt.Sprintf(`
+	param, err := LoadFromJSON(`
 	[
 		{"address[2]":["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"]}
 	]
-	`))
+	`)
+	require.Nil(t, err)
 	b, err := GetPaddedParam(param)
 	require.Nil(t, err)
 	assert.Len(t, b, 64, fmt.Sprintf("Wrong length %d/%d", len(b), 64))
@@ -52,11 +53,11 @@ func TestABIParamArrayUint256(t *testing.T) {
 
 func TestABIParamArrayBytes(t *testing.T) {
 
-	param, err := LoadFromJSON(fmt.Sprintf(`
+	param, err := LoadFromJSON(`
 	[
 		{"bytes32": "0001020001020001020001020001020001020001020001020001020001020001"}
 	]
-	`))
+	`)
 	require.Nil(t, err)
 	b, err := GetPaddedParam(param)
 	require.Nil(t, err)

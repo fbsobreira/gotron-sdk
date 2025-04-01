@@ -26,12 +26,23 @@ func TestMain(m *testing.M) {
 	opts = append(opts, client.GRPCInsecure())
 
 	conn = client.NewGrpcClient(tronAddress)
-
-	if err := conn.Start(opts...); err != nil {
-		_ = fmt.Errorf("Error connecting GRPC Client: %v", err)
+	if conn == nil {
+		fmt.Println("Error creating GRPC Client")
+		os.Exit(1)
 	}
 
-	conn.SetAPIKey(apiKey)
+	if err := conn.Start(opts...); err != nil {
+		fmt.Printf("Error connecting GRPC Client: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Set API Key
+	err := conn.SetAPIKey(apiKey)
+	if err != nil {
+		fmt.Printf("Error setting API Key: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Stop()
 
 	exitVal := m.Run()
 	os.Exit(exitVal)

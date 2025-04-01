@@ -20,12 +20,14 @@ func TestProtoParse(t *testing.T) {
 
 	mb, _ := hex.DecodeString("0a020cd222081e6d180d0ea1be1340c082fc94c22e5a8e01081f1289010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412540a15419df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d121541157a629d8e8d7d43218b83240afaa02e8c300b36222497a5d5b50000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d7085c1f894c22e")
 
-	proto.Unmarshal(mb, raw)
+	err := proto.Unmarshal(mb, raw)
+	require.Nil(t, err)
+
 	fmt.Printf("Raw: %+v\n", raw)
 	c := raw.GetContract()[0]
 	trig := &core.TriggerSmartContract{}
 	// recover
-	err := c.GetParameter().UnmarshalTo(trig)
+	err = c.GetParameter().UnmarshalTo(trig)
 	require.Nil(t, err)
 	assert.Equal(t, hex.EncodeToString(trig.Data), "97a5d5b50000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d")
 }

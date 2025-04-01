@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -118,7 +117,7 @@ func initConfig() {
 
 // LoadConfig loads config file in yaml format
 func LoadConfig() (*Config, error) {
-	in, err := ioutil.ReadFile(DefaultConfigFile)
+	in, err := os.ReadFile(DefaultConfigFile)
 	readConfig := &Config{}
 	if err == nil {
 		if err := yaml.Unmarshal(in, readConfig); err != nil {
@@ -134,7 +133,7 @@ func SaveConfig(conf *Config) error {
 	if err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(DefaultConfigFile, out, 0600); err != nil {
+	if err := os.WriteFile(DefaultConfigFile, out, 0600); err != nil {
 		panic(fmt.Sprintf("Failed to write to config file %s.", DefaultConfigFile))
 	}
 	return nil

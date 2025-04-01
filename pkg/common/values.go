@@ -22,18 +22,18 @@ var (
 	DebugGRPC            = false
 	DebugTransaction     = false
 	ErrNotAbsPath        = errors.New("keypath is not absolute path")
-	ErrBadKeyLength      = errors.New("Invalid private key (wrong length)")
+	ErrBadKeyLength      = errors.New("ivalid private key (wrong length)")
 	ErrFoundNoPass       = errors.New("found no passphrase file")
 )
 
 func init() {
-	if _, enabled := os.LookupEnv("TRONCTL_GRPC_DEBUG"); enabled != false {
+	if _, enabled := os.LookupEnv("TRONCTL_GRPC_DEBUG"); enabled {
 		DebugGRPC = true
 	}
-	if _, enabled := os.LookupEnv("TRONCTL_TX_DEBUG"); enabled != false {
+	if _, enabled := os.LookupEnv("TRONCTL_TX_DEBUG"); enabled {
 		DebugTransaction = true
 	}
-	if _, enabled := os.LookupEnv("TRONCTL_ALL_DEBUG"); enabled != false {
+	if _, enabled := os.LookupEnv("TRONCTL_ALL_DEBUG"); enabled {
 		EnableAllVerbose()
 	}
 }
