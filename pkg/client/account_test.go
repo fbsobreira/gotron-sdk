@@ -101,7 +101,7 @@ func TestDelegate(t *testing.T) {
 
 func TestUndelegate(t *testing.T) {
 	t.Skip() // Only in testnet nile
-	tx, err := conn.UnDelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000, false)
+	tx, err := conn.UnDelegateResource(testnetNileAddressExample, testnetNileAddressDelegateExample, core.ResourceCode_BANDWIDTH, 1000000)
 
 	require.Nil(t, err)
 	require.NotNil(t, tx.GetTxid())
