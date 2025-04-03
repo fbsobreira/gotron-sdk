@@ -53,7 +53,7 @@ STAGED_PACKAGES=$(echo "$STAGED_GO_FILES" | xargs -I{} dirname {} | sort -u)
 for pkg in $STAGED_PACKAGES; do
     if [ -n "$(find $pkg -name '*_test.go' -type f | head -1)" ]; then
         echo "Testing package: $pkg"
-        go test -race $pkg
+        go test -race ./$pkg
     fi
 done
 
