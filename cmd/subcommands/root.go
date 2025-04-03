@@ -4,24 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
 	color "github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -39,7 +36,6 @@ var (
 	passphraseFilePath     string
 	defaultKeystoreDir     string
 	node                   string
-	keyStoreDir            string
 	givenFilePath          string
 	timeout                uint32
 	withTLS                bool
@@ -52,7 +48,7 @@ var (
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			if verbose {
-				common.EnableAllVerbose()
+				c.EnableAllVerbose()
 			}
 			switch URLcomponents := strings.Split(node, ":"); len(URLcomponents) {
 			case 1:
@@ -65,7 +61,7 @@ var (
 			if withTLS {
 				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
 			} else {
-				opts = append(opts, grpc.WithInsecure())
+				opts = append(opts, client.GRPCInsecure())
 			}
 
 			// check for env API Key
@@ -73,7 +69,9 @@ var (
 				apiKey = trongridKey
 			}
 			// set API
-			conn.SetAPIKey(apiKey)
+			if err := conn.SetAPIKey(apiKey); err != nil {
+				return err
+			}
 
 			if err := conn.Start(opts...); err != nil {
 				return err
@@ -104,8 +102,7 @@ CLI interface to Tron blockchain
 
 %s`, g("type 'tronclt --help' for details")),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 )
@@ -140,8 +137,11 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cwd, _ := os.Getwd()
 			docDir := path.Join(cwd, tronctlDocsDir)
-			os.Mkdir(docDir, 0700)
-			err := doc.GenMarkdownTree(RootCmd, docDir)
+			err := os.Mkdir(docDir, 0700)
+			if err != nil && !os.IsExist(err) {
+				return fmt.Errorf("could not create %s directory: %v", tronctlDocsDir, err)
+			}
+			err = doc.GenMarkdownTree(RootCmd, docDir)
 			return err
 		},
 	})
@@ -152,7 +152,6 @@ var (
 	VersionWrapDump = ""
 	versionLink     = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases/latest"
 	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
-	versionFormat   = regexp.MustCompile("v[0-9]+-[a-z0-9]{7}")
 )
 
 // GitHubReleaseAssets json struct
@@ -188,11 +187,16 @@ func getGitVersion() (string, error) {
 		return "", err
 	}
 
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 	// if error, no op
 	if resp != nil && resp.StatusCode == 200 {
 		buf := new(bytes.Buffer)
-		buf.ReadFrom(resp.Body)
+		_, err = buf.ReadFrom(resp.Body)
+		if err != nil {
+			return "", err
+		}
 		release := &GitHubRelease{}
 		if err := json.Unmarshal(buf.Bytes(), release); err != nil {
 			return "", err
@@ -203,7 +207,10 @@ func getGitVersion() (string, error) {
 		// if error, no op
 		if respTag != nil && respTag.StatusCode == 200 {
 			buf.Reset()
-			buf.ReadFrom(respTag.Body)
+			_, err := buf.ReadFrom(respTag.Body)
+			if err != nil {
+				return "", err
+			}
 
 			releaseTag := &GitHubTag{}
 			if err := json.Unmarshal(buf.Bytes(), releaseTag); err != nil {
@@ -213,8 +220,8 @@ func getGitVersion() (string, error) {
 
 			if releaseTag.DATA.SHA[:8] != commit[1] {
 				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
-				fmt.Fprintf(os.Stderr, color.RedString(warnMsg))
-				return release.TagName, fmt.Errorf(warnMsg)
+				fmt.Fprintf(os.Stderr, "%s", color.RedString(warnMsg))
+				return release.TagName, fmt.Errorf("%s", warnMsg)
 			}
 			return release.TagName, nil
 		}
@@ -230,7 +237,7 @@ func Execute() {
 			VersionWrapDump += ":" + tag
 		}
 		errMsg := errors.Wrapf(err, "commit: %s, error", VersionWrapDump).Error()
-		fmt.Fprintf(os.Stderr, errMsg+"\n")
+		fmt.Fprintf(os.Stderr, "%s\n", errMsg)
 		fmt.Fprintf(os.Stderr, "try adding a `--help` flag\n")
 		os.Exit(1)
 	}
@@ -278,7 +285,7 @@ func getPassphrase() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		dat, err := os.ReadFile(passphraseFilePath)
 		if err != nil {
 			return "", err
 		}
@@ -286,7 +293,7 @@ func getPassphrase() (string, error) {
 		return pw, nil
 	} else if userProvidesPassphrase {
 		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
@@ -304,7 +311,7 @@ func getPassphraseWithConfirm() (string, error) {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
 			return "", fmt.Errorf("passphrase file not found at `%s`", passphraseFilePath)
 		}
-		dat, err := ioutil.ReadFile(passphraseFilePath)
+		dat, err := os.ReadFile(passphraseFilePath)
 		if err != nil {
 			return "", err
 		}
@@ -312,12 +319,12 @@ func getPassphraseWithConfirm() (string, error) {
 		return pw, nil
 	} else if userProvidesPassphrase {
 		fmt.Println("Enter passphrase:")
-		pass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		pass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}
 		fmt.Println("Repeat the passphrase:")
-		repeatPass, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+		repeatPass, err := term.ReadPassword(int(os.Stdin.Fd()))
 		if err != nil {
 			return "", err
 		}

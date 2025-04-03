@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,24 +52,19 @@ func generateName() string {
 	for a := range store.LocalAccounts() {
 		existingAccounts.Add(a)
 	}
-	foundName := false
-	acct := ""
+
 	i := 0
 	for {
-		if foundName {
-			break
-		}
-		if i == len(words)-1 {
+		if i >= len(words) {
 			words = strings.Split(mnemonic.Generate(), " ")
+			i = 0
 		}
 		candidate := words[i]
 		if !existingAccounts.Contains(candidate) {
-			foundName = true
-			acct = candidate
-			break
+			return candidate
 		}
+		i++
 	}
-	return acct
 }
 
 func writeToFile(path string, data string) error {
@@ -79,8 +73,15 @@ func writeToFile(path string, data string) error {
 	if err != nil {
 		return err
 	}
-	os.MkdirAll(filepath.Dir(path), 0777)
-	os.Chdir(filepath.Dir(path))
+	err = os.MkdirAll(filepath.Dir(path), 0777)
+	if err != nil {
+		return err
+	}
+	err = os.Chdir(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+
 	file, err := os.Create(filepath.Base(path))
 	if err != nil {
 		return err
@@ -91,7 +92,10 @@ func writeToFile(path string, data string) error {
 	if err != nil {
 		return err
 	}
-	os.Chdir(currDir)
+	err = os.Chdir(currDir)
+	if err != nil {
+		return err
+	}
 	return file.Sync()
 }
 
@@ -101,7 +105,7 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	keyJSON, readError := ioutil.ReadFile(keyPath)
+	keyJSON, readError := os.ReadFile(keyPath)
 	if readError != nil {
 		return "", readError
 	}

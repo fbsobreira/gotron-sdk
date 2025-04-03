@@ -57,7 +57,11 @@ func (hf *hidFramer) Write(p []byte) (int, error) {
 	chunk[2] = 0x05
 	var seq uint16
 	buf := new(bytes.Buffer)
-	binary.Write(buf, binary.BigEndian, uint16(len(p)))
+	err := binary.Write(buf, binary.BigEndian, uint16(len(p)))
+	if err != nil {
+		return 0, err
+	}
+
 	buf.Write(p)
 	for buf.Len() > 0 {
 		binary.BigEndian.PutUint16(chunk[3:5], seq)

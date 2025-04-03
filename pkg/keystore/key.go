@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -194,7 +193,7 @@ func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 	}
 	// Atomic write: create a temporary hidden file first
 	// then move it into place. TempFile assigns mode 0600.
-	f, err := ioutil.TempFile(filepath.Dir(file), "."+filepath.Base(file)+".tmp")
+	f, err := os.CreateTemp(filepath.Dir(file), "."+filepath.Base(file)+".tmp")
 	if err != nil {
 		return "", err
 	}
@@ -205,14 +204,6 @@ func writeTemporaryKeyFile(file string, content []byte) (string, error) {
 	}
 	f.Close()
 	return f.Name(), nil
-}
-
-func writeKeyFile(file string, content []byte) error {
-	name, err := writeTemporaryKeyFile(file, content)
-	if err != nil {
-		return err
-	}
-	return os.Rename(name, file)
 }
 
 // keyFileName implements the naming convention for keyfiles:

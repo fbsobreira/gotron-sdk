@@ -1,0 +1,61 @@
+#!/bin/bash
+set -e
+
+echo "==> Running pre-commit checks..."
+
+# Get staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' | grep -v '\.pb\.go$' || true)
+
+# Skip if no Go files are staged
+if [ -z "$STAGED_GO_FILES" ]; then
+    echo "No Go files staged. Skipping pre-commit checks."
+    exit 0
+fi
+
+# Check for goimports
+if ! command -v goimports &> /dev/null; then
+    echo "goimports not found! Please install with:"
+    echo "go install golang.org/x/tools/cmd/goimports@latest"
+    exit 1
+fi
+
+# Check for golangci-lint
+if ! command -v golangci-lint &> /dev/null; then
+    echo "golangci-lint not found! Please install with:"
+    echo "curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin"
+    exit 1
+fi
+
+# Format imports
+echo "Running goimports..."
+make goimports
+
+# Run go mod tidy
+echo "Checking go.mod and go.sum..."
+go mod tidy
+if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+    echo "go.mod or go.sum was modified. Please stage the changes."
+    git status --porcelain go.mod go.sum
+    exit 1
+fi
+
+# Run linter on staged files
+echo "Running linter on staged files..."
+STAGED_FILES_ARGS=$(echo "$STAGED_GO_FILES" | tr '\n' ' ')
+golangci-lint run --fast $STAGED_FILES_ARGS
+
+# Run tests affected by staged files
+echo "Running relevant tests..."
+# Parse package names from staged files
+STAGED_PACKAGES=$(echo "$STAGED_GO_FILES" | xargs -I{} dirname {} | sort -u)
+
+# Run tests only for affected packages
+for pkg in $STAGED_PACKAGES; do
+    if [ -n "$(find $pkg -name '*_test.go' -type f | head -1)" ]; then
+        echo "Testing package: $pkg"
+        go test -race ./$pkg
+    fi
+done
+
+echo "✅ Pre-commit checks passed"
+exit 0

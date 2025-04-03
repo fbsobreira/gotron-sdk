@@ -138,7 +138,7 @@ func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCod
 }
 
 // UnDelegateResource from BASE58 address
-func (g *GrpcClient) UnDelegateResource(owner, receiver string, resource core.ResourceCode, delegateBalance int64, lock bool) (*api.TransactionExtention, error) {
+func (g *GrpcClient) UnDelegateResource(owner, receiver string, resource core.ResourceCode, delegateBalance int64) (*api.TransactionExtention, error) {
 	addrOwnerBytes, err := common.DecodeCheck(owner)
 	if err != nil {
 		return nil, err

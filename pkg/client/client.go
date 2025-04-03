@@ -50,8 +50,7 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 		g.Address = "grpc.trongrid.io:50051"
 	}
 	g.opts = opts
-	g.Conn, err = grpc.Dial(g.Address, opts...)
-
+	g.Conn, err = grpc.NewClient(g.Address, opts...)
 	if err != nil {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
@@ -86,8 +85,7 @@ func (g *GrpcClient) Reconnect(url string) error {
 	if len(url) > 0 {
 		g.Address = url
 	}
-	g.Start(g.opts...)
-	return nil
+	return g.Start(g.opts...)
 }
 
 // GetMessageBytes return grpc message from bytes

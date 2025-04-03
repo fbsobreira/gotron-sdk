@@ -197,8 +197,7 @@ func init() {
 		Use:   "sr",
 		Short: "SR Actions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

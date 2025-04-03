@@ -11,12 +11,14 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
-env := GO111MODULE=on
+.PHONY: all build build-windows run debug install clean test lint goimports tidy hooks
 
-all:
+all: build
+
+build:
 	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
-windows:
+build-windows:
 	$(env) GOOS=windows GOARCH=amd64 go build -o $(cli).exe -ldflags="$(ldflags)" cmd/main.go
 
 run:
@@ -25,9 +27,37 @@ run:
 debug:
 	$(env) go build $(flags) -o $(cli) -ldflags="$(ldflags)" cmd/main.go
 
-install:all
+install: all
 	cp $(cli) ~/.local/bin
 
 clean:
 	@rm -f $(cli)
 	@rm -rf ./bin
+
+# Test target for CI
+test:
+	$(env) go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# Lint target for CI
+lint:
+	@golangci-lint run --timeout=5m
+
+# Format check target (using goimports via golangci-lint)
+goimports:
+	@goimports -w -d $(shell find . -type f -name '*.go' \
+		! -name '*.pb.go' \
+		! -path "./vendor/*")
+
+# Go mod tidy check
+tidy:
+	$(env) go mod tidy
+	@if [ -n "$$(git status --porcelain go.mod go.sum)" ]; then \
+		echo "go.mod or go.sum is not tidy. Please run 'go mod tidy'"; \
+		exit 1; \
+	else \
+		echo "go.mod and go.sum are tidy."; \
+	fi
+
+# Install git hooks
+hooks:
+	@bash .githooks/install.sh

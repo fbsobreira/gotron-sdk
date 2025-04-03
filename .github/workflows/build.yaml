@@ -1,0 +1,43 @@
+name: Build
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      
+      - name: Get dependencies
+        run: go mod download
+      
+      - name: Check build
+        run: go vet ./...
+      
+      - name: Build CLI
+        run: |
+          make build
+          make build-windows
+
+      - name: Save artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: |
+            bin/tronctl
+            bin/tronctl.exe
+
+     

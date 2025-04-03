@@ -271,8 +271,7 @@ func init() {
 		Use:   "proposal",
 		Short: "Network upgrade proposal",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

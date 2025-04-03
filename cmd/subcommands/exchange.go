@@ -463,8 +463,7 @@ func init() {
 		Use:   "exchange",
 		Short: "Bancos Exchange Actions",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

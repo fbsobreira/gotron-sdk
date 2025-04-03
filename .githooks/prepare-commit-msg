@@ -1,0 +1,38 @@
+#!/bin/bash
+
+COMMIT_MSG_FILE=$1
+COMMIT_SOURCE=$2
+SHA1=$3
+
+# Only add template if this is not from a merge, amend, etc.
+if [ -z "$COMMIT_SOURCE" ]; then
+    # Check if the commit message already has content (non-commented lines)
+    if ! grep -q '^[^#]' "$COMMIT_MSG_FILE"; then
+        # Get the current branch name
+        BRANCH_NAME=$(git symbolic-ref --short HEAD 2>/dev/null)
+        
+        # Extract ticket number from branch name if it follows pattern like feature/TRON-123-description
+        TICKET=""
+        if [[ $BRANCH_NAME =~ (TRON-[0-9]+) ]]; then
+            TICKET=${BASH_REMATCH[1]}
+        fi
+        
+        # Add commit message template
+        cat > "$COMMIT_MSG_FILE" << EOF
+# Select commit type and add optional scope and description
+# Format: type(scope): description
+# Example: feat(cli): add new transaction feature
+# Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert
+# 
+# If applicable, include the TRON ticket number in scope or description
+# Current branch: $BRANCH_NAME
+EOF
+        
+        # If we found a ticket number in the branch name, add it to the template
+        if [ -n "$TICKET" ]; then
+            echo "feat($TICKET): " > "$COMMIT_MSG_FILE.tmp"
+            cat "$COMMIT_MSG_FILE" >> "$COMMIT_MSG_FILE.tmp"
+            mv "$COMMIT_MSG_FILE.tmp" "$COMMIT_MSG_FILE"
+        fi
+    fi
+fi

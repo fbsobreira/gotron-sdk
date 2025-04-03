@@ -1,0 +1,33 @@
+#!/bin/bash
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+NC='\033[0m' # No Color
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat $COMMIT_MSG_FILE)
+
+# Define regex patterns for commit message
+CONVENTIONAL_PATTERN='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?: .{1,100}'
+TICKET_PATTERN='(TRON-[0-9]+)'
+
+# Check if commit message follows conventional commits pattern
+if ! [[ $COMMIT_MSG =~ $CONVENTIONAL_PATTERN ]]; then
+    echo -e "${RED}Error:${NC} Commit message does not follow conventional commits format."
+    echo -e "${YELLOW}Format:${NC} type(scope): description"
+    echo -e "${YELLOW}Example:${NC} feat(cli): add new transaction command"
+    echo -e "${YELLOW}Types:${NC} feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+    exit 1
+fi
+
+# Warn if no ticket number is found (but don't block commit)
+if ! [[ $COMMIT_MSG =~ $TICKET_PATTERN ]]; then
+    echo -e "${YELLOW}Warning:${NC} No TRON-XXX ticket number found in commit message."
+    echo -e "${YELLOW}Consider:${NC} Including ticket number like TRON-123 in description or scope"
+fi
+
+echo -e "${GREEN}✓${NC} Commit message format is valid"
+exit 0

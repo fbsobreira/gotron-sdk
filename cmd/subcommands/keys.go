@@ -10,15 +10,13 @@ import (
 	"github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 	"github.com/tyler-smith/go-bip39"
+	"golang.org/x/term"
 )
 
 const (
@@ -250,7 +248,7 @@ func keysSub() []*cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fmt.Println("Enter privete key hex format:")
-			data, err := terminal.ReadPassword(int(os.Stdin.Fd()))
+			data, err := term.ReadPassword(int(os.Stdin.Fd()))
 			if err != nil {
 				return err
 			}
@@ -261,8 +259,8 @@ func keysSub() []*cobra.Command {
 				return err
 			}
 
-			if len(privateKeyBytes) != common.Secp256k1PrivateKeyBytesLength {
-				return common.ErrBadKeyLength
+			if len(privateKeyBytes) != c.Secp256k1PrivateKeyBytesLength {
+				return c.ErrBadKeyLength
 			}
 
 			// btcec.PrivKeyFromBytes only returns a secret key and public key
@@ -284,8 +282,7 @@ func init() {
 		Short: "Add or view local private keys",
 		Long:  "Manage your local keys",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

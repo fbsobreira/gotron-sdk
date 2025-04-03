@@ -118,7 +118,7 @@ func (C *Controller) TransactionHash() (string, error) {
 	h256h := sha256.New()
 	h256h.Write(rawData)
 	hash := h256h.Sum(nil)
-	return common.ToHex(hash), nil
+	return common.BytesToHexString(hash), nil
 }
 
 func (C *Controller) txConfirmation() {

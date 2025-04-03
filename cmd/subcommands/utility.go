@@ -12,8 +12,7 @@ func init() {
 		Use:   "utility",
 		Short: "common tron utilities",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 

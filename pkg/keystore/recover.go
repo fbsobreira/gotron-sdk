@@ -4,13 +4,17 @@
 package keystore
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/crypto"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 )
 
 func RecoverPubkey(hash []byte, signature []byte) (address.Address, error) {
-
+	if len(signature) != 65 {
+		return nil, fmt.Errorf("invalid signature length: %d/65", len(signature))
+	}
 	if signature[64] >= 27 {
 		signature[64] -= 27
 	}

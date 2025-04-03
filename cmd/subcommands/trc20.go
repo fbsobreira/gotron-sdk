@@ -145,8 +145,7 @@ func init() {
 		Use:   "trc20",
 		Short: "TRC20 Manager",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cmd.Help()
-			return nil
+			return cmd.Help()
 		},
 	}
 
