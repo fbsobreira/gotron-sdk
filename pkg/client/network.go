@@ -114,6 +114,30 @@ func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error) {
 	return g.Client.GetNodeInfo(ctx, new(api.EmptyMessage))
 }
 
+// GetEnergyPrices returns energy prices
+func (g *GrpcClient) GetEnergyPrices() (*api.PricesResponseMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	return g.Client.GetEnergyPrices(ctx, new(api.EmptyMessage))
+}
+
+// GetBandwidthPrices returns bandwidth prices
+func (g *GrpcClient) GetBandwidthPrices() (*api.PricesResponseMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	return g.Client.GetBandwidthPrices(ctx, new(api.EmptyMessage))
+}
+
+// GetMemoFee returns memo fee
+func (g *GrpcClient) GetMemoFee() (*api.PricesResponseMessage, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	return g.Client.GetMemoFee(ctx, new(api.EmptyMessage))
+}
+
 func GRPCInsecure() grpc.DialOption {
 	return grpc.WithTransportCredentials(insecure.NewCredentials())
 }
