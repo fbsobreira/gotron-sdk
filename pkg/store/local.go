@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func init() {
+func InitConfigDir() {
 	uDir, _ := homedir.Dir()
 	tronCTLDir := path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
