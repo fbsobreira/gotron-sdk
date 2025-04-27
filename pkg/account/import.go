@@ -126,6 +126,8 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	if hasAddress {
 		return "", fmt.Errorf("address %s already exists in keystore", key.Address.String())
 	}
+	// create home dir if it doesn't exist
+	store.InitConfigDir()
 	uDir, _ := homedir.Dir()
 	newPath := filepath.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName, name, filepath.Base(keyPath))
 	err = writeToFile(newPath, string(keyJSON))
