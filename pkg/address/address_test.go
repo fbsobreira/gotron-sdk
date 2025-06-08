@@ -37,7 +37,7 @@ func TestAddress_Scan(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected an error, but got none")
 	}
-	src = make([]byte, 22) // Створюємо байтовий масив з неправильною довжиною
+	src = make([]byte, 22) // Creating a byte array with the wrong length
 	err = a.Scan(src)
 	if err == nil {
 		t.Errorf("expected an error, but got none")
