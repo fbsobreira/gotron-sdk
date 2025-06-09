@@ -2,6 +2,16 @@ module github.com/fbsobreira/gotron-sdk
 
 go 1.24
 
+// Retract all v2 versions - these were tagged incorrectly without /v2 in module path
+retract (
+	v2.3.0+incompatible
+	v2.2.2+incompatible
+	v2.2.0+incompatible
+	v2.1.1+incompatible
+	v2.1.0+incompatible
+	v2.0.0+incompatible
+)
+
 require (
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/btcsuite/btcd/btcec/v2 v2.3.4

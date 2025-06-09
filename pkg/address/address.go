@@ -111,3 +111,18 @@ func (a *Address) Scan(src interface{}) error {
 func (a Address) Value() (driver.Value, error) {
 	return []byte(a), nil
 }
+
+// IsValid checks if the address is a valid TRON address
+func (a Address) IsValid() bool {
+	// Check if address has correct length
+	if len(a) != AddressLength {
+		return false
+	}
+
+	// Check if address starts with TRON byte prefix
+	if a[0] != TronBytePrefix {
+		return false
+	}
+
+	return true
+}
