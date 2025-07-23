@@ -1,6 +1,7 @@
 package keys
 
 import (
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 
 	// "github.com/ethereum/go-ethereum/crypto"
@@ -58,4 +60,31 @@ func AddNewKey(password string) {
 
 func GenerateKey() (*btcec.PrivateKey, error) {
 	return btcec.NewPrivateKey()
+}
+
+func GetPrivateKeyFromHex(privateKeyHex string) (*btcec.PrivateKey, error) {
+	privateKeyBytes, err := hex.DecodeString(privateKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode private key hex: %w", err)
+	}
+
+	return GetPrivateKeyFromBytes(privateKeyBytes)
+}
+
+func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
+	if len(privateKeyBytes) != 32 {
+		return nil, fmt.Errorf("invalid private key length: %d", len(privateKeyBytes))
+	}
+
+	if len(privateKeyBytes) != common.Secp256k1PrivateKeyBytesLength {
+		return nil, common.ErrBadKeyLength
+	}
+
+	// btcec.PrivKeyFromBytes only returns a secret key and public key
+	private, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+	if private == nil {
+		return nil, fmt.Errorf("failed to create private key from bytes")
+	}
+
+	return private, nil
 }
