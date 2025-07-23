@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 )
@@ -92,6 +93,24 @@ func PubkeyToAddress(p ecdsa.PublicKey) Address {
 	addressTron = append(addressTron, TronBytePrefix)
 	addressTron = append(addressTron, address.Bytes()...)
 	return addressTron
+}
+
+// BTCECPubkeyToAddress returns address from btcec public key
+func BTCECPubkeyToAddress(p *btcec.PublicKey) Address {
+	if p == nil {
+		return nil
+	}
+	pubKey := p.ToECDSA()
+	return PubkeyToAddress(*pubKey)
+}
+
+// BTCECPrivkeyToAddress returns address from btcec private key
+func BTCECPrivkeyToAddress(p *btcec.PrivateKey) Address {
+	if p == nil {
+		return nil
+	}
+	pubKey := p.PubKey().ToECDSA()
+	return PubkeyToAddress(*pubKey)
 }
 
 // Scan implements Scanner for database/sql.
