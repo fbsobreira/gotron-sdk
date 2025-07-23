@@ -11,6 +11,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
@@ -233,11 +234,11 @@ func keysSub() []*cobra.Command {
 		Short: "export a random private key",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			key, err := bip39.NewEntropy(256)
+			privateKey, err := keys.GenerateKey()
 			if err != nil {
 				return err
 			}
-			fmt.Println(hex.EncodeToString(key))
+			fmt.Println(hex.EncodeToString(privateKey.Serialize()))
 			return nil
 		},
 	}

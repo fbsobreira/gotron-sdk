@@ -6,6 +6,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 
@@ -53,4 +54,8 @@ func AddNewKey(password string) {
 	}
 	fmt.Printf("account: %s\n", account.Address)
 	fmt.Printf("URL: %s\n", account.URL)
+}
+
+func GenerateKey() (*btcec.PrivateKey, error) {
+	return btcec.NewPrivateKey()
 }
