@@ -1,7 +1,6 @@
 package client
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"strconv"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // UpdateEnergyLimitContract update contract enery limit
@@ -297,16 +295,7 @@ func (g *GrpcClient) DeployContract(from, contractName string,
 
 // UpdateHash after local changes
 func (g *GrpcClient) UpdateHash(tx *api.TransactionExtention) error {
-	rawData, err := proto.Marshal(tx.Transaction.GetRawData())
-	if err != nil {
-		return err
-	}
-
-	h256h := sha256.New()
-	h256h.Write(rawData)
-	hash := h256h.Sum(nil)
-	tx.Txid = hash
-	return nil
+	return tx.UpdateHash()
 }
 
 // GetContractABI return smartContract
