@@ -1,6 +1,6 @@
 # API Reference
 
-Complete API reference for the Gotron SDK packages.
+Complete API reference for the GoTRON SDK packages.
 
 ## Table of Contents
 
@@ -38,131 +38,130 @@ func NewGrpcClientWithTimeout(address string, timeout int) *GrpcClient
 ##### Connection Methods
 
 ```go
-func (c *GrpcClient) Start() error
-func (c *GrpcClient) Stop()
-func (c *GrpcClient) SetAPIKey(apiKey string)
+func (g *GrpcClient) Start(opts ...grpc.DialOption) error
+func (g *GrpcClient) Stop()
+func (g *GrpcClient) SetAPIKey(apiKey string) error
 ```
 
 ##### Account Methods
 
 ```go
 // Get account information
-func (c *GrpcClient) GetAccount(address common.Address) (*core.Account, error)
+func (g *GrpcClient) GetAccount(addr string) (*core.Account, error)
 
 // Get account resources
-func (c *GrpcClient) GetAccountResource(address common.Address) (*api.AccountResourceMessage, error)
+func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessage, error)
 
 // Get account net usage
-func (c *GrpcClient) GetAccountNet(address common.Address) (*api.AccountNetMessage, error)
+func (g *GrpcClient) GetAccountNet(addr string) (*api.AccountNetMessage, error)
 ```
 
 ##### Transaction Methods
 
 ```go
 // Create transfer transaction
-func (c *GrpcClient) Transfer(from, to common.Address, amount int64) (*api.TransactionExtention, error)
-
-// Create transfer with memo
-func (c *GrpcClient) TransferWithMemo(from, to common.Address, amount int64, memo string) (*api.TransactionExtention, error)
+func (g *GrpcClient) Transfer(from, toAddress string, amount int64) (*api.TransactionExtention, error)
 
 // Broadcast transaction
-func (c *GrpcClient) Broadcast(transaction *core.Transaction) (*api.Return, error)
+func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error)
 
 // Get transaction by ID
-func (c *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error)
+func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error)
 
 // Get transaction info by ID
-func (c *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, error)
+func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, error)
 ```
 
 ##### Block Methods
 
 ```go
 // Get current block
-func (c *GrpcClient) GetNowBlock() (*core.Block, error)
+func (g *GrpcClient) GetNowBlock() (*api.BlockExtention, error)
 
 // Get block by number
-func (c *GrpcClient) GetBlockByNum(num int64) (*core.Block, error)
+func (g *GrpcClient) GetBlockByNum(num int64) (*api.BlockExtention, error)
 
 // Get block by ID
-func (c *GrpcClient) GetBlockByID(id string) (*core.Block, error)
+func (g *GrpcClient) GetBlockByID(id string) (*core.Block, error)
 
 // Get block by latest number
-func (c *GrpcClient) GetBlockByLatestNum(num int64) (*api.BlockList, error)
+func (g *GrpcClient) GetBlockByLatestNum(num int64) (*api.BlockListExtention, error)
 
 // Get block by limit next
-func (c *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockList, error)
+func (g *GrpcClient) GetBlockByLimitNext(start, end int64) (*api.BlockListExtention, error)
 ```
 
 ##### Smart Contract Methods
 
 ```go
 // Deploy contract
-func (c *GrpcClient) DeployContract(
-    owner common.Address,
-    name string,
-    bytecode []byte,
-    feeLimit int64,
-    consumeUserResourcePercent int64,
-    originEnergyLimit int64,
+func (g *GrpcClient) DeployContract(
+    from, contractName string,
+    abi *core.SmartContract_ABI,
+    codeStr string,
+    feeLimit, curPercent, oeLimit int64,
 ) (*api.TransactionExtention, error)
 
 // Trigger smart contract
-func (c *GrpcClient) TriggerContract(
-    owner, contract common.Address,
-    data []byte,
-    feeLimit int64,
-    callValue int64,
-    tokenID string,
+func (g *GrpcClient) TriggerContract(
+    from, contractAddress, method, jsonString string,
+    feeLimit, tAmount int64,
+    tTokenID string,
+    tTokenAmount int64,
 ) (*api.TransactionExtention, error)
 
 // Trigger constant contract (call)
-func (c *GrpcClient) TriggerConstantContract(
-    owner, contract common.Address,
-    data []byte,
-    callValue int64,
+func (g *GrpcClient) TriggerConstantContract(
+    from, contractAddress, method, jsonString string,
 ) (*api.TransactionExtention, error)
 
-// Get contract
-func (c *GrpcClient) GetContract(address common.Address) (*core.SmartContract, error)
-
-// Get contract info
-func (c *GrpcClient) GetContractInfo(address common.Address) (*core.SmartContractDataWrapper, error)
+// Get contract ABI
+func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract_ABI, error)
 ```
 
 ##### Resource Management
 
 ```go
-// Freeze balance
-func (c *GrpcClient) FreezeBalance(
-    owner common.Address,
-    amount int64,
-    duration int64,
+// Freeze balance V2
+func (g *GrpcClient) FreezeBalanceV2(
+    from string,
     resource core.ResourceCode,
-    receiver string,
+    frozenBalance int64,
 ) (*api.TransactionExtention, error)
 
-// Unfreeze balance
-func (c *GrpcClient) UnfreezeBalance(
-    owner common.Address,
+// Unfreeze balance V2
+func (g *GrpcClient) UnfreezeBalanceV2(
+    from string,
     resource core.ResourceCode,
-    receiver string,
+    unfreezeBalance int64,
 ) (*api.TransactionExtention, error)
 
 // Delegate resource
-func (c *GrpcClient) DelegateResource(
-    owner common.Address,
-    receiver common.Address,
-    balance int64,
+func (g *GrpcClient) DelegateResource(
+    from, to string,
     resource core.ResourceCode,
+    delegateBalance int64,
     lock bool,
+    lockPeriod int64,
 ) (*api.TransactionExtention, error)
 
 // Undelegate resource
-func (c *GrpcClient) UnDelegateResource(
-    owner common.Address,
-    receiver common.Address,
-    balance int64,
+func (g *GrpcClient) UnDelegateResource(
+    owner, receiver string,
+    resource core.ResourceCode,
+    delegateBalance int64,
+) (*api.TransactionExtention, error)
+
+// Freeze balance V1 (deprecated, use V2)
+func (g *GrpcClient) FreezeBalance(
+    from, delegateTo string,
+    resource core.ResourceCode,
+    frozenBalance int64,
+) (*api.TransactionExtention, error)
+
+// Unfreeze balance V1 (deprecated, use V2)
+func (g *GrpcClient) UnfreezeBalance(
+    from, delegateTo string,
     resource core.ResourceCode,
 ) (*api.TransactionExtention, error)
 ```
@@ -171,136 +170,300 @@ func (c *GrpcClient) UnDelegateResource(
 
 ```go
 // List witnesses
-func (c *GrpcClient) ListWitnesses() (*api.WitnessList, error)
+func (g *GrpcClient) ListWitnesses() (*api.WitnessList, error)
 
 // Create witness
-func (c *GrpcClient) CreateWitness(owner common.Address, url string) (*api.TransactionExtention, error)
+func (g *GrpcClient) CreateWitness(from, urlStr string) (*api.TransactionExtention, error)
 
 // Update witness
-func (c *GrpcClient) UpdateWitness(owner common.Address, url string) (*api.TransactionExtention, error)
+func (g *GrpcClient) UpdateWitness(from, urlStr string) (*api.TransactionExtention, error)
 
 // Vote witness
-func (c *GrpcClient) VoteWitnessAccount(
-    owner common.Address,
-    votes map[string]int64,
+func (g *GrpcClient) VoteWitnessAccount(
+    from string,
+    witnessMap map[string]int64,
 ) (*api.TransactionExtention, error)
 
-// Get brokerage info
-func (c *GrpcClient) GetBrokerageInfo(address common.Address) (*api.NumberMessage, error)
+// Get witness brokerage
+func (g *GrpcClient) GetWitnessBrokerage(witness string) (float64, error)
 
 // Update brokerage
-func (c *GrpcClient) UpdateBrokerage(owner common.Address, brokerage int32) (*api.TransactionExtention, error)
+func (g *GrpcClient) UpdateBrokerage(from string, commission int32) (*api.TransactionExtention, error)
 ```
 
 ##### TRC10 Token Methods
 
 ```go
 // Create asset issue
-func (c *GrpcClient) CreateAssetIssue(
-    owner common.Address,
-    name string,
-    abbr string,
-    totalSupply int64,
-    trxNum int32,
-    num int32,
-    startTime int64,
-    endTime int64,
-    description string,
-    url string,
-    freeAssetNetLimit int64,
-    publicFreeAssetNetLimit int64,
+func (g *GrpcClient) AssetIssue(
+    from, name, description, abbr, urlStr string,
     precision int32,
-    fronzenSupply map[int64]int64,
+    totalSupply, startTime, endTime, FreeAssetNetLimit, PublicFreeAssetNetLimit int64,
+    trxNum, icoNum, voteScore int32,
+    frozenSupply map[string]string,
 ) (*api.TransactionExtention, error)
 
 // Transfer asset
-func (c *GrpcClient) TransferAsset(
-    from, to common.Address,
-    assetID string,
+func (g *GrpcClient) TransferAsset(
+    from, toAddress, assetName string,
     amount int64,
 ) (*api.TransactionExtention, error)
 
 // Participate asset issue
-func (c *GrpcClient) ParticipateAssetIssue(
-    from, to common.Address,
-    assetID string,
+func (g *GrpcClient) ParticipateAssetIssue(
+    from, issuerAddress, tokenID string,
     amount int64,
 ) (*api.TransactionExtention, error)
 
 // Get asset issue by account
-func (c *GrpcClient) GetAssetIssueByAccount(address common.Address) (*api.AssetIssueList, error)
+func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList, error)
 
 // Get asset issue by ID
-func (c *GrpcClient) GetAssetIssueByID(id string) (*core.AssetIssueContract, error)
+func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract, error)
 
 // Get asset issue list
-func (c *GrpcClient) GetAssetIssueList() (*api.AssetIssueList, error)
-
-// Get paginated asset issue list
-func (c *GrpcClient) GetPaginatedAssetIssueList(offset, limit int64) (*api.AssetIssueList, error)
+func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssueList, error)
 ```
 
 ##### Proposal Methods
 
 ```go
 // List proposals
-func (c *GrpcClient) ListProposals() (*api.ProposalList, error)
-
-// Get proposal by ID
-func (c *GrpcClient) GetProposalByID(id int64) (*core.Proposal, error)
+func (g *GrpcClient) ProposalsList() (*api.ProposalList, error)
 
 // Create proposal
-func (c *GrpcClient) CreateProposal(owner common.Address, parameters map[int64]int64) (*api.TransactionExtention, error)
+func (g *GrpcClient) ProposalCreate(from string, parameters map[int64]int64) (*api.TransactionExtention, error)
 
 // Approve proposal
-func (c *GrpcClient) ApproveProposal(owner common.Address, id int64, approval bool) (*api.TransactionExtention, error)
+func (g *GrpcClient) ProposalApprove(from string, id int64, confirm bool) (*api.TransactionExtention, error)
 
-// Delete proposal
-func (c *GrpcClient) DeleteProposal(owner common.Address, id int64) (*api.TransactionExtention, error)
+// Withdraw proposal
+func (g *GrpcClient) ProposalWithdraw(from string, id int64) (*api.TransactionExtention, error)
 ```
 
 ##### Exchange Methods
 
 ```go
 // List exchanges
-func (c *GrpcClient) ListExchanges() (*api.ExchangeList, error)
+func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, error)
 
 // Get exchange by ID
-func (c *GrpcClient) GetExchangeByID(id int64) (*core.Exchange, error)
+func (g *GrpcClient) ExchangeByID(id int64) (*core.Exchange, error)
 
 // Create exchange
-func (c *GrpcClient) CreateExchange(
-    owner common.Address,
-    firstTokenID string,
-    firstTokenBalance int64,
-    secondTokenID string,
-    secondTokenBalance int64,
+func (g *GrpcClient) ExchangeCreate(
+    from string,
+    tokenID, tokenQuant int64,
+    secondTokenID, secondTokenQuant int64,
 ) (*api.TransactionExtention, error)
 
 // Inject exchange
-func (c *GrpcClient) InjectExchange(
-    owner common.Address,
+func (g *GrpcClient) ExchangeInject(
+    from string,
     exchangeID int64,
-    tokenID string,
-    quant int64,
+    tokenID, tokenQuant int64,
 ) (*api.TransactionExtention, error)
 
 // Withdraw exchange
-func (c *GrpcClient) WithdrawExchange(
-    owner common.Address,
+func (g *GrpcClient) ExchangeWithdraw(
+    from string,
     exchangeID int64,
-    tokenID string,
-    quant int64,
+    tokenID, tokenQuant int64,
 ) (*api.TransactionExtention, error)
 
-// Transaction with exchange
-func (c *GrpcClient) TransactionWithExchange(
-    owner common.Address,
+// Trade with exchange
+func (g *GrpcClient) ExchangeTrade(
+    from string,
     exchangeID int64,
-    tokenID string,
-    quant int64,
-    expected int64,
+    tokenID, tokenQuant, expected int64,
 ) (*api.TransactionExtention, error)
+```
+
+##### TRC20 Token Methods
+
+```go
+// General TRC20 contract call
+func (g *GrpcClient) TRC20Call(
+    from, contractAddress, data string,
+    constant bool,
+    feeLimit int64,
+) (*api.TransactionExtention, error)
+
+// Get token name
+func (g *GrpcClient) TRC20GetName(contractAddress string) (string, error)
+
+// Get token symbol
+func (g *GrpcClient) TRC20GetSymbol(contractAddress string) (string, error)
+
+// Get token decimals
+func (g *GrpcClient) TRC20GetDecimals(contractAddress string) (*big.Int, error)
+
+// Parse numeric property from TRC20 response
+func (g *GrpcClient) ParseTRC20NumericProperty(data string) (*big.Int, error)
+
+// Parse string property from TRC20 response
+func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error)
+
+// Get token balance for address
+func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.Int, error)
+
+// Send TRC20 tokens
+func (g *GrpcClient) TRC20Send(
+    from, to, contract string,
+    amount *big.Int,
+    feeLimit int64,
+) (*api.TransactionExtention, error)
+
+// Transfer TRC20 tokens on behalf of owner
+func (g *GrpcClient) TRC20TransferFrom(
+    owner, from, to, contract string,
+    amount *big.Int,
+    feeLimit int64,
+) (*api.TransactionExtention, error)
+
+// Approve TRC20 token spending
+func (g *GrpcClient) TRC20Approve(
+    from, to, contract string,
+    amount *big.Int,
+    feeLimit int64,
+) (*api.TransactionExtention, error)
+```
+
+##### Network Information Methods
+
+```go
+// List all nodes
+func (g *GrpcClient) ListNodes() (*api.NodeList, error)
+
+// Get next maintenance time
+func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error)
+
+// Get total transaction count
+func (g *GrpcClient) TotalTransaction() (*api.NumberMessage, error)
+
+// Get node information
+func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error)
+
+// Get energy prices
+func (g *GrpcClient) GetEnergyPrices() (*api.PricesResponseMessage, error)
+
+// Get bandwidth prices
+func (g *GrpcClient) GetBandwidthPrices() (*api.PricesResponseMessage, error)
+
+// Get memo fee
+func (g *GrpcClient) GetMemoFee() (*api.PricesResponseMessage, error)
+```
+
+##### Additional Account Methods
+
+```go
+// Get rewards information
+func (g *GrpcClient) GetRewardsInfo(addr string) (int64, error)
+
+// Create new account
+func (g *GrpcClient) CreateAccount(from, addr string) (*api.TransactionExtention, error)
+
+// Get detailed account information
+func (g *GrpcClient) GetAccountDetailed(addr string) (*account.Account, error)
+
+// Withdraw balance (claim rewards)
+func (g *GrpcClient) WithdrawBalance(from string) (*api.TransactionExtention, error)
+
+// Update account permissions
+func (g *GrpcClient) UpdateAccountPermission(
+    from string,
+    owner, witness map[string]interface{},
+    actives []map[string]interface{},
+) (*api.TransactionExtention, error)
+```
+
+##### Additional Asset Methods
+
+```go
+// Get asset issue by name
+func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract, error)
+
+// Update asset issue
+func (g *GrpcClient) UpdateAssetIssue(
+    from, description, urlStr string,
+    newLimit, newPublicLimit int64,
+) (*api.TransactionExtention, error)
+
+// Unfreeze asset
+func (g *GrpcClient) UnfreezeAsset(from string) (*api.TransactionExtention, error)
+```
+
+##### Additional Resource Methods
+
+```go
+// Get delegated resources
+func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedResourceList, error)
+
+// Get delegated resources V2
+func (g *GrpcClient) GetDelegatedResourcesV2(address string) ([]*api.DelegatedResourceList, error)
+
+// Get maximum delegatable size
+func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*api.CanDelegatedMaxSizeResponseMessage, error)
+
+// Get available unfreeze count
+func (g *GrpcClient) GetAvailableUnfreezeCount(from string) (*api.GetAvailableUnfreezeCountResponseMessage, error)
+
+// Get withdrawable unfreeze amount
+func (g *GrpcClient) GetCanWithdrawUnfreezeAmount(from string, timestamp int64) (*api.CanWithdrawUnfreezeAmountResponseMessage, error)
+
+// Withdraw expired unfreeze
+func (g *GrpcClient) WithdrawExpireUnfreeze(from string, timestamp int64) (*api.TransactionExtention, error)
+```
+
+##### Additional Contract Methods
+
+```go
+// Update contract energy limit
+func (g *GrpcClient) UpdateEnergyLimitContract(
+    from, contractAddress string,
+    value int64,
+) (*api.TransactionExtention, error)
+
+// Update contract settings
+func (g *GrpcClient) UpdateSettingContract(
+    from, contractAddress string,
+    value int64,
+) (*api.TransactionExtention, error)
+
+// Estimate energy for contract call
+func (g *GrpcClient) EstimateEnergy(
+    from, contractAddress, method, jsonString string,
+    tAmount int64,
+    tTokenID string,
+    tTokenAmount int64,
+) (*api.EstimateEnergyMessage, error)
+
+// Update transaction hash
+func (g *GrpcClient) UpdateHash(tx *api.TransactionExtention) error
+```
+
+##### Additional Block Methods
+
+```go
+// Get block information by number
+func (g *GrpcClient) GetBlockInfoByNum(num int64) (*api.TransactionInfoList, error)
+```
+
+##### Transaction Analysis Methods
+
+```go
+// Get transaction sign weight
+func (g *GrpcClient) GetTransactionSignWeight(tx *core.Transaction) (*api.TransactionSignWeight, error)
+```
+
+##### Client Management Methods
+
+```go
+// Set client timeout
+func (g *GrpcClient) SetTimeout(timeout time.Duration)
+
+// Reconnect to a different node
+func (g *GrpcClient) Reconnect(url string) error
 ```
 
 ## Address Package
@@ -331,17 +494,23 @@ const (
 // Convert public key to address
 func PubkeyToAddress(p ecdsa.PublicKey) Address
 
+// Convert BTCEC public key to address
+func BTCECPubkeyToAddress(p *btcec.PublicKey) Address
+
+// Convert BTCEC private key to address
+func BTCECPrivkeyToAddress(p *btcec.PrivateKey) Address
+
 // Convert base58 string to address
 func Base58ToAddress(s string) (Address, error)
 
+// Convert base64 string to address
+func Base64ToAddress(s string) (Address, error)
+
 // Convert hex string to address
-func HexToAddress(s string) (Address, error)
+func HexToAddress(s string) Address
 
-// Validate address
-func IsValid(addr string) bool
-
-// Get address from private key
-func GetAddressFromPrivateKey(privateKey string) (string, error)
+// Convert big.Int to address
+func BigToAddress(b *big.Int) Address
 ```
 
 #### Methods
@@ -356,8 +525,11 @@ func (a Address) Hex() string
 // Convert to bytes
 func (a Address) Bytes() []byte
 
-// Check if zero address
-func (a Address) IsZero() bool
+// Check if valid TRON address
+func (a Address) IsValid() bool
+
+// Database driver value interface
+func (a Address) Value() (driver.Value, error)
 ```
 
 ## Transaction Package
@@ -370,44 +542,50 @@ The transaction package handles transaction signing and management.
 
 ```go
 type Controller struct {
-    client          *client.GrpcClient
-    tx              *core.Transaction
-    rawData         *core.TransactionRaw
-    privateKey      *ecdsa.PrivateKey
-    signatureList   [][]byte
+    executionError error
+    resultError    error
+    client         *client.GrpcClient
+    tx             *core.Transaction
+    sender         sender
+    Behavior       behavior
+    Result         *api.Return
+    Receipt        *core.TransactionInfo
 }
 ```
 
 ##### Methods
 
 ```go
-// Create controller
-func NewController(client *client.GrpcClient, tx *core.Transaction, privateKey *ecdsa.PrivateKey) *Controller
+// Create controller with options
+func NewController(
+    client *client.GrpcClient,
+    senderKs *keystore.KeyStore,
+    senderAcct *keystore.Account,
+    tx *core.Transaction,
+    options ...func(*Controller),
+) *Controller
 
-// Sign transaction
-func (c *Controller) Sign() error
+// Execute transaction (sign and broadcast)
+func (C *Controller) ExecuteTransaction() error
 
-// Add signature
-func (c *Controller) AddSignature(privateKey *ecdsa.PrivateKey) error
+// Get transaction hash
+func (C *Controller) TransactionHash() (string, error)
 
-// Build transaction
-func (c *Controller) Build() (*core.Transaction, error)
+// Get raw data bytes from transaction
+func (C *Controller) GetRawData() ([]byte, error)
 
-// Broadcast transaction
-func (c *Controller) Broadcast() (*api.Return, error)
+// Get result error
+func (C *Controller) GetResultError() error
 ```
 
-#### Signer Functions
+#### Transaction Signing Functions
 
 ```go
-// Sign transaction
-func SignTransaction(transaction *core.Transaction, privateKey *ecdsa.PrivateKey) (*core.Transaction, error)
+// Sign transaction with BTCEC private key
+func SignTransaction(tx *core.Transaction, signer *btcec.PrivateKey) (*core.Transaction, error)
 
-// Sign message
-func SignMessage(message []byte, privateKey *ecdsa.PrivateKey) ([]byte, error)
-
-// Verify signature
-func VerifySignature(message, signature []byte, address string) bool
+// Sign transaction with ECDSA private key
+func SignTransactionECDSA(tx *core.Transaction, signer *ecdsa.PrivateKey) (*core.Transaction, error)
 ```
 
 ## Keystore Package
@@ -459,26 +637,44 @@ func (ks *KeyStore) Update(a Account, passphrase, newPassphrase string) error
 func (ks *KeyStore) Accounts() []Account
 
 // Check if account exists
-func (ks *KeyStore) HasAddress(addr common.Address) bool
+func (ks *KeyStore) HasAddress(addr address.Address) bool
 
 // Unlock account
 func (ks *KeyStore) Unlock(a Account, passphrase string) error
 
 // Lock account
-func (ks *KeyStore) Lock(addr common.Address) error
+func (ks *KeyStore) Lock(addr address.Address) error
 
 // Sign transaction
-func (ks *KeyStore) SignTx(a Account, tx *core.Transaction, chainID *big.Int) (*core.Transaction, error)
+func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, error)
 
-// Sign message
-func (ks *KeyStore) SignMessage(a Account, message []byte) ([]byte, error)
+// Sign transaction with passphrase
+func (ks *KeyStore) SignTxWithPassphrase(a Account, passphrase string, tx *core.Transaction) (*core.Transaction, error)
+
+// Sign hash
+func (ks *KeyStore) SignHash(a Account, hash []byte) ([]byte, error)
+
+// Sign hash with passphrase
+func (ks *KeyStore) SignHashWithPassphrase(a Account, passphrase string, hash []byte) ([]byte, error)
+
+// Get wallets
+func (ks *KeyStore) Wallets() []Wallet
+
+// Subscribe to wallet events
+func (ks *KeyStore) Subscribe(sink chan<- WalletEvent) event.Subscription
+
+// Get decrypted key
+func (ks *KeyStore) GetDecryptedKey(a Account, auth string) (Account, *Key, error)
+
+// Export account to JSON
+func (ks *KeyStore) Export(a Account, passphrase, newPassphrase string) (keyJSON []byte, err error)
 ```
 
 #### Account
 
 ```go
 type Account struct {
-    Address common.Address
+    Address address.Address
     URL     URL
 }
 ```
