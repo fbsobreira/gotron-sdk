@@ -49,31 +49,32 @@ tronctl account send <to-address> <amount> --signer <signer-name>
 package main
 
 import (
-    "fmt"
-    "log"
-    
-    "github.com/fbsobreira/gotron-sdk/pkg/client"
-    "github.com/fbsobreira/gotron-sdk/pkg/address"
+	"fmt"
+	"log"
+
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 )
 
 func main() {
-    // Create client
-    c := client.NewGrpcClient("grpc.trongrid.io:50051")
-    err := c.Start()
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer c.Stop()
-    
-    // Get account info
-    addr, _ := address.Base58ToAddress("TRX6Q82wMqWNbCCpKPfRvVmfSm5N2TwrJw")
-    account, err := c.GetAccount(addr)
-    if err != nil {
-        log.Fatal(err)
-    }
-    
-    fmt.Printf("Balance: %d\n", account.Balance)
+	// Create client
+	c := client.NewGrpcClient("grpc.trongrid.io:50051")
+	err := c.Start(client.GRPCInsecure())
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer c.Stop()
+
+	// Get account info
+	addr, _ := address.Base58ToAddress("TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH")
+	account, err := c.GetAccount(addr.String())
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Balance: %d\n", account.Balance)
 }
+
 ```
 
 ## Documentation
