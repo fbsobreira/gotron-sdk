@@ -8,6 +8,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fatih/color"
+	"github.com/fbsobreira/go-bip39"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -16,7 +17,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
-	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/term"
 )
 
