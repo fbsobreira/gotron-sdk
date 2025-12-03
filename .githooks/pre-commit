@@ -33,21 +33,23 @@ make goimports
 # Run go mod tidy
 echo "Checking go.mod and go.sum..."
 go mod tidy
-if [ -n "$(git status --porcelain go.mod go.sum)" ]; then
+if [ -n "$(git diff --name-only go.mod go.sum)" ]; then
     echo "go.mod or go.sum was modified. Please stage the changes."
-    git status --porcelain go.mod go.sum
+    git diff --name-only go.mod go.sum
     exit 1
 fi
 
-# Run linter on staged files
-echo "Running linter on staged files..."
-STAGED_FILES_ARGS=$(echo "$STAGED_GO_FILES" | tr '\n' ' ')
-golangci-lint run --fast $STAGED_FILES_ARGS
+# Get unique packages from staged files
+STAGED_PACKAGES=$(echo "$STAGED_GO_FILES" | xargs -I{} dirname {} | sort -u)
+
+# Run linter on affected packages
+echo "Running linter on staged packages..."
+for pkg in $STAGED_PACKAGES; do
+    golangci-lint run --fast ./$pkg
+done
 
 # Run tests affected by staged files
 echo "Running relevant tests..."
-# Parse package names from staged files
-STAGED_PACKAGES=$(echo "$STAGED_GO_FILES" | xargs -I{} dirname {} | sort -u)
 
 # Run tests only for affected packages
 for pkg in $STAGED_PACKAGES; do
