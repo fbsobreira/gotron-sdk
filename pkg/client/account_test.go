@@ -115,6 +115,20 @@ func TestDelegateMaxSize(t *testing.T) {
 	require.GreaterOrEqual(t, tx.GetMaxSize(), int64(0))
 }
 
+func TestGetDelegatedResourcesV2(t *testing.T) {
+	resources, err := conn.GetDelegatedResourcesV2(accountAddress)
+	require.Nil(t, err)
+	require.NotNil(t, resources)
+	require.Greater(t, len(resources), 0)
+}
+
+func TestGetReceivedDelegatedResourcesV2(t *testing.T) {
+	resources, err := conn.GetReceivedDelegatedResourcesV2(accountAddressWitness)
+	require.Nil(t, err)
+	require.NotNil(t, resources)
+	require.Greater(t, len(resources), 0)
+}
+
 func TestUnfreezeLeftCount(t *testing.T) {
 	t.Skip() // Only in testnet nile
 	tx, err := conn.GetAvailableUnfreezeCount(testnetNileAddressExample)
