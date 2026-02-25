@@ -22,6 +22,14 @@ func SignTransaction(tx *core.Transaction, signer *btcec.PrivateKey) (*core.Tran
 }
 
 func SignTransactionECDSA(tx *core.Transaction, signer *ecdsa.PrivateKey) (*core.Transaction, error) {
+	// Ensure the private key uses go-ethereum's secp256k1 curve.
+	// Keys from btcec.ToECDSA() use a different curve instance that fails
+	// validation in go-ethereum's non-CGO Sign() (e.g., on Windows).
+	signer, err := crypto.ToECDSA(crypto.FromECDSA(signer))
+	if err != nil {
+		return nil, err
+	}
+
 	rawData, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, err
