@@ -39,15 +39,15 @@ reviews:
         practices, proper encryption, and safe key derivation.
     - path: "pkg/address/**"
       instructions: "TRON address encoding/decoding with Base58 checksum validation."
-tools:
-  gitleaks:
-    enabled: true
-  actionlint:
-    enabled: true
-  yamllint:
-    enabled: true
-  checkmake:
-    enabled: true
+  tools:
+    gitleaks:
+      enabled: true
+    actionlint:
+      enabled: true
+    yamllint:
+      enabled: true
+    checkmake:
+      enabled: true
 chat:
   auto_reply: true
 knowledge_base:
