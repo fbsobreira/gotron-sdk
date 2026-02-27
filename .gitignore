@@ -6,6 +6,7 @@
 tronctl
 tronctl-docs
 bin/
+dist/
 # scripts 
 scripts/*
 # keys
