@@ -1,0 +1,47 @@
+version: 2
+
+project_name: tronctl
+
+builds:
+  - main: ./cmd/
+    binary: tronctl
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
+      - -X main.version=v{{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.builtAt={{ .Date }}
+      - -X main.builtBy=goreleaser@cryptochain.network
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - "^Merge "
+
+release:
+  prerelease: auto

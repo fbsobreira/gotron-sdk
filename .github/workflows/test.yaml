@@ -5,6 +5,7 @@ on:
     branches: [ master, develop ]
   pull_request:
     branches: [ master, develop ]
+  workflow_call:
 
 
 jobs:
@@ -13,10 +14,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: 'go.mod'
           cache: true
@@ -28,7 +29,7 @@ jobs:
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
       
       - name: Upload coverage results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-results
           path: coverage.out
