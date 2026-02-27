@@ -350,12 +350,14 @@ func TestParseTopicsIntoMap(t *testing.T) {
 	fromTronAddr, fromIsAddr := fromResult.(address.Address)
 	require.True(t, fromIsAddr, "expected address.Address type")
 	assert.Equal(t, byte(0x41), fromTronAddr[0], "TRON address should start with 0x41")
+	assert.Equal(t, byte(0x01), fromTronAddr[20], "from address last byte should be 0x01")
 
 	toResult, toOk := out["to"]
 	require.True(t, toOk)
 	toTronAddr, toIsAddr := toResult.(address.Address)
 	require.True(t, toIsAddr, "expected address.Address type")
 	assert.Equal(t, byte(0x41), toTronAddr[0], "TRON address should start with 0x41")
+	assert.Equal(t, byte(0x02), toTronAddr[20], "to address last byte should be 0x02")
 }
 
 func TestParseTopicsIntoMap_NilOut(t *testing.T) {
