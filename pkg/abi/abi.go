@@ -275,6 +275,65 @@ func GetParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, erro
 	return nil, fmt.Errorf("not found")
 }
 
+// GetEventParser returns indexed and non-indexed argument lists for an ABI event.
+func GetEventParser(ABI *core.SmartContract_ABI, event string) (indexed eABI.Arguments, nonIndexed eABI.Arguments, err error) {
+	for _, entry := range ABI.Entrys {
+		if entry.Type != core.SmartContract_ABI_Entry_Event {
+			continue
+		}
+		if matchEntry(entry, event) {
+			for _, param := range entry.Inputs {
+				ty, err := eABI.NewType(param.Type, "", nil)
+				if err != nil {
+					return nil, nil, fmt.Errorf("invalid param %s: %+v", param.Type, err)
+				}
+				arg := eABI.Argument{
+					Name:    param.Name,
+					Type:    ty,
+					Indexed: param.Indexed,
+				}
+				if param.Indexed {
+					indexed = append(indexed, arg)
+				} else {
+					nonIndexed = append(nonIndexed, arg)
+				}
+			}
+			return indexed, nonIndexed, nil
+		}
+	}
+	return nil, nil, fmt.Errorf("event %s not found", event)
+}
+
+// ParseTopicsIntoMap parses event log topics into a map with automatic
+// Ethereum-to-TRON address conversion. The topics slice should not include
+// the event signature hash (topics[0]); pass only the indexed parameter topics.
+func ParseTopicsIntoMap(out map[string]interface{}, fields eABI.Arguments, topics [][]byte) error {
+	if out == nil {
+		return fmt.Errorf("out is nil")
+	}
+
+	ethTopics := make([]eCommon.Hash, len(topics))
+	for i, v := range topics {
+		ethTopics[i] = eCommon.BytesToHash(v)
+	}
+
+	if err := eABI.ParseTopicsIntoMap(out, fields, ethTopics); err != nil {
+		return err
+	}
+
+	// Convert any Ethereum addresses to TRON addresses
+	for k, v := range out {
+		if addr, ok := v.(eCommon.Address); ok {
+			addrBytes := make([]byte, 1+len(addr.Bytes()))
+			addrBytes[0] = address.TronBytePrefix
+			copy(addrBytes[1:], addr.Bytes())
+			out[k] = address.Address(addrBytes)
+		}
+	}
+
+	return nil
+}
+
 // GetInputsParser returns input method parser arguments from ABI
 func GetInputsParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}
