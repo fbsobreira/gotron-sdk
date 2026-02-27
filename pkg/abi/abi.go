@@ -148,6 +148,22 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 						v = convertSmallIntSlice(*ty.Elem, strs)
 					}
 				}
+
+				if ty.Elem.T == eABI.BytesTy {
+					tmp, ok := v.([]interface{})
+					if !ok {
+						return nil, fmt.Errorf("unable to convert array of bytes %+v", p)
+					}
+					result := make([][]byte, len(tmp))
+					for i := range tmp {
+						b, err := convertToBytes(*ty.Elem, tmp[i])
+						if err != nil {
+							return nil, err
+						}
+						result[i] = b.([]byte)
+					}
+					v = result
+				}
 			}
 			if ty.T == eABI.AddressTy {
 				if v, err = convetToAddress(v); err != nil {

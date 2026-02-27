@@ -85,6 +85,26 @@ func TestABIParamSliceUint256(t *testing.T) {
 	assert.Len(t, b, 128, fmt.Sprintf("Wrong length %d/%d", len(b), 128))
 }
 
+func TestABIParamArrayUint256HexFromJSON_PR95(t *testing.T) {
+	// PR #95: hex uint256[] via JSON triggers same []interface{} issue as #120
+	param, err := LoadFromJSON(`[{"uint256[]":["0x8157de19c158b16582821e315285b4dc"]}]`)
+	require.NoError(t, err)
+	b, err := GetPaddedParam(param)
+	require.NoError(t, err)
+	assert.Greater(t, len(b), 0, "encoded hex uint256[] should not be empty")
+}
+
+func TestABIParamArrayBytesSlice(t *testing.T) {
+	// Issue #131: bytes[] (array of dynamic bytes)
+	param, err := LoadFromJSON(`[{"bytes[]": ["deadbeef", "cafebabe"]}]`)
+	require.NoError(t, err)
+	b, err := GetPaddedParam(param)
+	require.NoError(t, err)
+	// offset(32) + length(32) + 2 element offsets(64) + 2 elements (len+data each, padded)
+	// = 32 + 32 + 64 + (32+32) + (32+32) = 256
+	assert.Len(t, b, 256, "unexpected encoded length for bytes[]")
+}
+
 func TestABI_HEXuint256(t *testing.T) {
 	b, err := GetPaddedParam([]Param{
 		{"uint256": "43981"},
