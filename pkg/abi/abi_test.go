@@ -271,3 +271,61 @@ func TestMatchEntry(t *testing.T) {
 	assert.False(t, matchEntry(entry, "approve"))
 	assert.False(t, matchEntry(entry, "approve(address,uint256)"))
 }
+
+func TestGetParser_SkipsNonFunctionEntries(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "Transfer",
+				Type: core.SmartContract_ABI_Entry_Event,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "from", Type: "address", Indexed: true},
+					{Name: "to", Type: "address", Indexed: true},
+					{Name: "value", Type: "uint256"},
+				},
+			},
+			{
+				Name: "Transfer",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "to", Type: "address"},
+					{Name: "amount", Type: "uint256"},
+				},
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "success", Type: "bool"},
+				},
+			},
+		},
+	}
+
+	// Should skip the event and return the function outputs
+	outputs, err := GetParser(contractABI, "Transfer")
+	require.NoError(t, err)
+	assert.Len(t, outputs, 1)
+	assert.Equal(t, "bool", outputs[0].Type.String())
+
+	// GetInputsParser should also skip the event
+	inputs, err := GetInputsParser(contractABI, "Transfer")
+	require.NoError(t, err)
+	assert.Len(t, inputs, 2)
+}
+
+func TestEntrySignature_UsesRawTypes(t *testing.T) {
+	// The Solidity compiler always emits canonical types (uint256, not uint).
+	// entrySignature uses the raw type strings from ABI entries directly,
+	// which matches what callers provide in method signatures.
+	entry := &core.SmartContract_ABI_Entry{
+		Name: "foo",
+		Inputs: []*core.SmartContract_ABI_Entry_Param{
+			{Name: "a", Type: "uint256"},
+			{Name: "b", Type: "bool"},
+		},
+	}
+	assert.Equal(t, "foo(uint256,bool)", entrySignature(entry))
+
+	// No inputs produces empty parens
+	entryNoInputs := &core.SmartContract_ABI_Entry{
+		Name: "bar",
+	}
+	assert.Equal(t, "bar()", entrySignature(entryNoInputs))
+}
