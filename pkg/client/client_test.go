@@ -48,7 +48,12 @@ func TestSend(t *testing.T) {
 	// btcec.PrivKeyFromBytes only returns a secret key and public key
 	sk, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
 
-	signature, err := crypto.Sign(hash, sk.ToECDSA())
+	// Convert btcec key to go-ethereum's curve to ensure compatibility
+	// with non-CGO builds (e.g., Windows)
+	ecdsaKey, err := crypto.ToECDSA(crypto.FromECDSA(sk.ToECDSA()))
+	require.Nil(t, err)
+
+	signature, err := crypto.Sign(hash, ecdsaKey)
 	require.Nil(t, err)
 	tx.Transaction.Signature = append(tx.Transaction.Signature, signature)
 
