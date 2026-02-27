@@ -1,0 +1,57 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+early_access: true
+tone_instructions: >
+  Be concise and direct. Focus on correctness, security, and Go idioms.
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  sequence_diagrams: true
+  collapse_walkthrough: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches:
+      - master
+  path_filters:
+    - "!**/*.pb.go"
+    - "!vendor/**"
+  path_instructions:
+    - path: "pkg/proto/**"
+      instructions: "Auto-generated protobuf code. Do not review for style or conventions."
+    - path: "cmd/**"
+      instructions: "CLI layer using Cobra framework. Focus on UX, flag handling, and error messages."
+    - path: "pkg/client/**"
+      instructions: >
+        Core gRPC client for TRON blockchain. Focus on error handling,
+        resource management, and API correctness.
+    - path: "pkg/keys/**"
+      instructions: >
+        Cryptographic key management with HD wallets (BIP39/BIP44).
+        Pay close attention to security: key material handling,
+        constant-time comparisons, and proper zeroing of sensitive data.
+    - path: "pkg/keystore/**"
+      instructions: >
+        Encrypted keystore implementation. Review for secure storage
+        practices, proper encryption, and safe key derivation.
+    - path: "pkg/address/**"
+      instructions: "TRON address encoding/decoding with Base58 checksum validation."
+tools:
+  gitleaks:
+    enabled: true
+  actionlint:
+    enabled: true
+  yamllint:
+    enabled: true
+  checkmake:
+    enabled: true
+chat:
+  auto_reply: true
+knowledge_base:
+  learnings:
+    scope: local
+  issues:
+    scope: local
