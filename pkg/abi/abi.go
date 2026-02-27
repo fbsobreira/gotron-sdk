@@ -228,11 +228,36 @@ func Pack(method string, param []Param) ([]byte, error) {
 	return signature, nil
 }
 
+// entrySignature builds the canonical signature for an ABI entry,
+// e.g. "rollDice(uint256,uint256,address)".
+func entrySignature(entry *core.SmartContract_ABI_Entry) string {
+	types := make([]string, len(entry.Inputs))
+	for i, input := range entry.Inputs {
+		types[i] = input.Type
+	}
+	return fmt.Sprintf("%s(%s)", entry.Name, strings.Join(types, ","))
+}
+
+// matchEntry checks whether an ABI entry matches the given method string.
+// The method can be either a plain name (e.g. "transfer") or a full
+// signature (e.g. "transfer(address,uint256)"). When a plain name is used
+// and multiple entries share that name, the first match is returned — callers
+// should use the full signature form for overloaded methods.
+func matchEntry(entry *core.SmartContract_ABI_Entry, method string) bool {
+	if strings.Contains(method, "(") {
+		return entrySignature(entry) == method
+	}
+	return entry.Name == method
+}
+
 // GetParser return output method parser arguments from ABI
 func GetParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}
 	for _, entry := range ABI.Entrys {
-		if entry.Name == method {
+		if entry.Type != core.SmartContract_ABI_Entry_Function {
+			continue
+		}
+		if matchEntry(entry, method) {
 			for _, out := range entry.Outputs {
 				ty, err := eABI.NewType(out.Type, "", nil)
 				if err != nil {
@@ -254,7 +279,10 @@ func GetParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, erro
 func GetInputsParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}
 	for _, entry := range ABI.Entrys {
-		if entry.Name == method {
+		if entry.Type != core.SmartContract_ABI_Entry_Function {
+			continue
+		}
+		if matchEntry(entry, method) {
 			for _, out := range entry.Inputs {
 				ty, err := eABI.NewType(out.Type, "", nil)
 				if err != nil {
