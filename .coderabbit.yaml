@@ -5,7 +5,7 @@ tone_instructions: >
   Be concise and direct. Focus on correctness, security, and Go idioms.
 reviews:
   profile: chill
-  request_changes_workflow: false
+  request_changes_workflow: true
   high_level_summary: true
   sequence_diagrams: true
   collapse_walkthrough: true
