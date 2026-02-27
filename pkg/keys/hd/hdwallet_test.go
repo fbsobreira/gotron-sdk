@@ -107,12 +107,12 @@ func TestNewParams(t *testing.T) {
 
 func TestNewFundraiserParams(t *testing.T) {
 	tests := []struct {
-		name         string
-		account      uint32
-		coinType     uint32
-		addressIdx   uint32
-		wantPurpose  uint32
-		wantChange   bool
+		name        string
+		account     uint32
+		coinType    uint32
+		addressIdx  uint32
+		wantPurpose uint32
+		wantChange  bool
 	}{
 		{
 			name:        "TRON account 0",

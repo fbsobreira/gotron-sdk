@@ -85,10 +85,10 @@ func TestLoadFromJSON(t *testing.T) {
 
 func TestSignature(t *testing.T) {
 	tests := []struct {
-		name     string
-		method   string
-		wantHex  string
-		wantLen  int
+		name    string
+		method  string
+		wantHex string
+		wantLen int
 	}{
 		{
 			name:    "transfer(address,uint256)",
@@ -789,9 +789,9 @@ func TestGetPaddedParam_SmallIntArrays(t *testing.T) {
 func TestGetPaddedParam_SmallIntArraysFromJSON(t *testing.T) {
 	// JSON unmarshaling produces []interface{}, not []string
 	tests := []struct {
-		name     string
-		json     string
-		wantLen  int
+		name    string
+		json    string
+		wantLen int
 	}{
 		{
 			name:    "uint8[] from JSON",

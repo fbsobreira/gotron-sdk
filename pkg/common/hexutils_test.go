@@ -646,10 +646,10 @@ func TestHex2Bytes(t *testing.T) {
 
 func TestHex2BytesFixed(t *testing.T) {
 	tests := []struct {
-		name  string
-		str   string
-		flen  int
-		want  []byte
+		name string
+		str  string
+		flen int
+		want []byte
 	}{
 		{
 			name: "exact length",

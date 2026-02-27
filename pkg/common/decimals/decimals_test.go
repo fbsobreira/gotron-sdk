@@ -236,7 +236,7 @@ func TestPow_LargeExponent(t *testing.T) {
 	// 2^64 should be exactly representable in 256-bit precision.
 	got := decimals.Pow(bf(2), 64)
 	expected := bf(0).SetUint64(math.MaxUint64) // 2^64 - 1
-	expected = decimals.Add(expected, bf(1))     // 2^64
+	expected = decimals.Add(expected, bf(1))    // 2^64
 	assert.Equal(t, 0, got.Cmp(expected))
 }
 

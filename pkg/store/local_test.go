@@ -289,4 +289,3 @@ func TestErrNoUnlockBadPassphrase(t *testing.T) {
 	assert.NotNil(t, store.ErrNoUnlockBadPassphrase)
 	assert.Contains(t, store.ErrNoUnlockBadPassphrase.Error(), "could not unlock account")
 }
-
