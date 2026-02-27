@@ -15,7 +15,17 @@ func FromMnemonicSeedAndPassphrase(mnemonic, passphrase string, index int) (*btc
 	}
 
 	seed := bip39.NewSeed(mnemonic, passphrase)
+	defer func() {
+		for i := range seed {
+			seed[i] = 0
+		}
+	}()
 	master, ch := hd.ComputeMastersFromSeed(seed, []byte("Bitcoin seed"))
+	defer func() {
+		for i := range master {
+			master[i] = 0
+		}
+	}()
 	private, err := hd.DerivePrivateKeyForPath(
 		btcec.S256(),
 		master,

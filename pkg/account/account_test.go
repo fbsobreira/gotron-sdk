@@ -26,7 +26,7 @@ func setupTestStore(t *testing.T) {
 
 // testPrivateKey is a well-known ECDSA private key used only for testing.
 // It corresponds to TRON address TJTm4FRMmQZSkMjDEeiBxPXYLmZRBEiB9G (or similar).
-const testPrivateKey = "e9a6e2a4e8e050b8616870520abc3c61f0368a4aaee3c3f0e742cf29e4cc8501"
+const testPrivateKey = "e9a6e2a4e8e050b8616870520abc3c61f0368a4aaee3c3f0e742cf29e4cc8501" // gitleaks:allow
 
 func TestImportFromPrivateKey(t *testing.T) {
 	tests := []struct {

@@ -109,6 +109,12 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	} else if store.DoesNamedAccountExist(name) {
 		return "", fmt.Errorf("account %s already exists", name)
 	}
+
+	// Prevent path traversal via account name.
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
+		return "", fmt.Errorf("invalid account name %q", name)
+	}
+
 	key, err := keystore.DecryptKey(keyJSON, passphrase)
 	if err != nil {
 		return "", err

@@ -17,7 +17,9 @@ func RemoveAccount(name string) error {
 	}
 
 	accountDir := filepath.Join(store.DefaultLocation(), name)
-	os.RemoveAll(accountDir)
+	if err := os.RemoveAll(accountDir); err != nil {
+		return fmt.Errorf("failed to remove account %s: %w", name, err)
+	}
 
 	return nil
 }

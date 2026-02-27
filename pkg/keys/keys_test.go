@@ -96,7 +96,7 @@ func TestGetPrivateKeyFromBytes(t *testing.T) {
 	}{
 		{
 			name:  "valid 32 bytes",
-			input: make([]byte, 32),
+			input: []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 		},
 		{
 			name:    "empty slice",
@@ -316,7 +316,7 @@ func TestGenerateKey_roundTrip(t *testing.T) {
 
 		// Round-trip three times.
 		current := pk
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			dump := keys.EncodeHex(current, current.PubKey())
 			hexStr := strings.TrimPrefix(dump.PrivateKey, "0x")
 			current, err = keys.GetPrivateKeyFromHex(hexStr)
