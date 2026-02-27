@@ -259,6 +259,7 @@ func TestSignature_OverloadedMethodsProduceDifferentSelectors(t *testing.T) {
 func TestMatchEntry(t *testing.T) {
 	entry := &core.SmartContract_ABI_Entry{
 		Name: "transfer",
+		Type: core.SmartContract_ABI_Entry_Function,
 		Inputs: []*core.SmartContract_ABI_Entry_Param{
 			{Name: "to", Type: "address"},
 			{Name: "value", Type: "uint256"},
