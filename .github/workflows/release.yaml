@@ -5,15 +5,14 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
-
 jobs:
   test:
     uses: ./.github/workflows/test.yaml
 
   release:
     name: Release
+    permissions:
+      contents: write
     needs: test
     runs-on: ubuntu-latest
     steps:
