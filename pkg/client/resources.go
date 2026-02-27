@@ -81,6 +81,36 @@ func (g *GrpcClient) GetDelegatedResourcesV2(address string) ([]*api.DelegatedRe
 	return result, nil
 }
 
+// GetReceivedDelegatedResourcesV2 returns resources delegated to the given
+// BASE58 address by other accounts (Stake 2.0).
+func (g *GrpcClient) GetReceivedDelegatedResourcesV2(address string) ([]*api.DelegatedResourceList, error) {
+	addrBytes, err := common.DecodeCheck(address)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	ai, err := g.Client.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*api.DelegatedResourceList, len(ai.GetFromAccounts()))
+	for i, addrFrom := range ai.GetFromAccounts() {
+		dm := &api.DelegatedResourceMessage{
+			FromAddress: addrFrom,
+			ToAddress:   addrBytes,
+		}
+		resource, err := g.Client.GetDelegatedResourceV2(ctx, dm)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = resource
+	}
+	return result, nil
+}
+
 // GetCanDelegatedMaxSize from BASE58 address
 func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*api.CanDelegatedMaxSizeResponseMessage, error) {
 	addrBytes, err := common.DecodeCheck(address)
