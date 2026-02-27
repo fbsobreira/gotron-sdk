@@ -132,11 +132,11 @@ func TestGetInputsParser_OverloadedMethods(t *testing.T) {
 	contractABI := makeOverloadedABI()
 
 	tests := []struct {
-		name       string
-		method     string
-		wantLen    int
-		wantTypes  []string
-		wantErr    bool
+		name      string
+		method    string
+		wantLen   int
+		wantTypes []string
+		wantErr   bool
 	}{
 		{
 			name:      "2-param overload by signature",
