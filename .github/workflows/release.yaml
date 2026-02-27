@@ -10,23 +10,7 @@ permissions:
 
 jobs:
   test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v6
-
-      - name: Set up Go
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
-          cache: true
-
-      - name: Get dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+    uses: ./.github/workflows/test.yaml
 
   release:
     name: Release
