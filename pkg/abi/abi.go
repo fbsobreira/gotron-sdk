@@ -129,24 +129,24 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 					}
 				}
 
-				if (ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy) &&
-					ty.Elem.Size > 64 {
-					tmp := make([]*big.Int, 0)
-					tmpSlice, ok := v.([]string)
-					if !ok {
-						return nil, fmt.Errorf("unable to convert array of unints %+v", p)
+				if ty.Elem.T == eABI.IntTy || ty.Elem.T == eABI.UintTy {
+					strs, err := toStringSlice(v)
+					if err != nil {
+						return nil, fmt.Errorf("unable to convert array of ints %+v", p)
 					}
-					for i := range tmpSlice {
-						var value *big.Int
-						// check for hex char
-						if strings.HasPrefix(tmpSlice[i], "0x") {
-							value, _ = new(big.Int).SetString(tmpSlice[i][2:], 16)
-						} else {
-							value, _ = new(big.Int).SetString(tmpSlice[i], 10)
+					if ty.Elem.Size > 64 {
+						tmp := make([]*big.Int, len(strs))
+						for i, s := range strs {
+							if strings.HasPrefix(s, "0x") {
+								tmp[i], _ = new(big.Int).SetString(s[2:], 16)
+							} else {
+								tmp[i], _ = new(big.Int).SetString(s, 10)
+							}
 						}
-						tmp = append(tmp, value)
+						v = tmp
+					} else {
+						v = convertSmallIntSlice(*ty.Elem, strs)
 					}
-					v = tmp
 				}
 			}
 			if ty.T == eABI.AddressTy {
@@ -170,6 +170,95 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 	}
 	// convert params to bytes
 	return arguments.PackValues(values)
+}
+
+// toStringSlice converts []string or []interface{} to []string.
+// JSON unmarshaling produces []interface{} so both forms must be accepted.
+func toStringSlice(v interface{}) ([]string, error) {
+	switch s := v.(type) {
+	case []string:
+		return s, nil
+	case []interface{}:
+		out := make([]string, len(s))
+		for i, elem := range s {
+			str, ok := elem.(string)
+			if !ok {
+				return nil, fmt.Errorf("element %d is not a string: %v", i, elem)
+			}
+			out[i] = str
+		}
+		return out, nil
+	}
+	return nil, fmt.Errorf("expected string slice, got %T", v)
+}
+
+// convertSmallIntSlice handles int/uint arrays with size <= 64.
+func convertSmallIntSlice(elemTy eABI.Type, strs []string) interface{} {
+	switch {
+	case elemTy.T == eABI.UintTy && elemTy.Size == 8:
+		out := make([]uint8, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseUint(s, 10, 8)
+			out[i] = uint8(tmp)
+		}
+		return out
+	case elemTy.T == eABI.UintTy && elemTy.Size == 16:
+		out := make([]uint16, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseUint(s, 10, 16)
+			out[i] = uint16(tmp)
+		}
+		return out
+	case elemTy.T == eABI.UintTy && elemTy.Size == 32:
+		out := make([]uint32, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseUint(s, 10, 32)
+			out[i] = uint32(tmp)
+		}
+		return out
+	case elemTy.T == eABI.UintTy && elemTy.Size == 64:
+		out := make([]uint64, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseUint(s, 10, 64)
+			out[i] = tmp
+		}
+		return out
+	case elemTy.T == eABI.IntTy && elemTy.Size == 8:
+		out := make([]int8, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseInt(s, 10, 8)
+			out[i] = int8(tmp)
+		}
+		return out
+	case elemTy.T == eABI.IntTy && elemTy.Size == 16:
+		out := make([]int16, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseInt(s, 10, 16)
+			out[i] = int16(tmp)
+		}
+		return out
+	case elemTy.T == eABI.IntTy && elemTy.Size == 32:
+		out := make([]int32, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseInt(s, 10, 32)
+			out[i] = int32(tmp)
+		}
+		return out
+	case elemTy.T == eABI.IntTy && elemTy.Size == 64:
+		out := make([]int64, len(strs))
+		for i, s := range strs {
+			tmp, _ := strconv.ParseInt(s, 10, 64)
+			out[i] = tmp
+		}
+		return out
+	default:
+		// Fallback to big.Int for unexpected sizes
+		out := make([]*big.Int, len(strs))
+		for i, s := range strs {
+			out[i], _ = new(big.Int).SetString(s, 10)
+		}
+		return out
+	}
 }
 
 func convertToBytes(ty eABI.Type, v interface{}) (interface{}, error) {
