@@ -6,6 +6,8 @@ import (
 	"math/big"
 	"testing"
 
+	eABI "github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -309,6 +311,97 @@ func TestGetParser_SkipsNonFunctionEntries(t *testing.T) {
 	inputs, err := GetInputsParser(contractABI, "Transfer")
 	require.NoError(t, err)
 	assert.Len(t, inputs, 2)
+}
+
+func TestParseTopicsIntoMap(t *testing.T) {
+	// Build a Transfer event: Transfer(address indexed from, address indexed to, uint256 value)
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "Transfer",
+				Type: core.SmartContract_ABI_Entry_Event,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "from", Type: "address", Indexed: true},
+					{Name: "to", Type: "address", Indexed: true},
+					{Name: "value", Type: "uint256"},
+				},
+			},
+		},
+	}
+
+	indexed, _, err := GetEventParser(contractABI, "Transfer")
+	require.NoError(t, err)
+	assert.Len(t, indexed, 2)
+
+	// Create topic bytes (20-byte address padded to 32)
+	fromAddr := make([]byte, 32)
+	fromAddr[31] = 0x01
+	toAddr := make([]byte, 32)
+	toAddr[31] = 0x02
+
+	out := make(map[string]interface{})
+	err = ParseTopicsIntoMap(out, indexed, [][]byte{fromAddr, toAddr})
+	require.NoError(t, err)
+	assert.Len(t, out, 2)
+
+	// Verify addresses were converted to TRON format (start with 0x41 prefix)
+	fromResult, fromOk := out["from"]
+	require.True(t, fromOk)
+	fromTronAddr, fromIsAddr := fromResult.(address.Address)
+	require.True(t, fromIsAddr, "expected address.Address type")
+	assert.Equal(t, byte(0x41), fromTronAddr[0], "TRON address should start with 0x41")
+
+	toResult, toOk := out["to"]
+	require.True(t, toOk)
+	toTronAddr, toIsAddr := toResult.(address.Address)
+	require.True(t, toIsAddr, "expected address.Address type")
+	assert.Equal(t, byte(0x41), toTronAddr[0], "TRON address should start with 0x41")
+}
+
+func TestParseTopicsIntoMap_NilOut(t *testing.T) {
+	err := ParseTopicsIntoMap(nil, eABI.Arguments{}, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "out is nil")
+}
+
+func TestGetEventParser(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "Transfer",
+				Type: core.SmartContract_ABI_Entry_Event,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "from", Type: "address", Indexed: true},
+					{Name: "to", Type: "address", Indexed: true},
+					{Name: "value", Type: "uint256"},
+				},
+			},
+			{
+				Name: "doSomething",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "x", Type: "uint256"},
+				},
+			},
+		},
+	}
+
+	// Should find the event
+	indexed, nonIndexed, err := GetEventParser(contractABI, "Transfer")
+	require.NoError(t, err)
+	assert.Len(t, indexed, 2)
+	assert.Len(t, nonIndexed, 1)
+	assert.Equal(t, "from", indexed[0].Name)
+	assert.Equal(t, "to", indexed[1].Name)
+	assert.Equal(t, "value", nonIndexed[0].Name)
+
+	// Should not find a function as event
+	_, _, err = GetEventParser(contractABI, "doSomething")
+	require.Error(t, err)
+
+	// Should not find nonexistent event
+	_, _, err = GetEventParser(contractABI, "Approval")
+	require.Error(t, err)
 }
 
 func TestEntrySignature_UsesRawTypes(t *testing.T) {
