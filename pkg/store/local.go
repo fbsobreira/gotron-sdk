@@ -3,7 +3,7 @@ package store
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -12,9 +12,20 @@ import (
 	"github.com/pkg/errors"
 )
 
-func InitConfigDir() {
+func configRoot() string {
+	if filepath.IsAbs(c.DefaultConfigDirName) {
+		return filepath.Clean(c.DefaultConfigDirName)
+	}
 	uDir, _ := homedir.Dir()
-	tronCTLDir := path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
+	return filepath.Join(uDir, c.DefaultConfigDirName)
+}
+
+func configAccountsDir() string {
+	return filepath.Join(configRoot(), c.DefaultConfigAccountAliasesDirName)
+}
+
+func InitConfigDir() {
+	tronCTLDir := configAccountsDir()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
 		if err != nil {
@@ -25,17 +36,12 @@ func InitConfigDir() {
 
 // LocalAccounts returns a slice of local account alias names
 func LocalAccounts() []string {
-	uDir, _ := homedir.Dir()
-	files, _ := os.ReadDir(path.Join(
-		uDir,
-		c.DefaultConfigDirName,
-		c.DefaultConfigAccountAliasesDirName,
-	))
+	files, _ := os.ReadDir(configAccountsDir())
 	accounts := []string{}
 
 	for _, node := range files {
 		if node.IsDir() {
-			accounts = append(accounts, path.Base(node.Name()))
+			accounts = append(accounts, filepath.Base(node.Name()))
 		}
 	}
 	return accounts
@@ -96,26 +102,19 @@ func FromAddress(addr string) *keystore.KeyStore {
 
 // FromAccountName get account from name
 func FromAccountName(name string) *keystore.KeyStore {
-	uDir, _ := homedir.Dir()
-	p := path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName, name)
+	p := filepath.Join(configAccountsDir(), name)
 	return keystore.ForPath(p)
 }
 
 // DefaultLocation get deafault location
 func DefaultLocation() string {
-	uDir, _ := homedir.Dir()
-	return path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
+	return configAccountsDir()
 }
 
 // SetDefaultLocation set deafault location
 func SetDefaultLocation(directory string) {
 	c.DefaultConfigDirName = directory
-	uDir, err := homedir.Dir()
-	if err != nil {
-		fmt.Printf("get home dir error: %v\n", err)
-		return
-	}
-	tronCTLDir := path.Join(uDir, c.DefaultConfigDirName, c.DefaultConfigAccountAliasesDirName)
+	tronCTLDir := configAccountsDir()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
 		if err != nil {

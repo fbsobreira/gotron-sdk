@@ -3,11 +3,8 @@ package account
 import (
 	"fmt"
 	"os"
-	"path"
-
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	"path/filepath"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
-	"github.com/mitchellh/go-homedir"
 )
 
 // RemoveAccount - removes an account from the keystore
@@ -18,9 +15,7 @@ func RemoveAccount(name string) error {
 		return fmt.Errorf("account %s doesn't exist", name)
 	}
 
-	uDir, _ := homedir.Dir()
-	tronCTLDir := path.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName)
-	accountDir := fmt.Sprintf("%s/%s", tronCTLDir, name)
+	accountDir := filepath.Join(store.DefaultLocation(), name)
 	os.RemoveAll(accountDir)
 
 	return nil

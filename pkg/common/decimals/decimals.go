@@ -3,8 +3,8 @@ package decimals
 import "math/big"
 
 func Pow(a *big.Float, e int64) *big.Float {
-	result := Zero().Copy(a)
-	for i := int64(0); i < e-1; i++ {
+	result := NewFloat(1)
+	for range e {
 		result = Mul(result, a)
 	}
 	return result

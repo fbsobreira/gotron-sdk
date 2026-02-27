@@ -36,7 +36,7 @@ clean:
 
 # Test target for CI
 test:
-	$(env) go test -race -coverprofile=coverage.out -covermode=atomic ./...
+	$(env) go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v -E '/pkg/proto/|/cmd')
 
 # Lint target for CI
 lint:

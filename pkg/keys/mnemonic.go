@@ -10,14 +10,21 @@ import (
 
 // FromMnemonicSeedAndPassphrase derive form mnemonic and passphrase at index
 func FromMnemonicSeedAndPassphrase(mnemonic, passphrase string, index int) (*btcec.PrivateKey, *btcec.PublicKey) {
+	if index < 0 {
+		return nil, nil
+	}
+
 	seed := bip39.NewSeed(mnemonic, passphrase)
 	master, ch := hd.ComputeMastersFromSeed(seed, []byte("Bitcoin seed"))
-	private, _ := hd.DerivePrivateKeyForPath(
+	private, err := hd.DerivePrivateKeyForPath(
 		btcec.S256(),
 		master,
 		ch,
 		fmt.Sprintf("44'/195'/0'/0/%d", index),
 	)
+	if err != nil {
+		return nil, nil
+	}
 
 	return btcec.PrivKeyFromBytes(private[:])
 }

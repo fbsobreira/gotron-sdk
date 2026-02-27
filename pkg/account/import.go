@@ -7,10 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mitchellh/go-homedir"
-
 	mapset "github.com/deckarep/golang-set"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
@@ -123,8 +120,7 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	}
 	// create home dir if it doesn't exist
 	store.InitConfigDir()
-	uDir, _ := homedir.Dir()
-	newPath := filepath.Join(uDir, common.DefaultConfigDirName, common.DefaultConfigAccountAliasesDirName, name, filepath.Base(keyPath))
+	newPath := filepath.Join(store.DefaultLocation(), name, filepath.Base(keyPath))
 	err = writeToFile(newPath, string(keyJSON))
 	if err != nil {
 		return "", err
