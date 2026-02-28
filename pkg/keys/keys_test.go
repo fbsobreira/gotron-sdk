@@ -146,7 +146,7 @@ func TestGetPrivateKeyFromBytes(t *testing.T) {
 func TestEncodeHex(t *testing.T) {
 	t.Run("round-trip with GetPrivateKeyFromHex", func(t *testing.T) {
 		// Use a known private key hex.
-		const inputHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28"
+		const inputHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
 		pk, err := keys.GetPrivateKeyFromHex(inputHex)
 		require.NoError(t, err)
 
@@ -184,7 +184,7 @@ func TestEncodeHex(t *testing.T) {
 
 func TestGetPrivateKeyFromHex_knownVector(t *testing.T) {
 	// Test vector: private key hex -> expected serialized bytes.
-	const inputHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28"
+	const inputHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
 	expected, err := hex.DecodeString(inputHex)
 	require.NoError(t, err)
 
@@ -195,7 +195,7 @@ func TestGetPrivateKeyFromHex_knownVector(t *testing.T) {
 
 func TestGetPrivateKeyFromHex_prefixAndCase(t *testing.T) {
 	// Known private key in lowercase.
-	const lowerHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28"
+	const lowerHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
 
 	tests := []struct {
 		name    string
@@ -245,7 +245,7 @@ func TestGetPrivateKeyFromHex_prefixAndCase(t *testing.T) {
 
 func TestGetPrivateKeyFromBytes_knownPublicKey(t *testing.T) {
 	// Use a well-known private key and verify the derived public key.
-	const privHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28"
+	const privHex = "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
 	privBytes, err := hex.DecodeString(privHex)
 	require.NoError(t, err)
 
@@ -358,7 +358,7 @@ func TestEncodeHex_format(t *testing.T) {
 		},
 		{
 			name:   "known mnemonic-derived key",
-			keyHex: "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28",
+			keyHex: "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28", // gitleaks:allow
 		},
 	}
 
@@ -394,7 +394,7 @@ func TestFromMnemonicSeedAndPassphrase(t *testing.T) {
 		require.NotNil(t, private)
 		require.NotNil(t, pub)
 
-		expected := "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28"
+		expected := "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
 		assert.Equal(t, expected, hex.EncodeToString(private.Serialize()))
 	})
 
