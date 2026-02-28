@@ -2,6 +2,7 @@ package keys
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fbsobreira/go-bip39"
@@ -11,7 +12,7 @@ import (
 
 // FromMnemonicSeedAndPassphrase derive form mnemonic and passphrase at index
 func FromMnemonicSeedAndPassphrase(mnemonic, passphrase string, index int) (*btcec.PrivateKey, *btcec.PublicKey) {
-	if index < 0 {
+	if index < 0 || index > math.MaxUint32 {
 		return nil, nil
 	}
 
@@ -30,5 +31,7 @@ func FromMnemonicSeedAndPassphrase(mnemonic, passphrase string, index int) (*btc
 		return nil, nil
 	}
 
-	return btcec.PrivKeyFromBytes(private[:])
+	sk, pk := btcec.PrivKeyFromBytes(private[:])
+	common.ZeroBytes(private[:])
+	return sk, pk
 }
