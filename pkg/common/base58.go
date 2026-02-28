@@ -23,8 +23,7 @@ func EncodeCheck(input []byte) string {
 	h256h1.Write(h0)
 	h1 := h256h1.Sum(nil)
 
-	inputCheck := input
-	inputCheck = append(inputCheck, h1[:4]...)
+	inputCheck := append(append([]byte(nil), input...), h1[:4]...)
 
 	return Encode(inputCheck)
 }
