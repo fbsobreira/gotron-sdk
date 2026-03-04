@@ -174,18 +174,24 @@ func DerivePrivateKeyForPath(curve elliptic.Curve, privKeyBytes [32]byte, chainC
 	data := privKeyBytes
 	parts := strings.Split(path, "/")
 	for _, part := range parts {
+		if part == "" {
+			return [32]byte{}, errors.New("invalid BIP 32 path: empty segment")
+		}
 		// do we have an apostrophe?
-		harden := part[len(part)-1:] == "'"
+		harden := strings.HasSuffix(part, "'")
 		// harden == private derivation, else public derivation:
 		if harden {
 			part = part[:len(part)-1]
+			if part == "" {
+				return [32]byte{}, errors.New("invalid BIP 32 path: empty segment")
+			}
 		}
 		idx, err := strconv.Atoi(part)
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("invalid BIP 32 path: %s", err)
 		}
 		if idx < 0 {
-			return [32]byte{}, errors.New("invalid BIP 32 path: index negative ot too large")
+			return [32]byte{}, errors.New("invalid BIP 32 path: index negative or too large")
 		}
 		data, chainCode = derivePrivateKey(curve, data, chainCode, uint32(idx), harden)
 	}

@@ -55,6 +55,25 @@ func getType(str string) core.SmartContract_ABI_Entry_EntryType {
 	}
 }
 
+func resolveState(abi JSONABI, entryType core.SmartContract_ABI_Entry_EntryType) core.SmartContract_ABI_Entry_StateMutabilityType {
+	if abi.StateMutability != "" {
+		return getState(abi.StateMutability)
+	}
+	// Legacy ABI compatibility: infer mutability from constant/payable flags.
+	if abi.Payable {
+		return core.SmartContract_ABI_Entry_Payable
+	}
+	if abi.Constant {
+		return core.SmartContract_ABI_Entry_View
+	}
+	switch entryType {
+	case core.SmartContract_ABI_Entry_Function, core.SmartContract_ABI_Entry_Constructor, core.SmartContract_ABI_Entry_Fallback:
+		return core.SmartContract_ABI_Entry_Nonpayable
+	default:
+		return core.SmartContract_ABI_Entry_UnknownMutabilityType
+	}
+}
+
 // JSONtoABI converts json string to ABI entry
 func JSONtoABI(jsonSTR string) (*core.SmartContract_ABI, error) {
 	jABI := []JSONABI{}
@@ -80,6 +99,7 @@ func JSONtoABI(jsonSTR string) (*core.SmartContract_ABI, error) {
 				Type:    output.Type,
 			})
 		}
+		entryType := getType(v.Type)
 		ABI.Entrys = append(ABI.Entrys,
 			&core.SmartContract_ABI_Entry{
 				Anonymous:       v.Anonymous,
@@ -88,8 +108,8 @@ func JSONtoABI(jsonSTR string) (*core.SmartContract_ABI, error) {
 				Payable:         v.Payable,
 				Inputs:          inputs,
 				Outputs:         outputs,
-				Type:            getType(v.Type),
-				StateMutability: getState(v.StateMutability),
+				Type:            entryType,
+				StateMutability: resolveState(v, entryType),
 			})
 	}
 	return ABI, nil

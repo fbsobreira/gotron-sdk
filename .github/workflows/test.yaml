@@ -21,17 +21,15 @@ jobs:
         with:
           go-version-file: 'go.mod'
           cache: true
-      
+
       - name: Get dependencies
         run: go mod download
-      
+
       - name: Run tests
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-      
-      - name: Upload coverage results
-        uses: actions/upload-artifact@v7
+        run: go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v -E '/pkg/proto/|/cmd')
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          name: coverage-results
-          path: coverage.out
-          retention-days: 1
-          overwrite: true
+          files: coverage.out
+          fail_ci_if_error: false

@@ -11,7 +11,13 @@ import (
 // ExportPrivateKey from account
 func ExportPrivateKey(address, passphrase string) error {
 	ks := store.FromAddress(address)
+	if ks == nil {
+		return fmt.Errorf("keystore not found for address %s", address)
+	}
 	allAccounts := ks.Accounts()
+	if len(allAccounts) == 0 {
+		return fmt.Errorf("no account found for address %s", address)
+	}
 	for _, account := range allAccounts {
 		_, key, err := ks.GetDecryptedKey(keystore.Account{Address: account.Address}, passphrase)
 		if err != nil {
@@ -25,7 +31,13 @@ func ExportPrivateKey(address, passphrase string) error {
 // ExportKeystore to file
 func ExportKeystore(address, path, passphrase string) (string, error) {
 	ks := store.FromAddress(address)
+	if ks == nil {
+		return "", fmt.Errorf("keystore not found for address %s", address)
+	}
 	allAccounts := ks.Accounts()
+	if len(allAccounts) == 0 {
+		return "", fmt.Errorf("no account found for address %s", address)
+	}
 	dirPath, err := filepath.Abs(path)
 	if err != nil {
 		return "", err
