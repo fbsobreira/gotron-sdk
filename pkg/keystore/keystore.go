@@ -119,6 +119,9 @@ func (ks *KeyStore) init(keydir string) {
 func (ks *KeyStore) Close() {
 	ks.mu.Lock()
 	for _, u := range ks.unlocked {
+		if u.abort != nil {
+			close(u.abort)
+		}
 		if u.PrivateKey != nil {
 			zeroKey(u.PrivateKey)
 		}

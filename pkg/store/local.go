@@ -144,9 +144,11 @@ func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Ac
 	}
 	account, lookupErr := ks.Find(keystore.Account{Address: sender})
 	if lookupErr != nil {
+		ks.Close()
 		return nil, nil, fmt.Errorf("could not find %s in keystore", from)
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
+		ks.Close()
 		return nil, nil, errors.Wrap(ErrNoUnlockBadPassphrase, unlockError.Error())
 	}
 	return ks, &account, nil
