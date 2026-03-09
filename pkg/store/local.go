@@ -62,6 +62,7 @@ func DescribeLocalAccounts() {
 		for _, account := range allAccounts {
 			fmt.Printf("%-48s\t%s\n", name, account.Address)
 		}
+		ks.Close()
 	}
 }
 
@@ -79,6 +80,7 @@ func DoesNamedAccountExist(name string) bool {
 // AddressFromAccountName Returns address for account name if exists
 func AddressFromAccountName(name string) (string, error) {
 	ks := FromAccountName(name)
+	defer ks.Close()
 	// FIXME: Assume 1 account per keystore for now
 	for _, account := range ks.Accounts() {
 		return account.Address.String(), nil
