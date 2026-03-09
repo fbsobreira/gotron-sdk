@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"errors"
+	"runtime"
 	"testing"
 	"time"
 
@@ -767,6 +768,59 @@ func TestForPath(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, acc.Address)
 	assert.Len(t, ks.Accounts(), 1)
+}
+
+// ---------- Close ----------
+
+func TestClose(t *testing.T) {
+	t.Run("close stops watcher goroutine", func(t *testing.T) {
+		baseline := runtime.NumGoroutine()
+
+		const iterations = 5
+		for i := 0; i < iterations; i++ {
+			ks := newTestKeyStore(t)
+			// Trigger watcher start by calling Accounts() which calls maybeReload()
+			_ = ks.Accounts()
+			ks.Close()
+		}
+
+		// Allow goroutines to wind down
+		time.Sleep(100 * time.Millisecond)
+
+		after := runtime.NumGoroutine()
+		// We allow a small margin for other background goroutines
+		assert.LessOrEqual(t, after, baseline+2,
+			"goroutine count should return near baseline after closing keystores (baseline=%d, after=%d)", baseline, after)
+	})
+
+	t.Run("close is safe to call on unused keystore", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		assert.NotPanics(t, func() {
+			ks.Close()
+		})
+	})
+
+	t.Run("close with active subscriber does not spin", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		sink := make(chan keystore.WalletEvent, 4)
+		sub := ks.Subscribe(sink)
+		defer sub.Unsubscribe()
+
+		// Create an account to ensure the updater goroutine is running
+		_, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+
+		baseline := runtime.NumGoroutine()
+
+		// Close while subscriber is still active — should terminate the updater
+		ks.Close()
+
+		time.Sleep(100 * time.Millisecond)
+
+		after := runtime.NumGoroutine()
+		assert.LessOrEqual(t, after, baseline,
+			"goroutine count should not grow after Close with active subscriber (baseline=%d, after=%d)", baseline, after)
+	})
 }
 
 // ---------- Subscribe ----------

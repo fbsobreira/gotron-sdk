@@ -54,7 +54,12 @@ func (w *watcher) start() {
 }
 
 func (w *watcher) close() {
-	close(w.quit)
+	select {
+	case <-w.quit:
+		// Already closed.
+	default:
+		close(w.quit)
+	}
 }
 
 func (w *watcher) loop() {

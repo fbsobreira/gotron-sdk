@@ -86,16 +86,23 @@ func AddressFromAccountName(name string) (string, error) {
 	return "", fmt.Errorf("keystore not found")
 }
 
-// FromAddress will return nil if the Base58 string is not found in the imported accounts
+// FromAddress will return nil if the Base58 string is not found in the imported accounts.
+// Non-matching keystores are closed to prevent goroutine leaks.
 func FromAddress(addr string) *keystore.KeyStore {
 	for _, name := range LocalAccounts() {
 		ks := FromAccountName(name)
 		allAccounts := ks.Accounts()
+		found := false
 		for _, account := range allAccounts {
 			if addr == account.Address.String() {
-				return ks
+				found = true
+				break
 			}
 		}
+		if found {
+			return ks
+		}
+		ks.Close()
 	}
 	return nil
 }
