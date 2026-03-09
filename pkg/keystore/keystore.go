@@ -114,6 +114,24 @@ func (ks *KeyStore) init(keydir string) {
 	}
 }
 
+// Close stops the account cache watcher and releases resources.
+// Any active subscriptions are terminated and unlocked keys are zeroed.
+func (ks *KeyStore) Close() {
+	ks.mu.Lock()
+	for _, u := range ks.unlocked {
+		if u.abort != nil {
+			close(u.abort)
+		}
+		if u.PrivateKey != nil {
+			zeroKey(u.PrivateKey)
+		}
+	}
+	ks.unlocked = make(map[string]*unlocked)
+	ks.updateScope.Close()
+	ks.mu.Unlock()
+	ks.cache.close()
+}
+
 // Wallets implements account.Backend, returning all single-key wallets from the
 // keystore directory.
 func (ks *KeyStore) Wallets() []Wallet {

@@ -3,9 +3,12 @@ package store_test
 import (
 	"os"
 	"path"
+	"runtime"
 	"testing"
+	"time"
 
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -288,4 +291,49 @@ func TestErrNoUnlockBadPassphrase(t *testing.T) {
 	// Verify the sentinel error is defined and has a meaningful message.
 	assert.NotNil(t, store.ErrNoUnlockBadPassphrase)
 	assert.Contains(t, store.ErrNoUnlockBadPassphrase.Error(), "could not unlock account")
+}
+
+func TestFromAddress_NoGoroutineLeak(t *testing.T) {
+	acctDir := withTempLocation(t)
+
+	// Create multiple account directories with real key files
+	names := []string{"wallet-a", "wallet-b", "wallet-c"}
+	var targetAddr string
+	for i, name := range names {
+		acctPath := path.Join(acctDir, name)
+		err := os.MkdirAll(acctPath, 0700)
+		require.NoError(t, err)
+
+		ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+		// Use the last account as target so all others must be iterated and closed
+		if i == len(names)-1 {
+			targetAddr = acc.Address.String()
+		}
+		ks.Close()
+	}
+
+	// Let any background goroutines settle
+	time.Sleep(100 * time.Millisecond)
+	baseline := runtime.NumGoroutine()
+
+	// Call FromAddress multiple times — non-matching keystores should be closed
+	const iterations = 3
+	for i := 0; i < iterations; i++ {
+		ks := store.FromAddress(targetAddr)
+		require.NotNil(t, ks, "FromAddress must find the target address")
+		ks.Close()
+	}
+
+	// Also test with an address that doesn't exist (all keystores should be closed)
+	ks := store.FromAddress("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8")
+	assert.Nil(t, ks)
+
+	// Allow goroutines to wind down
+	time.Sleep(100 * time.Millisecond)
+
+	after := runtime.NumGoroutine()
+	assert.LessOrEqual(t, after, baseline+2,
+		"goroutine count should return near baseline after FromAddress calls (baseline=%d, after=%d)", baseline, after)
 }

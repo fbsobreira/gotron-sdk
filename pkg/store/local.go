@@ -62,6 +62,7 @@ func DescribeLocalAccounts() {
 		for _, account := range allAccounts {
 			fmt.Printf("%-48s\t%s\n", name, account.Address)
 		}
+		ks.Close()
 	}
 }
 
@@ -79,6 +80,7 @@ func DoesNamedAccountExist(name string) bool {
 // AddressFromAccountName Returns address for account name if exists
 func AddressFromAccountName(name string) (string, error) {
 	ks := FromAccountName(name)
+	defer ks.Close()
 	// FIXME: Assume 1 account per keystore for now
 	for _, account := range ks.Accounts() {
 		return account.Address.String(), nil
@@ -86,16 +88,23 @@ func AddressFromAccountName(name string) (string, error) {
 	return "", fmt.Errorf("keystore not found")
 }
 
-// FromAddress will return nil if the Base58 string is not found in the imported accounts
+// FromAddress will return nil if the Base58 string is not found in the imported accounts.
+// Non-matching keystores are closed to prevent goroutine leaks.
 func FromAddress(addr string) *keystore.KeyStore {
 	for _, name := range LocalAccounts() {
 		ks := FromAccountName(name)
 		allAccounts := ks.Accounts()
+		found := false
 		for _, account := range allAccounts {
 			if addr == account.Address.String() {
-				return ks
+				found = true
+				break
 			}
 		}
+		if found {
+			return ks
+		}
+		ks.Close()
 	}
 	return nil
 }
@@ -135,9 +144,11 @@ func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Ac
 	}
 	account, lookupErr := ks.Find(keystore.Account{Address: sender})
 	if lookupErr != nil {
+		ks.Close()
 		return nil, nil, fmt.Errorf("could not find %s in keystore", from)
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
+		ks.Close()
 		return nil, nil, errors.Wrap(ErrNoUnlockBadPassphrase, unlockError.Error())
 	}
 	return ks, &account, nil
