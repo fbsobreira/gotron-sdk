@@ -202,10 +202,12 @@ func getGitVersion() (string, error) {
 			return "", err
 		}
 
-		respTag, _ := http.Get(versionTagLink + release.TagName)
+		respTag, err := http.Get(versionTagLink + release.TagName)
+		if err != nil || respTag == nil {
+			return "", fmt.Errorf("failed to fetch tag: %w", err)
+		}
 		defer func() { _ = respTag.Body.Close() }()
-		// if error, no op
-		if respTag != nil && respTag.StatusCode == 200 {
+		if respTag.StatusCode == 200 {
 			buf.Reset()
 			_, err := buf.ReadFrom(respTag.Body)
 			if err != nil {

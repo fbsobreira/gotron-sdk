@@ -352,7 +352,7 @@ func (d Dec) Format(s fmt.State, verb rune) {
 
 func (d Dec) String() string {
 	if d.Int == nil {
-		return d.Int.String()
+		return "<nil>"
 	}
 
 	isNeg := d.IsNegative()
