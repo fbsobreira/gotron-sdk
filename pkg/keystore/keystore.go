@@ -74,7 +74,7 @@ type KeyStore struct {
 
 	mu       sync.RWMutex
 	importMu sync.Mutex // Import Mutex locks the import to prevent two insertions from racing
-
+	closeOnce sync.Once
 }
 
 type unlocked struct {
@@ -116,20 +116,23 @@ func (ks *KeyStore) init(keydir string) {
 
 // Close stops the account cache watcher and releases resources.
 // Any active subscriptions are terminated and unlocked keys are zeroed.
+// It is safe to call Close multiple times.
 func (ks *KeyStore) Close() {
-	ks.mu.Lock()
-	for _, u := range ks.unlocked {
-		if u.abort != nil {
-			close(u.abort)
+	ks.closeOnce.Do(func() {
+		ks.mu.Lock()
+		for _, u := range ks.unlocked {
+			if u.abort != nil {
+				close(u.abort)
+			}
+			if u.PrivateKey != nil {
+				zeroKey(u.PrivateKey)
+			}
 		}
-		if u.PrivateKey != nil {
-			zeroKey(u.PrivateKey)
-		}
-	}
-	ks.unlocked = make(map[string]*unlocked)
-	ks.updateScope.Close()
-	ks.mu.Unlock()
-	ks.cache.close()
+		ks.unlocked = make(map[string]*unlocked)
+		ks.updateScope.Close()
+		ks.mu.Unlock()
+		ks.cache.close()
+	})
 }
 
 // Wallets implements account.Backend, returning all single-key wallets from the

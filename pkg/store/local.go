@@ -109,10 +109,36 @@ func FromAddress(addr string) *keystore.KeyStore {
 	return nil
 }
 
+// openKeystores tracks all opened keystores so they can be closed to stop
+// background watcher goroutines. This is primarily useful for tests.
+var openKeystores []*keystore.KeyStore
+
+// newKeyStore is the factory used to create keystores. Tests can swap this
+// to keystore.ForPathLight for faster scrypt operations.
+var newKeyStore = keystore.ForPath
+
+// SetKeystoreFactory replaces the function used to create keystores.
+// Pass keystore.ForPathLight in tests for faster key derivation.
+func SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
+	newKeyStore = fn
+}
+
 // FromAccountName get account from name
 func FromAccountName(name string) *keystore.KeyStore {
 	p := filepath.Join(configAccountsDir(), name)
-	return keystore.ForPath(p)
+	ks := newKeyStore(p)
+	openKeystores = append(openKeystores, ks)
+	return ks
+}
+
+// CloseAll closes all open keystores, stopping their background watcher
+// goroutines. This should be called in test cleanup to prevent goroutine leaks.
+func CloseAll() {
+	for _, ks := range openKeystores {
+		ks.Close()
+	}
+	openKeystores = nil
+	newKeyStore = keystore.ForPath
 }
 
 // DefaultLocation get deafault location
