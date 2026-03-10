@@ -21,10 +21,6 @@ func setupTestStore(t *testing.T) {
 	tmpDir := t.TempDir()
 	store.SetDefaultLocation(tmpDir)
 	store.SetKeystoreFactory(keystore.ForPathLight)
-	// CloseAll must run before t.TempDir() removes the directory,
-	// otherwise keystore file-watchers hang on a deleted path.
-	// t.Cleanup runs in LIFO order, so registering after TempDir
-	// ensures this runs first.
 	t.Cleanup(func() {
 		store.CloseAll()
 		common.DefaultConfigDirName = origConfigDir

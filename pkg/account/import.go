@@ -34,6 +34,7 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 	}
 
 	ks := store.FromAccountName(name)
+	defer ks.Close()
 	_, err = ks.ImportECDSA(sk.ToECDSA(), passphrase)
 	return name, err
 }
@@ -120,8 +121,8 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 		return "", err
 	}
 
-	hasAddress := store.FromAddress(key.Address.String()) != nil
-	if hasAddress {
+	if existingKs := store.FromAddress(key.Address.String()); existingKs != nil {
+		existingKs.Close()
 		return "", fmt.Errorf("address %s already exists in keystore", key.Address.String())
 	}
 	// create home dir if it doesn't exist

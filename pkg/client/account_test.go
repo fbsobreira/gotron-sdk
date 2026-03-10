@@ -544,7 +544,7 @@ func TestUpdateAccountPermission_NilOwner(t *testing.T) {
 	c := newMockClient(t, &mockWalletServer{})
 	_, err := c.UpdateAccountPermission(accountAddress, nil, nil, nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "owner is manadory")
+	assert.Contains(t, err.Error(), "owner is mandatory")
 }
 
 func TestUpdateAccountPermission_TooManyActives(t *testing.T) {

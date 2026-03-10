@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -109,31 +110,35 @@ func FromAddress(addr string) *keystore.KeyStore {
 	return nil
 }
 
-// openKeystores tracks all opened keystores so they can be closed to stop
-// background watcher goroutines. This is primarily useful for tests.
-var openKeystores []*keystore.KeyStore
-
-// newKeyStore is the factory used to create keystores. Tests can swap this
-// to keystore.ForPathLight for faster scrypt operations.
-var newKeyStore = keystore.ForPath
+var (
+	keystoreMu    sync.Mutex
+	openKeystores []*keystore.KeyStore
+	newKeyStore   = keystore.ForPath
+)
 
 // SetKeystoreFactory replaces the function used to create keystores.
 // Pass keystore.ForPathLight in tests for faster key derivation.
 func SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
+	keystoreMu.Lock()
+	defer keystoreMu.Unlock()
 	newKeyStore = fn
 }
 
 // FromAccountName get account from name
 func FromAccountName(name string) *keystore.KeyStore {
 	p := filepath.Join(configAccountsDir(), name)
+	keystoreMu.Lock()
 	ks := newKeyStore(p)
 	openKeystores = append(openKeystores, ks)
+	keystoreMu.Unlock()
 	return ks
 }
 
-// CloseAll closes all open keystores, stopping their background watcher
-// goroutines. This should be called in test cleanup to prevent goroutine leaks.
+// CloseAll closes all tracked keystores and resets the factory to production
+// defaults. This is a safety net for test cleanup.
 func CloseAll() {
+	keystoreMu.Lock()
+	defer keystoreMu.Unlock()
 	for _, ks := range openKeystores {
 		ks.Close()
 	}

@@ -397,7 +397,7 @@ func (g *GrpcClient) UpdateAccountPermission(from string, owner, witness map[str
 	}
 
 	if owner == nil {
-		return nil, fmt.Errorf("owner is manadory")
+		return nil, fmt.Errorf("owner is mandatory")
 	}
 	ownerPermission, err := makePermission(
 		"owner",

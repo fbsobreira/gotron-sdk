@@ -72,8 +72,8 @@ type KeyStore struct {
 	updateScope event.SubscriptionScope // Subscription scope tracking current live listeners
 	updating    bool                    // Whether the event notification loop is running
 
-	mu       sync.RWMutex
-	importMu sync.Mutex // Import Mutex locks the import to prevent two insertions from racing
+	mu        sync.RWMutex
+	importMu  sync.Mutex // Import Mutex locks the import to prevent two insertions from racing
 	closeOnce sync.Once
 }
 
@@ -99,11 +99,12 @@ func (ks *KeyStore) init(keydir string) {
 	ks.unlocked = make(map[string]*unlocked)
 	ks.cache, ks.changes = newAccountCache(keydir)
 
-	// TODO: In order for this finalizer to work, there must be no references
-	// to ks. addressCache doesn't keep a reference but unlocked keys do,
-	// so the finalizer will not trigger until all timed unlocks have expired.
+	// Last-resort cleanup: if Close() is never called, the GC finalizer
+	// will eventually release resources. Note that active TimedUnlock
+	// goroutines hold a reference to ks, so the finalizer won't trigger
+	// until all timed unlocks have expired. Prefer calling Close() explicitly.
 	runtime.SetFinalizer(ks, func(m *KeyStore) {
-		m.cache.close()
+		m.Close()
 	})
 	// Create the initial list of wallets from the cache
 	accs := ks.cache.accounts()

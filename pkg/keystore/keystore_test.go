@@ -759,7 +759,7 @@ func TestStoreKey(t *testing.T) {
 
 func TestForPath(t *testing.T) {
 	dir := t.TempDir()
-	ks := keystore.ForPath(dir)
+	ks := keystore.ForPathLight(dir)
 	require.NotNil(t, ks)
 	assert.Empty(t, ks.Accounts(), "fresh keystore from ForPath should have no accounts")
 

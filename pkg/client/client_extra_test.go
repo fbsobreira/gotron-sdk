@@ -110,8 +110,20 @@ func TestStart_RPC(t *testing.T) {
 }
 
 func TestStart_DefaultAddress(t *testing.T) {
+	// Verify that Start sets the default address when empty.
 	c := client.NewGrpcClient("")
-	err := c.Start(grpc.WithTransportCredentials(insecure.NewCredentials()))
+	assert.Equal(t, "", c.Address)
+
+	lis := bufconn.Listen(bufSize)
+	srv := grpc.NewServer()
+	api.RegisterWalletServer(srv, &mockWalletServer{})
+	go srv.Serve(lis)
+	t.Cleanup(srv.GracefulStop)
+
+	err := c.Start(grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
+			return lis.Dial()
+		}))
 	require.NoError(t, err)
 	assert.Equal(t, "grpc.trongrid.io:50051", c.Address)
 	c.Stop()
