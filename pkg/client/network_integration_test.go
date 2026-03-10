@@ -98,6 +98,7 @@ func TestIntegration_GetTransactionByID(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, tx)
 	assert.NotNil(t, tx.GetRawData(), "transaction should have raw data")
+	assert.NotEmpty(t, tx.GetRawData().GetContract(), "transaction should have at least one contract")
 }
 
 func TestIntegration_GetTransactionInfoByID(t *testing.T) {
@@ -108,7 +109,7 @@ func TestIntegration_GetTransactionInfoByID(t *testing.T) {
 	info, err := c.GetTransactionInfoByID(txIDHex)
 	require.NoError(t, err)
 	require.NotNil(t, info)
-	assert.NotEmpty(t, info.GetId(), "transaction info should have an ID")
+	assert.Equal(t, txIDHex, fmt.Sprintf("%x", info.GetId()), "transaction info ID should match requested")
 }
 
 // findConfirmedTransactionID looks back from the tip to find a confirmed block
@@ -195,6 +196,7 @@ func TestIntegration_GetTransactionSignWeight(t *testing.T) {
 	// Create a real transaction to check its sign weight.
 	tx, err := c.Transfer(nileTestAccountAddress, nileTestAddress2, 1)
 	require.NoError(t, err)
+	require.NotNil(t, tx)
 	require.NotNil(t, tx.GetTransaction())
 
 	weight, err := c.GetTransactionSignWeight(tx.GetTransaction())

@@ -33,12 +33,17 @@ func TestIntegration_UnfreezeBalance(t *testing.T) {
 func TestIntegration_WithdrawExpireUnfreeze(t *testing.T) {
 	c := newIntegrationClient(t)
 
-	// May succeed (returning empty tx) or fail depending on account state.
-	tx, err := c.WithdrawExpireUnfreeze(nileTestAccountAddress, time.Now().UnixMilli())
-	if err == nil {
-		require.NotNil(t, tx)
+	now := time.Now().UnixMilli()
+	amount, err := c.GetCanWithdrawUnfreezeAmount(nileTestAccountAddress, now)
+	require.NoError(t, err)
+	require.NotNil(t, amount)
+	if amount.GetAmount() == 0 {
+		t.Skip("account has no expired unfreeze to withdraw on Nile")
 	}
-	// No expired unfreeze is acceptable.
+
+	tx, err := c.WithdrawExpireUnfreeze(nileTestAccountAddress, now)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
 }
 
 func TestIntegration_FreezeBalanceV2(t *testing.T) {

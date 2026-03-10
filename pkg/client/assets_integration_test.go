@@ -34,7 +34,7 @@ func TestIntegration_GetAssetIssueByName(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Equal(t, assetName, string(result.GetName()), "returned asset name should match query")
-	assert.Greater(t, result.TotalSupply, int64(0))
+	assert.Greater(t, result.GetTotalSupply(), int64(0))
 }
 
 func TestIntegration_GetAssetIssueByID(t *testing.T) {
@@ -43,8 +43,8 @@ func TestIntegration_GetAssetIssueByID(t *testing.T) {
 	result, err := c.GetAssetIssueByID("1000001")
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	assert.NotEmpty(t, result.Name, "asset name should be populated")
-	assert.Greater(t, result.TotalSupply, int64(0), "total supply should be positive")
+	assert.NotEmpty(t, result.GetName(), "asset name should be populated")
+	assert.Greater(t, result.GetTotalSupply(), int64(0), "total supply should be positive")
 }
 
 func TestIntegration_GetAssetIssueList(t *testing.T) {
