@@ -1,9 +1,15 @@
 package decimals
 
-import "math/big"
+import (
+	"math"
+	"math/big"
+)
 
 func Pow(a *big.Float, e int64) *big.Float {
 	if e < 0 {
+		if e == math.MinInt64 {
+			return Div(NewFloat(1), Mul(a, Pow(a, -(e+1))))
+		}
 		return Div(NewFloat(1), Pow(a, -e))
 	}
 	result := NewFloat(1)
