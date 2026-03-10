@@ -578,6 +578,15 @@ func (C *Controller) GetRawData() ([]byte, error)
 func (C *Controller) GetResultError() error
 ```
 
+##### Options
+
+```go
+// WithPermissionId sets the permission ID for multi-signature transactions.
+// PermissionId = 0 is the owner permission (default), PermissionId = 2 is
+// commonly used for active permissions in multi-sig setups.
+func WithPermissionId(id int32) func(*Controller)
+```
+
 #### Transaction Signing Functions
 
 ```go
@@ -828,6 +837,20 @@ The proto package contains generated Protocol Buffer definitions for TRON.
 - `ExchangeInjectContract`
 - `ExchangeWithdrawContract`
 - `ExchangeTransactionContract`
+
+#### TransactionExtention Methods
+
+```go
+// SetData sets the memo/data field on the transaction.
+func (x *TransactionExtention) SetData(memo string) error
+
+// SetPermissionId sets the PermissionId on all contracts in the transaction.
+// Must be called before signing. Updates the transaction hash automatically.
+func (x *TransactionExtention) SetPermissionId(id int32) error
+
+// UpdateHash recalculates the transaction hash (Txid).
+func (x *TransactionExtention) UpdateHash() error
+```
 
 #### API Types
 
