@@ -7,6 +7,7 @@ import (
 
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,9 @@ func setupTestStore(t *testing.T) {
 	origConfigDir := common.DefaultConfigDirName
 	tmpDir := t.TempDir()
 	store.SetDefaultLocation(tmpDir)
+	store.SetKeystoreFactory(keystore.ForPathLight)
 	t.Cleanup(func() {
+		store.CloseAll()
 		common.DefaultConfigDirName = origConfigDir
 	})
 }

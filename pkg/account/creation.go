@@ -30,6 +30,7 @@ func IsValidPassphrase(pass string) bool {
 // CreateNewLocalAccount assumes all the inputs are valid, legitmate
 func CreateNewLocalAccount(candidate *Creation) error {
 	ks := store.FromAccountName(candidate.Name)
+	defer ks.Close()
 	if candidate.Mnemonic == "" {
 		candidate.Mnemonic = mnemonic.Generate()
 	}

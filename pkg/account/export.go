@@ -14,6 +14,7 @@ func ExportPrivateKey(address, passphrase string) error {
 	if ks == nil {
 		return fmt.Errorf("keystore not found for address %s", address)
 	}
+	defer ks.Close()
 	allAccounts := ks.Accounts()
 	if len(allAccounts) == 0 {
 		return fmt.Errorf("no account found for address %s", address)
@@ -34,6 +35,7 @@ func ExportKeystore(address, path, passphrase string) (string, error) {
 	if ks == nil {
 		return "", fmt.Errorf("keystore not found for address %s", address)
 	}
+	defer ks.Close()
 	allAccounts := ks.Accounts()
 	if len(allAccounts) == 0 {
 		return "", fmt.Errorf("no account found for address %s", address)

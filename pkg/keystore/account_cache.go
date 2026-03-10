@@ -220,8 +220,10 @@ func (ac *accountCache) maybeReload() {
 }
 
 func (ac *accountCache) close() {
-	ac.mu.Lock()
+	// Stop the watcher without holding ac.mu to avoid deadlocking with
+	// the watcher's deferred cleanup which also acquires ac.mu.
 	ac.watcher.close()
+	ac.mu.Lock()
 	if ac.throttle != nil {
 		ac.throttle.Stop()
 	}
@@ -259,7 +261,7 @@ func (ac *accountCache) scanAccounts() error {
 			zap.L().Error("Failed to open keystore file", zap.String("path", path), zap.Error(err))
 			return nil
 		}
-		defer fd.Close()
+		defer func() { _ = fd.Close() }()
 		buf.Reset(fd)
 		// Parse the address.
 		key.Address = ""

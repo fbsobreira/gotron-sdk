@@ -188,7 +188,7 @@ func getGitVersion() (string, error) {
 	}
 
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 	}
 	// if error, no op
 	if resp != nil && resp.StatusCode == 200 {
@@ -202,10 +202,12 @@ func getGitVersion() (string, error) {
 			return "", err
 		}
 
-		respTag, _ := http.Get(versionTagLink + release.TagName)
-		defer resp.Body.Close()
-		// if error, no op
-		if respTag != nil && respTag.StatusCode == 200 {
+		respTag, err := http.Get(versionTagLink + release.TagName)
+		if err != nil || respTag == nil {
+			return "", fmt.Errorf("failed to fetch tag: %w", err)
+		}
+		defer func() { _ = respTag.Body.Close() }()
+		if respTag.StatusCode == 200 {
 			buf.Reset()
 			_, err := buf.ReadFrom(respTag.Body)
 			if err != nil {

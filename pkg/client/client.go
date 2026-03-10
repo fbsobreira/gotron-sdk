@@ -75,7 +75,7 @@ func (g *GrpcClient) getContext() (context.Context, context.CancelFunc) {
 // Stop GRPC Connection
 func (g *GrpcClient) Stop() {
 	if g.Conn != nil {
-		g.Conn.Close()
+		_ = g.Conn.Close()
 	}
 }
 
