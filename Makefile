@@ -11,7 +11,7 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
-.PHONY: all build build-windows run debug install clean test lint goimports tidy hooks
+.PHONY: all build build-windows run debug install clean test test-integration lint goimports tidy hooks
 
 all: build
 
@@ -37,6 +37,11 @@ clean:
 # Test target for CI
 test:
 	$(env) go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v -E '/pkg/proto/|/cmd')
+
+# Integration tests against the Nile testnet.
+# Test fixtures use Nile-specific accounts, contracts, and witnesses.
+test-integration:
+	$(env) go test -tags=integration -run TestIntegration -v -count=1 -timeout 120s ./pkg/client/
 
 # Lint target for CI
 lint:

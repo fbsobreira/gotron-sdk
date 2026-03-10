@@ -1,0 +1,24 @@
+name: Integration Tests
+
+on:
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    name: Integration Test (Nile Testnet)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run integration tests
+        run: make test-integration
