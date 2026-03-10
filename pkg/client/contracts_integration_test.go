@@ -1,0 +1,113 @@
+//go:build integration
+
+package client_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func TestIntegration_GetContractABI(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	abi, err := c.GetContractABI(nileUSDTContract)
+	require.NoError(t, err)
+	require.NotNil(t, abi)
+	require.NotEmpty(t, abi.GetEntrys(), "USDT ABI should have entries")
+
+	// Verify well-known methods exist in the ABI.
+	methods := make(map[string]bool)
+	for _, entry := range abi.GetEntrys() {
+		methods[entry.GetName()] = true
+	}
+	assert.True(t, methods["transfer"], "ABI should contain transfer method")
+	assert.True(t, methods["balanceOf"], "ABI should contain balanceOf method")
+	assert.True(t, methods["approve"], "ABI should contain approve method")
+}
+
+func TestIntegration_TriggerConstantContract(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// Call totalSupply() on the USDT contract — a read-only call.
+	result, err := c.TriggerConstantContract(
+		"",
+		nileUSDTContract,
+		"totalSupply()",
+		"[]",
+	)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.GetConstantResult(), "totalSupply() should return a result")
+	assert.Len(t, result.GetConstantResult()[0], 32, "totalSupply() should return a 32-byte uint256")
+}
+
+func TestIntegration_TriggerContract(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	tx, err := c.TriggerContract(
+		nileTestAccountAddress,
+		nileUSDTContract,
+		"transfer(address,uint256)",
+		`[{"address": "`+nileTestAddress2+`"}, {"uint256": "1"}]`,
+		10000000,
+		0, "", 0,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	assert.NotEmpty(t, tx.GetTxid(), "TriggerContract should produce a transaction ID")
+	assert.NotNil(t, tx.GetTransaction().GetRawData(), "transaction should have raw data")
+}
+
+func TestIntegration_UpdateEnergyLimitContract(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// Not the contract owner — expected error.
+	_, err := c.UpdateEnergyLimitContract(nileTestAccountAddress, nileUSDTContract, 10000000)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not the owner of the contract")
+}
+
+func TestIntegration_UpdateSettingContract(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// Not the contract owner — expected error.
+	_, err := c.UpdateSettingContract(nileTestAccountAddress, nileUSDTContract, 50)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "is not the owner of the contract")
+}
+
+func TestIntegration_EstimateEnergy(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	result, err := c.EstimateEnergy(
+		nileTestAccountAddress,
+		nileUSDTContract,
+		"balanceOf(address)",
+		`[{"address": "`+nileTestAccountAddress+`"}]`,
+		0, "", 0,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Greater(t, result.GetEnergyRequired(), int64(0), "energy estimate should be positive")
+}
+
+func TestIntegration_DeployContract(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// Minimal contract bytecode (PUSH1 0x00 PUSH1 0x00 RETURN).
+	minimalBytecode := "0x60006000f3"
+
+	tx, err := c.DeployContract(
+		nileTestAccountAddress,
+		"TestContract",
+		nil,
+		minimalBytecode,
+		100000000,
+		0, 1,
+	)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	assert.NotEmpty(t, tx.GetTxid(), "DeployContract should produce a transaction ID")
+}
