@@ -42,6 +42,7 @@ type behavior struct {
 	DryRun               bool
 	SigningImpl          SignerImpl
 	ConfirmationWaitTime uint32
+	PermissionId         *int32
 }
 
 // NewController initializes a Controller, caller can control behavior via options
@@ -61,13 +62,36 @@ func NewController(
 			ks:      senderKs,
 			account: senderAcct,
 		},
-		tx:       tx,
-		Behavior: behavior{false, Software, 0},
+		tx: tx,
+		Behavior: behavior{
+			SigningImpl: Software,
+		},
 	}
 	for _, option := range options {
 		option(ctrlr)
 	}
 	return ctrlr
+}
+
+// WithPermissionId sets the permission ID for multi-signature transactions.
+// PermissionId = 0 is the owner permission (default), PermissionId = 2 is
+// commonly used for active permissions in multi-sig setups.
+func WithPermissionId(id int32) func(*Controller) {
+	return func(c *Controller) {
+		c.Behavior.PermissionId = &id
+	}
+}
+
+func setPermissionId(tx *core.Transaction, id int32) {
+	for _, contract := range tx.GetRawData().GetContract() {
+		contract.PermissionId = id
+	}
+}
+
+func (C *Controller) applyPermissionId() {
+	if C.Behavior.PermissionId != nil {
+		setPermissionId(C.tx, *C.Behavior.PermissionId)
+	}
 }
 
 func (C *Controller) signTxForSending() {
@@ -167,6 +191,7 @@ func (C *Controller) GetResultError() error {
 // Each step in transaction creation, execution probably includes a mutation
 // Each becomes a no-op if executionError occurred in any previous step
 func (C *Controller) ExecuteTransaction() error {
+	C.applyPermissionId()
 	switch C.Behavior.SigningImpl {
 	case Software:
 		C.signTxForSending()

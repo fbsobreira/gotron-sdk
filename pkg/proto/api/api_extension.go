@@ -31,6 +31,30 @@ func (x *TransactionExtention) SetData(memo string) error {
 	return x.UpdateHash()
 }
 
+// SetPermissionId sets the PermissionId on all contracts in the transaction.
+// PermissionId = 0 is the owner permission (default), PermissionId = 2 is
+// commonly used for active permissions in multi-sig setups.
+// Must be called before signing.
+func (x *TransactionExtention) SetPermissionId(id int32) error {
+	if x == nil {
+		return fmt.Errorf("TransactionExtention is nil")
+	}
+
+	if x.Transaction == nil {
+		x.Transaction = &core.Transaction{}
+	}
+
+	if x.Transaction.RawData == nil {
+		x.Transaction.RawData = &core.TransactionRaw{}
+	}
+
+	for _, contract := range x.Transaction.RawData.GetContract() {
+		contract.PermissionId = id
+	}
+
+	return x.UpdateHash()
+}
+
 func (x *TransactionExtention) UpdateHash() error {
 	if x == nil || x.Transaction == nil || x.Transaction.RawData == nil {
 		return fmt.Errorf("TransactionExtention or Transaction or RawData is nil")

@@ -169,6 +169,12 @@ func multiSigExample() error {
 		return err
 	}
 
+	// Set PermissionId = 2 for active permission (required for multi-sig)
+	// This must be done before signing so the permission ID is included in the hash.
+	if err := tx.SetPermissionId(2); err != nil {
+		return err
+	}
+
 	// Sign with multiple keys
 	key1, _ := keys.GetPrivateKeyFromHex("key1-hex")
 	key2, _ := keys.GetPrivateKeyFromHex("key2-hex")
