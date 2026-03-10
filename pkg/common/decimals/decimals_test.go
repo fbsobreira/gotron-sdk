@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/big"
 	"testing"
+	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common/decimals"
 	"github.com/stretchr/testify/assert"
@@ -244,6 +245,57 @@ func TestPow_ExponentZero(t *testing.T) {
 	// Mathematical identity: a^0 = 1.
 	got := decimals.Pow(bf(5), 0)
 	assert.Equal(t, 0, got.Cmp(bf(1)), "Pow(5, 0) must return 1")
+}
+
+func TestPow_NegativeExponent(t *testing.T) {
+	tests := []struct {
+		name string
+		base float64
+		exp  int64
+		want float64
+	}{
+		{"2^-1", 2, -1, 0.5},
+		{"2^-2", 2, -2, 0.25},
+		{"10^-3", 10, -3, 0.001},
+		{"5^-2", 5, -2, 0.04},
+		{"0.5^-1", 0.5, -1, 2},
+		{"0.5^-2", 0.5, -2, 4},
+		{"1^-100", 1, -100, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := decimals.Pow(bf(tt.base), tt.exp)
+			gotF, _ := got.Float64()
+			assert.InDelta(t, tt.want, gotF, math.Abs(tt.want)*1e-10+1e-15)
+		})
+	}
+}
+
+func TestPow_MinInt64DoesNotStackOverflow(t *testing.T) {
+	// math.MinInt64 negation overflows in int64; verify the guard prevents
+	// infinite recursion by running in a goroutine with a short deadline.
+	// We cannot wait for the full result (the O(n) loop is impractical for
+	// MaxInt64 iterations), but we can confirm it does not immediately
+	// stack-overflow or panic.
+	done := make(chan struct{})
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.Errorf("Pow(2, MinInt64) panicked: %v", r)
+			}
+			close(done)
+		}()
+		// This will enter the MinInt64 guard branch and then start the
+		// long loop — we just need it to survive past the guard.
+		_ = decimals.Pow(bf(2), math.MinInt64)
+	}()
+	// Give it a brief moment; if it stack-overflows it will panic instantly.
+	select {
+	case <-done:
+		// Returned or panicked — both handled above.
+	case <-time.After(100 * time.Millisecond):
+		// Still running the long loop — means the guard worked, no stack overflow.
+	}
 }
 
 // ---------------------------------------------------------------------------
