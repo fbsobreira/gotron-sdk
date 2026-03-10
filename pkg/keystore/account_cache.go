@@ -261,7 +261,7 @@ func (ac *accountCache) scanAccounts() error {
 			zap.L().Error("Failed to open keystore file", zap.String("path", path), zap.Error(err))
 			return nil
 		}
-		defer fd.Close()
+		defer func() { _ = fd.Close() }()
 		buf.Reset(fd)
 		// Parse the address.
 		key.Address = ""

@@ -23,8 +23,37 @@ func TestNewGrpcClient(t *testing.T) {
 }
 
 func TestNewGrpcClientWithTimeout(t *testing.T) {
-	c := client.NewGrpcClientWithTimeout("localhost:50051", 10*time.Second)
-	assert.Equal(t, "localhost:50051", c.Address)
+	// Verify the constructor-supplied timeout governs request deadlines.
+	mock := &mockWalletServer{
+		GetNextMaintenanceTimeFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NumberMessage, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	lis := bufconn.Listen(bufSize)
+	srv := grpc.NewServer()
+	api.RegisterWalletServer(srv, mock)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(func() { srv.GracefulStop(); _ = lis.Close() })
+
+	c := client.NewGrpcClientWithTimeout("passthrough:///bufconn", 50*time.Millisecond)
+	err := c.Start(
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return lis.DialContext(ctx)
+		}),
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { c.Stop() })
+
+	start := time.Now()
+	_, err = c.GetNextMaintenanceTime()
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "DeadlineExceeded")
+	assert.Less(t, elapsed, 1*time.Second)
 }
 
 func TestSetTimeout_ObservedViaDeadlineExceeded(t *testing.T) {
@@ -92,7 +121,7 @@ func TestStart_RPC(t *testing.T) {
 	}
 	api.RegisterWalletServer(srv, mock)
 	go func() { _ = srv.Serve(lis) }()
-	t.Cleanup(func() { srv.GracefulStop(); lis.Close() })
+	t.Cleanup(func() { srv.GracefulStop(); _ = lis.Close() })
 
 	c := client.NewGrpcClient("passthrough:///bufconn")
 	err := c.Start(
@@ -117,8 +146,8 @@ func TestStart_DefaultAddress(t *testing.T) {
 	lis := bufconn.Listen(bufSize)
 	srv := grpc.NewServer()
 	api.RegisterWalletServer(srv, &mockWalletServer{})
-	go srv.Serve(lis)
-	t.Cleanup(srv.GracefulStop)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(func() { srv.GracefulStop(); _ = lis.Close() })
 
 	err := c.Start(grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
@@ -134,9 +163,9 @@ func TestStop_NilConn(t *testing.T) {
 	c.Stop() // should not panic with nil Conn
 }
 
-func TestReconnect(t *testing.T) {
-	// Start with one bufconn listener, reconnect to a second one,
-	// and verify the new server handles RPCs.
+func TestStopAndStartNewClient(t *testing.T) {
+	// Verify we can stop one client and start a fresh one pointing
+	// at a different server, proving the stop/start lifecycle works.
 	lis1 := bufconn.Listen(bufSize)
 	srv1 := grpc.NewServer()
 	mock1 := &mockWalletServer{
@@ -148,7 +177,7 @@ func TestReconnect(t *testing.T) {
 	}
 	api.RegisterWalletServer(srv1, mock1)
 	go func() { _ = srv1.Serve(lis1) }()
-	t.Cleanup(func() { srv1.GracefulStop(); lis1.Close() })
+	t.Cleanup(func() { srv1.GracefulStop(); _ = lis1.Close() })
 
 	dialerFor := func(l *bufconn.Listener) grpc.DialOption {
 		return grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
@@ -176,7 +205,7 @@ func TestReconnect(t *testing.T) {
 	}
 	api.RegisterWalletServer(srv2, mock2)
 	go func() { _ = srv2.Serve(lis2) }()
-	t.Cleanup(func() { srv2.GracefulStop(); lis2.Close() })
+	t.Cleanup(func() { srv2.GracefulStop(); _ = lis2.Close() })
 
 	// Reconnect re-calls Start with the saved opts, so we need to
 	// update the dialer. Since Start stores opts, we need to inject

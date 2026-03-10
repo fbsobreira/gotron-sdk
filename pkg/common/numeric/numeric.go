@@ -360,7 +360,7 @@ func (d Dec) String() string {
 		d = d.Neg()
 	}
 
-	bzInt, err := d.Int.MarshalText()
+	bzInt, err := d.MarshalText()
 	if err != nil {
 		return ""
 	}

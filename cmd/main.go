@@ -22,7 +22,7 @@ func main() {
 	// HACK Force usage of go implementation rather than the C based one. Do the right way, see the
 	// notes one line 66,67 of https://golang.org/src/net/net.go that say can make the decision at
 	// build time.
-	os.Setenv("GODEBUG", "netdns=go")
+	_ = os.Setenv("GODEBUG", "netdns=go")
 	cmd.VersionWrapDump = version + "-" + commit
 	cmd.RootCmd.AddCommand(&cobra.Command{
 		Use:   "version",

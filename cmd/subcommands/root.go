@@ -188,7 +188,7 @@ func getGitVersion() (string, error) {
 	}
 
 	if resp != nil {
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 	}
 	// if error, no op
 	if resp != nil && resp.StatusCode == 200 {
@@ -203,7 +203,7 @@ func getGitVersion() (string, error) {
 		}
 
 		respTag, _ := http.Get(versionTagLink + release.TagName)
-		defer resp.Body.Close()
+		defer func() { _ = respTag.Body.Close() }()
 		// if error, no op
 		if respTag != nil && respTag.StatusCode == 200 {
 			buf.Reset()

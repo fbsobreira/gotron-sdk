@@ -324,13 +324,13 @@ func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 	}
 	dkLen := ensureInt(cryptoJSON.KDFParams["dklen"])
 
-	if cryptoJSON.KDF == keyHeaderKDF {
+	switch cryptoJSON.KDF {
+	case keyHeaderKDF:
 		n := ensureInt(cryptoJSON.KDFParams["n"])
 		r := ensureInt(cryptoJSON.KDFParams["r"])
 		p := ensureInt(cryptoJSON.KDFParams["p"])
 		return scrypt.Key(authArray, salt, n, r, p, dkLen)
-
-	} else if cryptoJSON.KDF == "pbkdf2" {
+	case "pbkdf2":
 		c := ensureInt(cryptoJSON.KDFParams["c"])
 		prf := cryptoJSON.KDFParams["prf"].(string)
 		if prf != "hmac-sha256" {
@@ -338,9 +338,9 @@ func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 		}
 		key := pbkdf2.Key(authArray, salt, c, dkLen, sha256.New)
 		return key, nil
+	default:
+		return nil, fmt.Errorf("Unsupported KDF: %s", cryptoJSON.KDF)
 	}
-
-	return nil, fmt.Errorf("Unsupported KDF: %s", cryptoJSON.KDF)
 }
 
 // TODO: can we do without this when unmarshalling dynamic JSON?

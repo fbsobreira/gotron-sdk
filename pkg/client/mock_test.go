@@ -623,7 +623,7 @@ func newMockClient(t *testing.T, mock *mockWalletServer) *client.GrpcClient {
 
 	t.Cleanup(func() {
 		srv.GracefulStop()
-		lis.Close()
+		_ = lis.Close()
 	})
 
 	conn, err := grpc.NewClient("passthrough:///bufconn",
@@ -634,7 +634,7 @@ func newMockClient(t *testing.T, mock *mockWalletServer) *client.GrpcClient {
 	)
 	require.NoError(t, err)
 
-	t.Cleanup(func() { conn.Close() })
+	t.Cleanup(func() { _ = conn.Close() })
 
 	c := client.NewGrpcClient("bufconn")
 	c.Conn = conn

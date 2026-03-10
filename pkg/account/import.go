@@ -79,7 +79,7 @@ func writeToFile(path string, data string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	_, err = io.WriteString(file, data)
 	if err != nil {

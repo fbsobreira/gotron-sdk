@@ -30,7 +30,7 @@ func HexStringToBytes(input string) ([]byte, error) {
 		return nil, EmptyString
 	}
 
-	return hex.DecodeString(strings.Replace(input, "0x", "", -1))
+	return hex.DecodeString(strings.ReplaceAll(input, "0x", ""))
 }
 
 // ToHex returns the hex representation of b, prefixed with '0x'.
