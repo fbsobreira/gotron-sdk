@@ -3,6 +3,9 @@ package decimals
 import "math/big"
 
 func Pow(a *big.Float, e int64) *big.Float {
+	if e < 0 {
+		return Div(NewFloat(1), Pow(a, -e))
+	}
 	result := NewFloat(1)
 	for range e {
 		result = Mul(result, a)

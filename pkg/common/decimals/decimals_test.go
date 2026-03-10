@@ -246,6 +246,30 @@ func TestPow_ExponentZero(t *testing.T) {
 	assert.Equal(t, 0, got.Cmp(bf(1)), "Pow(5, 0) must return 1")
 }
 
+func TestPow_NegativeExponent(t *testing.T) {
+	tests := []struct {
+		name string
+		base float64
+		exp  int64
+		want float64
+	}{
+		{"2^-1", 2, -1, 0.5},
+		{"2^-2", 2, -2, 0.25},
+		{"10^-3", 10, -3, 0.001},
+		{"5^-2", 5, -2, 0.04},
+		{"0.5^-1", 0.5, -1, 2},
+		{"0.5^-2", 0.5, -2, 4},
+		{"1^-100", 1, -100, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := decimals.Pow(bf(tt.base), tt.exp)
+			gotF, _ := got.Float64()
+			assert.InDelta(t, tt.want, gotF, math.Abs(tt.want)*1e-10+1e-15)
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Root
 // ---------------------------------------------------------------------------
