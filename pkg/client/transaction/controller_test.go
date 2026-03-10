@@ -182,19 +182,40 @@ func TestSignTransactionWithPermissionId(t *testing.T) {
 }
 
 func TestSignTransactionMultiSig(t *testing.T) {
-	key1, _ := btcec.NewPrivateKey()
-	key2, _ := btcec.NewPrivateKey()
+	key1, err := btcec.NewPrivateKey()
+	if err != nil {
+		t.Fatalf("failed to generate key1: %v", err)
+	}
+	key2, err := btcec.NewPrivateKey()
+	if err != nil {
+		t.Fatalf("failed to generate key2: %v", err)
+	}
 
 	tx := newTestTransaction()
 	setPermissionId(tx, 2)
 
+	// Capture raw data before signing
+	rawBefore, err := proto.Marshal(tx.GetRawData())
+	if err != nil {
+		t.Fatalf("marshal before signing: %v", err)
+	}
+
 	// First signature
-	tx, err := SignTransaction(tx, key1)
+	tx, err = SignTransaction(tx, key1)
 	if err != nil {
 		t.Fatalf("first sign: %v", err)
 	}
 	if len(tx.Signature) != 1 {
 		t.Fatalf("expected 1 signature, got %d", len(tx.Signature))
+	}
+
+	// Raw data should be unchanged after first signature
+	rawAfterFirst, err := proto.Marshal(tx.GetRawData())
+	if err != nil {
+		t.Fatalf("marshal after first sign: %v", err)
+	}
+	if !bytes.Equal(rawBefore, rawAfterFirst) {
+		t.Error("raw data changed after first signature")
 	}
 
 	// Second signature
@@ -206,6 +227,15 @@ func TestSignTransactionMultiSig(t *testing.T) {
 		t.Fatalf("expected 2 signatures, got %d", len(tx.Signature))
 	}
 
+	// Raw data should be unchanged after second signature
+	rawAfterSecond, err := proto.Marshal(tx.GetRawData())
+	if err != nil {
+		t.Fatalf("marshal after second sign: %v", err)
+	}
+	if !bytes.Equal(rawBefore, rawAfterSecond) {
+		t.Error("raw data changed after second signature")
+	}
+
 	// Both signatures should be different (different keys)
 	if bytes.Equal(tx.Signature[0], tx.Signature[1]) {
 		t.Error("expected different signatures from different keys")
@@ -214,11 +244,5 @@ func TestSignTransactionMultiSig(t *testing.T) {
 	// PermissionId should still be set
 	if tx.GetRawData().GetContract()[0].PermissionId != 2 {
 		t.Error("PermissionId should be preserved after multi-sig signing")
-	}
-
-	// Raw data should be unchanged between signatures
-	raw1, _ := proto.Marshal(tx.GetRawData())
-	if len(raw1) == 0 {
-		t.Error("expected non-empty raw data")
 	}
 }
