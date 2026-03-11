@@ -115,11 +115,14 @@ func TestFromRawDataHex_InvalidHex(t *testing.T) {
 }
 
 func TestFromRawDataHex_InvalidProtobuf(t *testing.T) {
-	// Valid hex but not valid protobuf for TransactionRaw —
-	// proto.Unmarshal is lenient with unknown fields, so we just verify it doesn't panic.
+	// Valid hex but invalid wire-format protobuf data.
 	_, err := FromRawDataHex("deadbeef")
-	// This may or may not error depending on protobuf parsing; just ensure no panic.
-	_ = err
+	if err == nil {
+		t.Fatal("expected error for invalid protobuf data")
+	}
+	if !strings.Contains(err.Error(), "unmarshal") {
+		t.Errorf("expected unmarshal error, got: %v", err)
+	}
 }
 
 func TestToRawDataHex(t *testing.T) {
@@ -258,8 +261,9 @@ func TestToJSON_NoSignatures(t *testing.T) {
 		t.Fatalf("unmarshal: %v", err)
 	}
 
-	if jtx.Signature != nil {
-		t.Errorf("expected nil signatures, got %v", jtx.Signature)
+	// With omitempty, the signature field should be absent from JSON output
+	if strings.Contains(string(jsonBytes), `"signature"`) {
+		t.Error("expected signature field to be omitted from JSON output")
 	}
 }
 
@@ -315,7 +319,9 @@ func TestFromJSON_TxIDMismatch(t *testing.T) {
 
 	// Tamper with the txID
 	var jtx map[string]any
-	json.Unmarshal(jsonBytes, &jtx)
+	if err := json.Unmarshal(jsonBytes, &jtx); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
 	jtx["txID"] = "0000000000000000000000000000000000000000000000000000000000000000"
 	tampered, _ := json.Marshal(jtx)
 

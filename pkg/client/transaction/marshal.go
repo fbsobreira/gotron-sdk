@@ -34,7 +34,7 @@ type jsonTransaction struct {
 	TxID       string          `json:"txID"`
 	RawData    json.RawMessage `json:"raw_data,omitempty"`
 	RawDataHex string          `json:"raw_data_hex"`
-	Signature  []string        `json:"signature"`
+	Signature  []string        `json:"signature,omitempty"`
 }
 
 // FromRawDataHex reconstructs a Transaction from a hex-encoded raw_data
