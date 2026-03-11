@@ -149,14 +149,38 @@ func TestToRawDataHex(t *testing.T) {
 }
 
 func TestToRawDataHex_NilRawData(t *testing.T) {
-	tx := &core.Transaction{}
-	gotHex, err := ToRawDataHex(tx)
-	if err != nil {
-		t.Fatalf("ToRawDataHex with nil raw_data: %v", err)
+	_, err := ToRawDataHex(&core.Transaction{})
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData, got: %v", err)
 	}
-	// Empty raw_data marshals to empty bytes -> empty hex
-	if gotHex != "" {
-		t.Errorf("expected empty hex for nil raw_data, got %q", gotHex)
+
+	_, err = ToRawDataHex(nil)
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
+	}
+}
+
+func TestToJSON_NilRawData(t *testing.T) {
+	_, err := ToJSON(&core.Transaction{})
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData, got: %v", err)
+	}
+
+	_, err = ToJSON(nil)
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
+	}
+}
+
+func TestComputeTxID_NilRawData(t *testing.T) {
+	_, err := computeTxID(&core.Transaction{})
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData, got: %v", err)
+	}
+
+	_, err = computeTxID(nil)
+	if err != ErrNilRawData {
+		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
 	}
 }
 

@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	proto "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/encoding/protojson"
+	proto "google.golang.org/protobuf/proto"
 )
 
 var (
@@ -18,20 +18,38 @@ var (
 	ErrInvalidHex    = errors.New("invalid hex string")
 	ErrInvalidTxJSON = errors.New("invalid transaction JSON")
 	ErrTxIDMismatch  = errors.New("txID does not match hash of raw_data")
+	ErrNilRawData    = errors.New("transaction raw_data is nil")
 )
 
-// jsonTransaction represents the JSON format returned by TRON HTTP APIs.
+// jsonTransaction represents the JSON envelope used by TRON HTTP APIs.
+//
+// The canonical serialization field is raw_data_hex, which contains the
+// protobuf-encoded TransactionRaw as a hex string. The raw_data object
+// is included for readability but uses protojson encoding (base64 bytes,
+// @type for Any fields), which differs from the TRON HTTP API format
+// (hex bytes, type_url/value for Any). Consumers should always prefer
+// raw_data_hex for deserialization.
 type jsonTransaction struct {
 	Visible    bool            `json:"visible"`
 	TxID       string          `json:"txID"`
-	RawData    json.RawMessage `json:"raw_data"`
+	RawData    json.RawMessage `json:"raw_data,omitempty"`
 	RawDataHex string          `json:"raw_data_hex"`
 	Signature  []string        `json:"signature"`
 }
 
-// FromRawDataHex reconstructs a Transaction from a hex-encoded raw_data protobuf.
-// This is the format commonly returned by TRON HTTP APIs (raw_data_hex field).
-// Optional signatures can be attached to the resulting transaction.
+// FromRawDataHex reconstructs a Transaction from a hex-encoded raw_data
+// protobuf. This is the format commonly returned by TRON HTTP APIs in the
+// raw_data_hex field.
+//
+// The hex string may optionally have a "0x" prefix, which is stripped
+// before decoding. Any provided signatures are attached to the resulting
+// transaction, preserving their order.
+//
+// Example:
+//
+//	tx, err := transaction.FromRawDataHex(apiResponse.RawDataHex)
+//	if err != nil { ... }
+//	tx, err = transaction.SignTransaction(tx, privateKey)
 func FromRawDataHex(rawDataHex string, signatures ...[]byte) (*core.Transaction, error) {
 	rawDataHex = strings.TrimPrefix(rawDataHex, "0x")
 	if rawDataHex == "" {
@@ -56,9 +74,23 @@ func FromRawDataHex(rawDataHex string, signatures ...[]byte) (*core.Transaction,
 	return tx, nil
 }
 
-// FromJSON reconstructs a Transaction from a JSON representation
-// as returned by TRON HTTP API endpoints (e.g., /wallet/createtransaction).
-// It extracts raw_data_hex for reliable protobuf deserialization.
+// FromJSON reconstructs a Transaction from a JSON representation as
+// returned by TRON HTTP API endpoints (e.g., /wallet/createtransaction).
+//
+// Deserialization uses the raw_data_hex field exclusively for reliable
+// protobuf reconstruction. The raw_data JSON object is ignored because
+// it has encoding differences (hex vs base64 bytes) that make direct
+// JSON-to-proto mapping unreliable.
+//
+// If a txID is present in the JSON, it is validated against the SHA256
+// hash of the deserialized raw_data. Signatures are decoded from hex
+// strings and attached to the transaction.
+//
+// Example:
+//
+//	resp, _ := http.Post("https://api.trongrid.io/wallet/createtransaction", ...)
+//	body, _ := io.ReadAll(resp.Body)
+//	tx, err := transaction.FromJSON(body)
 func FromJSON(jsonData []byte) (*core.Transaction, error) {
 	var jtx jsonTransaction
 	if err := json.Unmarshal(jsonData, &jtx); err != nil {
@@ -98,8 +130,13 @@ func FromJSON(jsonData []byte) (*core.Transaction, error) {
 	return tx, nil
 }
 
-// ToRawDataHex returns the hex-encoded protobuf of transaction raw data.
+// ToRawDataHex returns the hex-encoded protobuf serialization of the
+// transaction's raw_data. The output is lowercase hex without a "0x"
+// prefix, matching the format used by TRON HTTP APIs.
 func ToRawDataHex(tx *core.Transaction) (string, error) {
+	if tx == nil || tx.GetRawData() == nil {
+		return "", ErrNilRawData
+	}
 	rawBytes, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal raw_data: %w", err)
@@ -107,8 +144,24 @@ func ToRawDataHex(tx *core.Transaction) (string, error) {
 	return hex.EncodeToString(rawBytes), nil
 }
 
-// ToJSON serializes a Transaction to JSON format compatible with TRON HTTP APIs.
+// ToJSON serializes a Transaction to a JSON envelope containing txID,
+// raw_data_hex, raw_data, and signature fields.
+//
+// The txID is computed as the SHA256 hash of the protobuf-encoded raw_data.
+// The raw_data_hex field contains the canonical protobuf serialization and
+// is suitable for use with FromJSON or FromRawDataHex.
+// Signatures are encoded as lowercase hex strings.
+//
+// Note: the raw_data JSON object uses protojson encoding, which differs
+// from the TRON HTTP API format (protojson uses base64 for bytes and @type
+// for Any fields, while TRON uses hex strings and type_url/value). The
+// raw_data field is included for human readability; use raw_data_hex for
+// programmatic deserialization.
 func ToJSON(tx *core.Transaction) ([]byte, error) {
+	if tx == nil || tx.GetRawData() == nil {
+		return nil, ErrNilRawData
+	}
+
 	rawBytes, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal raw_data: %w", err)
@@ -119,7 +172,7 @@ func ToJSON(tx *core.Transaction) ([]byte, error) {
 	h := sha256.Sum256(rawBytes)
 	txID := hex.EncodeToString(h[:])
 
-	// Use protojson for TRON-compatible JSON representation of raw_data
+	// protojson for human-readable raw_data (note: not TRON-identical, see doc)
 	rawDataJSON, err := protojson.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal raw_data to JSON: %w", err)
@@ -140,8 +193,13 @@ func ToJSON(tx *core.Transaction) ([]byte, error) {
 	return json.Marshal(jtx)
 }
 
-// computeTxID returns the hex-encoded SHA256 hash of the transaction's raw_data.
+// computeTxID returns the hex-encoded SHA256 hash of the transaction's
+// protobuf-encoded raw_data. This matches the txID computation used by
+// the TRON network.
 func computeTxID(tx *core.Transaction) (string, error) {
+	if tx == nil || tx.GetRawData() == nil {
+		return "", ErrNilRawData
+	}
 	rawBytes, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return "", err
