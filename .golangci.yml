@@ -1,0 +1,18 @@
+version: "2"
+
+linters:
+  settings:
+    staticcheck:
+      checks:
+        - "all"
+        - "-ST1005"
+  exclusions:
+    rules:
+      - path: "pkg/proto/"
+        linters:
+          - staticcheck
+        text: "ST1"
+      - path: "mock_test\\.go"
+        linters:
+          - staticcheck
+        text: "ST1003"

@@ -1,3 +1,4 @@
+// Package common provides shared utilities for encoding, hashing, and data conversion.
 package common
 
 import (

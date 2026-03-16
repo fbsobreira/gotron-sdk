@@ -1,3 +1,4 @@
+// Package abi provides ABI encoding and decoding for TRON smart contracts.
 package abi
 
 import (

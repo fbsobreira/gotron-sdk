@@ -860,8 +860,7 @@ func TestFullTRONDerivation_KnownMnemonic(t *testing.T) {
 
 	// The public key must be on the curve.
 	assert.True(t,
-		curve.IsOnCurve(pubKey.ToECDSA().X, pubKey.ToECDSA().Y),
-		"derived public key must be on the secp256k1 curve",
+		curve.IsOnCurve(pubKey.ToECDSA().X, pubKey.ToECDSA().Y), "derived public key must be on the secp256k1 curve",
 	)
 
 	// We validate structurally that the derived key is valid rather than

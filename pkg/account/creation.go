@@ -1,3 +1,4 @@
+// Package account provides TRON account creation, import, and export operations.
 package account
 
 import (

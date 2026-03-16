@@ -581,10 +581,10 @@ func (C *Controller) GetResultError() error
 ##### Options
 
 ```go
-// WithPermissionId sets the permission ID for multi-signature transactions.
-// PermissionId = 0 is the owner permission (default), PermissionId = 2 is
+// WithPermissionID sets the permission ID for multi-signature transactions.
+// PermissionID = 0 is the owner permission (default), PermissionID = 2 is
 // commonly used for active permissions in multi-sig setups.
-func WithPermissionId(id int32) func(*Controller)
+func WithPermissionID(id int32) func(*Controller)
 ```
 
 #### Transaction Signing Functions

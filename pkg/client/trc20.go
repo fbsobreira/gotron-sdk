@@ -179,9 +179,7 @@ func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLi
 	return g.TRC20Call(from, contract, req, false, feeLimit)
 }
 
-/*
-parameter:owner is who will sign the tx
-*/
+// TRC20TransferFrom transfers tokens on behalf of another address (owner signs the tx).
 func (g *GrpcClient) TRC20TransferFrom(owner, from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
 	addrA, err := address.Base58ToAddress(from)
 	if err != nil {
