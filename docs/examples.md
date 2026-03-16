@@ -629,12 +629,13 @@ func main() {
 		log.Fatal(err)
 	}
 	if weight.CurrentWeight < weight.Permission.Threshold {
-		// Share the partially-signed transaction with the next signer
-		partialHex, err := transaction.ToRawDataHex(signedTx)
+		// Share the partially-signed transaction with the next signer.
+		// Use ToJSON to preserve existing signatures — ToRawDataHex would drop them.
+		partialJSON, err := transaction.ToJSON(signedTx)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Need more signatures. Share raw_data_hex: %s\n", partialHex)
+		fmt.Printf("Need more signatures. Share transaction JSON:\n%s\n", partialJSON)
 		fmt.Printf("Signatures so far: %d\n", len(signedTx.Signature))
 		return
 	}

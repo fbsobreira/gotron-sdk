@@ -2,14 +2,15 @@
 // Each function is a 1:1 copy of the doc example, with only two changes:
 //   - Placeholder addresses replaced with real Nile testnet addresses
 //   - keys.GetPrivateKeyFromHex() replaced with keys.GenerateKey()
-//     (unless a real private key is provided via -key flag)
+//     (unless a real private key is provided via env or flag)
 //
 // If this file fails to run, the documentation is wrong.
 //
 // Usage:
 //
 //	go run ./examples/multisig                          # dry-run (no broadcast)
-//	go run ./examples/multisig -key <private-key-hex>   # live mode (broadcasts to Nile)
+//	MULTISIG_KEY=<hex> go run ./examples/multisig       # live mode (key from env)
+//	go run ./examples/multisig -key <private-key-hex>   # live mode (key from flag, unsafe: visible in shell history)
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
@@ -53,9 +55,14 @@ var (
 )
 
 func main() {
-	flag.StringVar(&privKeyHex, "key", "", "private key hex for live broadcast (omit for dry-run)")
+	flag.StringVar(&privKeyHex, "key", "", "private key hex (prefer MULTISIG_KEY env var)")
 	flag.BoolVar(&skipPermission, "skip-permission", false, "skip UpdateAccountPermission (costs 100 TRX); use if already configured from a previous run")
 	flag.Parse()
+
+	// Prefer env var over CLI flag to avoid leaking keys in shell history.
+	if envKey := os.Getenv("MULTISIG_KEY"); envKey != "" {
+		privKeyHex = envKey
+	}
 
 	dryRun = privKeyHex == ""
 
@@ -353,12 +360,13 @@ func exampleSignExternalTransaction() {
 		log.Fatal(err)
 	}
 	if weight.CurrentWeight < weight.Permission.Threshold {
-		// Share the partially-signed transaction with the next signer
-		partialHex, err := transaction.ToRawDataHex(signedTx)
+		// Share the partially-signed transaction with the next signer.
+		// Use ToJSON to preserve existing signatures — ToRawDataHex would drop them.
+		partialJSON, err := transaction.ToJSON(signedTx)
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("  Need more signatures. Share raw_data_hex: %s...\n", partialHex[:40])
+		fmt.Printf("  Need more signatures. Share transaction JSON: %s...\n", string(partialJSON)[:80])
 		fmt.Printf("  Signatures so far: %d\n", len(signedTx.Signature))
 	} else {
 		// Broadcast when threshold is met
