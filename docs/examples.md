@@ -564,13 +564,15 @@ func main() {
 	}
 
 	fmt.Printf("Current weight: %d\n", weight.CurrentWeight)
-	fmt.Printf("Required threshold: %d\n", weight.Permission.Threshold)
+	if weight.GetPermission() != nil {
+		fmt.Printf("Required threshold: %d\n", weight.Permission.Threshold)
+	}
 	fmt.Printf("Approved signers: %d\n", len(weight.ApprovedList))
 	for _, addr := range weight.ApprovedList {
 		fmt.Printf("  - %s\n", hex.EncodeToString(addr))
 	}
 
-	if weight.CurrentWeight < weight.Permission.Threshold {
+	if weight.GetPermission() != nil && weight.CurrentWeight < weight.Permission.Threshold {
 		fmt.Println("Not enough signatures yet — collect more before broadcasting.")
 	} else {
 		fmt.Println("Threshold met — ready to broadcast!")
