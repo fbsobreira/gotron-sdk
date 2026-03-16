@@ -198,6 +198,22 @@ func TestTRC20TransferFrom(t *testing.T) {
 	require.NotNil(t, tx)
 }
 
+func TestTRC20TransferFrom_InvalidOwner(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+
+	t.Run("empty owner", func(t *testing.T) {
+		_, err := c.TRC20TransferFrom("", "TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH", "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", big.NewInt(1), 100)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid owner address")
+	})
+
+	t.Run("invalid owner", func(t *testing.T) {
+		_, err := c.TRC20TransferFrom("not-valid", "TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH", "TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM", "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", big.NewInt(1), 100)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "invalid owner address")
+	})
+}
+
 func TestTRC20Call_RPCError(t *testing.T) {
 	mock := &mockWalletServer{
 		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
