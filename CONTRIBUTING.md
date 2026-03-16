@@ -72,7 +72,7 @@ make tidy
 
 We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
-```
+```text
 <type>(<scope>): <description>
 
 [optional body]
@@ -81,7 +81,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 **Types:** `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `perf`
 
 **Examples:**
-```
+```text
 feat(client): add GetAccountResource method
 fix(address): handle empty base58 input
 docs: update SDK usage examples

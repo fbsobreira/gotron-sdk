@@ -18,16 +18,21 @@ GoTRON SDK is a comprehensive Go SDK and CLI tool for interacting with the TRON 
 
 GoTRON SDK is built for **backend and infrastructure** teams that need performance, reliability, and operational tooling.
 
-| | GoTRON SDK | tronweb (JS/TS) | tron-api-python |
+| | GoTRON SDK | [tronweb] (JS/TS) | [tron-api-python] |
 |--|-----------|-----------------|-----------------|
 | **Transport** | gRPC (binary, streaming) | HTTP/JSON | HTTP/JSON |
 | **Deployment** | Single static binary | Node.js runtime | Python runtime |
 | **Hardware Signing** | Built-in Ledger support | Separate adapter | No |
-| **CLI Tooling** | `tronctl` included | None | None |
+| **CLI Tooling** | `tronctl` included | None | Yes (CLI framework) |
 | **Concurrency** | Goroutines (native) | Event loop | GIL-limited |
 | **HD Wallets** | Yes (BIP39/44) | Yes (BIP39/44) | No |
-| **Multi-sig** | Yes | Yes | Limited |
-| **Type Safety** | Full (compiled) | Full (TypeScript) | Hints only |
+| **Multi-sig** | Yes | Yes | Not documented |
+| **Type Safety** | Full (compiled) | Full (TypeScript) | Not documented |
+
+> Comparison as of 2026-03-16. Verify claims against each project's README.
+
+[tronweb]: https://github.com/tronprotocol/tronweb
+[tron-api-python]: https://github.com/iexbase/tron-api-python
 
 ## Features
 
@@ -196,7 +201,7 @@ source <(tronctl completion zsh)
 ## Development
 
 ### Requirements
-- Go 1.18 or higher
+- Go 1.24 or higher
 - Make (for building)
 - Protocol Buffers compiler (for regenerating protos)
 
