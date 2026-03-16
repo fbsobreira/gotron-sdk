@@ -68,7 +68,7 @@ func TestWithPermissionIDDefault(t *testing.T) {
 	}
 }
 
-func TestSetPermissionId(t *testing.T) {
+func TestSetPermissionID(t *testing.T) {
 	tx := newTestTransaction()
 
 	setPermissionID(tx, 2)
@@ -82,7 +82,7 @@ func TestSetPermissionId(t *testing.T) {
 	}
 }
 
-func TestSetPermissionIdMultipleContracts(t *testing.T) {
+func TestSetPermissionIDMultipleContracts(t *testing.T) {
 	tx := &core.Transaction{
 		RawData: &core.TransactionRaw{
 			Contract: []*core.Transaction_Contract{
@@ -101,7 +101,7 @@ func TestSetPermissionIdMultipleContracts(t *testing.T) {
 	}
 }
 
-func TestApplyPermissionId(t *testing.T) {
+func TestApplyPermissionID(t *testing.T) {
 	tx := newTestTransaction()
 	ctrl := NewController(nil, nil, nil, tx, WithPermissionID(2))
 
@@ -113,7 +113,7 @@ func TestApplyPermissionId(t *testing.T) {
 	}
 }
 
-func TestApplyPermissionIdSkipsWhenNotSet(t *testing.T) {
+func TestApplyPermissionIDSkipsWhenNotSet(t *testing.T) {
 	tx := newTestTransaction()
 	// Manually set a non-zero value on the contract
 	tx.GetRawData().GetContract()[0].PermissionId = 5
@@ -129,7 +129,7 @@ func TestApplyPermissionIdSkipsWhenNotSet(t *testing.T) {
 	}
 }
 
-func TestSetPermissionIdNilSafe(t *testing.T) {
+func TestSetPermissionIDNilSafe(t *testing.T) {
 	// Should not panic on nil transaction or nil raw data
 	setPermissionID(&core.Transaction{}, 2)
 	setPermissionID(&core.Transaction{RawData: &core.TransactionRaw{}}, 2)

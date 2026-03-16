@@ -846,6 +846,8 @@ func (x *TransactionExtention) SetData(memo string) error
 
 // SetPermissionId sets the PermissionId on all contracts in the transaction.
 // Must be called before signing. Updates the transaction hash automatically.
+// Note: This method uses protobuf field naming (lowercase 'd'). For the
+// Controller functional option, use WithPermissionID (Go convention, uppercase 'D').
 func (x *TransactionExtention) SetPermissionId(id int32) error
 
 // UpdateHash recalculates the transaction hash (Txid).
