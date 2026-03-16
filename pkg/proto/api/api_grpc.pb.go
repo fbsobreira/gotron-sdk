@@ -105,6 +105,7 @@ const (
 	Wallet_EstimateEnergy_FullMethodName                               = "/protocol.Wallet/EstimateEnergy"
 	Wallet_ClearContractABI_FullMethodName                             = "/protocol.Wallet/ClearContractABI"
 	Wallet_ListWitnesses_FullMethodName                                = "/protocol.Wallet/ListWitnesses"
+	Wallet_GetPaginatedNowWitnessList_FullMethodName                   = "/protocol.Wallet/GetPaginatedNowWitnessList"
 	Wallet_GetDelegatedResource_FullMethodName                         = "/protocol.Wallet/GetDelegatedResource"
 	Wallet_GetDelegatedResourceV2_FullMethodName                       = "/protocol.Wallet/GetDelegatedResourceV2"
 	Wallet_GetDelegatedResourceAccountIndex_FullMethodName             = "/protocol.Wallet/GetDelegatedResourceAccountIndex"
@@ -297,6 +298,7 @@ type WalletClient interface {
 	EstimateEnergy(ctx context.Context, in *core.TriggerSmartContract, opts ...grpc.CallOption) (*EstimateEnergyMessage, error)
 	ClearContractABI(ctx context.Context, in *core.ClearABIContract, opts ...grpc.CallOption) (*TransactionExtention, error)
 	ListWitnesses(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*WitnessList, error)
+	GetPaginatedNowWitnessList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*WitnessList, error)
 	GetDelegatedResource(ctx context.Context, in *DelegatedResourceMessage, opts ...grpc.CallOption) (*DelegatedResourceList, error)
 	GetDelegatedResourceV2(ctx context.Context, in *DelegatedResourceMessage, opts ...grpc.CallOption) (*DelegatedResourceList, error)
 	GetDelegatedResourceAccountIndex(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.DelegatedResourceAccountIndex, error)
@@ -1220,6 +1222,16 @@ func (c *walletClient) ListWitnesses(ctx context.Context, in *EmptyMessage, opts
 	return out, nil
 }
 
+func (c *walletClient) GetPaginatedNowWitnessList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*WitnessList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WitnessList)
+	err := c.cc.Invoke(ctx, Wallet_GetPaginatedNowWitnessList_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *walletClient) GetDelegatedResource(ctx context.Context, in *DelegatedResourceMessage, opts ...grpc.CallOption) (*DelegatedResourceList, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(DelegatedResourceList)
@@ -1959,6 +1971,7 @@ type WalletServer interface {
 	EstimateEnergy(context.Context, *core.TriggerSmartContract) (*EstimateEnergyMessage, error)
 	ClearContractABI(context.Context, *core.ClearABIContract) (*TransactionExtention, error)
 	ListWitnesses(context.Context, *EmptyMessage) (*WitnessList, error)
+	GetPaginatedNowWitnessList(context.Context, *PaginatedMessage) (*WitnessList, error)
 	GetDelegatedResource(context.Context, *DelegatedResourceMessage) (*DelegatedResourceList, error)
 	GetDelegatedResourceV2(context.Context, *DelegatedResourceMessage) (*DelegatedResourceList, error)
 	GetDelegatedResourceAccountIndex(context.Context, *BytesMessage) (*core.DelegatedResourceAccountIndex, error)
@@ -2286,6 +2299,9 @@ func (UnimplementedWalletServer) ClearContractABI(context.Context, *core.ClearAB
 }
 func (UnimplementedWalletServer) ListWitnesses(context.Context, *EmptyMessage) (*WitnessList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListWitnesses not implemented")
+}
+func (UnimplementedWalletServer) GetPaginatedNowWitnessList(context.Context, *PaginatedMessage) (*WitnessList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPaginatedNowWitnessList not implemented")
 }
 func (UnimplementedWalletServer) GetDelegatedResource(context.Context, *DelegatedResourceMessage) (*DelegatedResourceList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDelegatedResource not implemented")
@@ -4021,6 +4037,24 @@ func _Wallet_ListWitnesses_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Wallet_GetPaginatedNowWitnessList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PaginatedMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletServer).GetPaginatedNowWitnessList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Wallet_GetPaginatedNowWitnessList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletServer).GetPaginatedNowWitnessList(ctx, req.(*PaginatedMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Wallet_GetDelegatedResource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DelegatedResourceMessage)
 	if err := dec(in); err != nil {
@@ -5467,6 +5501,10 @@ var Wallet_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _Wallet_ListWitnesses_Handler,
 		},
 		{
+			MethodName: "GetPaginatedNowWitnessList",
+			Handler:    _Wallet_GetPaginatedNowWitnessList_Handler,
+		},
+		{
 			MethodName: "GetDelegatedResource",
 			Handler:    _Wallet_GetDelegatedResource_Handler,
 		},
@@ -5719,6 +5757,7 @@ const (
 	WalletSolidity_GetAccount_FullMethodName                         = "/protocol.WalletSolidity/GetAccount"
 	WalletSolidity_GetAccountById_FullMethodName                     = "/protocol.WalletSolidity/GetAccountById"
 	WalletSolidity_ListWitnesses_FullMethodName                      = "/protocol.WalletSolidity/ListWitnesses"
+	WalletSolidity_GetPaginatedNowWitnessList_FullMethodName         = "/protocol.WalletSolidity/GetPaginatedNowWitnessList"
 	WalletSolidity_GetAssetIssueList_FullMethodName                  = "/protocol.WalletSolidity/GetAssetIssueList"
 	WalletSolidity_GetPaginatedAssetIssueList_FullMethodName         = "/protocol.WalletSolidity/GetPaginatedAssetIssueList"
 	WalletSolidity_GetAssetIssueByName_FullMethodName                = "/protocol.WalletSolidity/GetAssetIssueByName"
@@ -5771,6 +5810,7 @@ type WalletSolidityClient interface {
 	GetAccount(ctx context.Context, in *core.Account, opts ...grpc.CallOption) (*core.Account, error)
 	GetAccountById(ctx context.Context, in *core.Account, opts ...grpc.CallOption) (*core.Account, error)
 	ListWitnesses(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*WitnessList, error)
+	GetPaginatedNowWitnessList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*WitnessList, error)
 	GetAssetIssueList(ctx context.Context, in *EmptyMessage, opts ...grpc.CallOption) (*AssetIssueList, error)
 	GetPaginatedAssetIssueList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*AssetIssueList, error)
 	GetAssetIssueByName(ctx context.Context, in *BytesMessage, opts ...grpc.CallOption) (*core.AssetIssueContract, error)
@@ -5852,6 +5892,16 @@ func (c *walletSolidityClient) ListWitnesses(ctx context.Context, in *EmptyMessa
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(WitnessList)
 	err := c.cc.Invoke(ctx, WalletSolidity_ListWitnesses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *walletSolidityClient) GetPaginatedNowWitnessList(ctx context.Context, in *PaginatedMessage, opts ...grpc.CallOption) (*WitnessList, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(WitnessList)
+	err := c.cc.Invoke(ctx, WalletSolidity_GetPaginatedNowWitnessList_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -6295,6 +6345,7 @@ type WalletSolidityServer interface {
 	GetAccount(context.Context, *core.Account) (*core.Account, error)
 	GetAccountById(context.Context, *core.Account) (*core.Account, error)
 	ListWitnesses(context.Context, *EmptyMessage) (*WitnessList, error)
+	GetPaginatedNowWitnessList(context.Context, *PaginatedMessage) (*WitnessList, error)
 	GetAssetIssueList(context.Context, *EmptyMessage) (*AssetIssueList, error)
 	GetPaginatedAssetIssueList(context.Context, *PaginatedMessage) (*AssetIssueList, error)
 	GetAssetIssueByName(context.Context, *BytesMessage) (*core.AssetIssueContract, error)
@@ -6360,6 +6411,9 @@ func (UnimplementedWalletSolidityServer) GetAccountById(context.Context, *core.A
 }
 func (UnimplementedWalletSolidityServer) ListWitnesses(context.Context, *EmptyMessage) (*WitnessList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListWitnesses not implemented")
+}
+func (UnimplementedWalletSolidityServer) GetPaginatedNowWitnessList(context.Context, *PaginatedMessage) (*WitnessList, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetPaginatedNowWitnessList not implemented")
 }
 func (UnimplementedWalletSolidityServer) GetAssetIssueList(context.Context, *EmptyMessage) (*AssetIssueList, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetAssetIssueList not implemented")
@@ -6561,6 +6615,24 @@ func _WalletSolidity_ListWitnesses_Handler(srv interface{}, ctx context.Context,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(WalletSolidityServer).ListWitnesses(ctx, req.(*EmptyMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _WalletSolidity_GetPaginatedNowWitnessList_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PaginatedMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WalletSolidityServer).GetPaginatedNowWitnessList(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: WalletSolidity_GetPaginatedNowWitnessList_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WalletSolidityServer).GetPaginatedNowWitnessList(ctx, req.(*PaginatedMessage))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -7357,6 +7429,10 @@ var WalletSolidity_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListWitnesses",
 			Handler:    _WalletSolidity_ListWitnesses_Handler,
+		},
+		{
+			MethodName: "GetPaginatedNowWitnessList",
+			Handler:    _WalletSolidity_GetPaginatedNowWitnessList_Handler,
 		},
 		{
 			MethodName: "GetAssetIssueList",
