@@ -37,8 +37,7 @@ func TestNewKey(t *testing.T) {
 
 		assert.NotEqual(t, key1.ID.String(), key2.ID.String(),
 			"two generated keys must have different UUIDs")
-		assert.NotEqual(t, key1.PrivateKey.D.Bytes(), key2.PrivateKey.D.Bytes(),
-			"two generated keys must have different private keys")
+		assert.NotEqual(t, key1.PrivateKey.D.Bytes(), key2.PrivateKey.D.Bytes(), "two generated keys must have different private keys")
 	})
 }
 
@@ -92,8 +91,7 @@ func TestKeyJSON(t *testing.T) {
 				"UUID must round-trip")
 			assert.Equal(t, original.Address, address.Address(restored.Address),
 				"address must round-trip")
-			assert.Equal(t, original.PrivateKey.D.Bytes(), restored.PrivateKey.D.Bytes(),
-				"private key must round-trip")
+			assert.Equal(t, original.PrivateKey.D.Bytes(), restored.PrivateKey.D.Bytes(), "private key must round-trip")
 		})
 	}
 

@@ -24,33 +24,33 @@ func newTestTransaction() *core.Transaction {
 	}
 }
 
-func TestWithPermissionId(t *testing.T) {
+func TestWithPermissionID(t *testing.T) {
 	tx := newTestTransaction()
 
-	ctrl := NewController(nil, nil, nil, tx, WithPermissionId(2))
+	ctrl := NewController(nil, nil, nil, tx, WithPermissionID(2))
 
-	if ctrl.Behavior.PermissionId == nil || *ctrl.Behavior.PermissionId != 2 {
-		t.Errorf("expected PermissionId=2, got %v", ctrl.Behavior.PermissionId)
+	if ctrl.Behavior.PermissionID == nil || *ctrl.Behavior.PermissionID != 2 {
+		t.Errorf("expected PermissionId=2, got %v", ctrl.Behavior.PermissionID)
 	}
 }
 
-func TestWithPermissionIdZero(t *testing.T) {
+func TestWithPermissionIDZero(t *testing.T) {
 	tx := newTestTransaction()
 	// Pre-set a non-zero permission on the contract
 	tx.GetRawData().GetContract()[0].PermissionId = 2
 
-	ctrl := NewController(nil, nil, nil, tx, WithPermissionId(0))
+	ctrl := NewController(nil, nil, nil, tx, WithPermissionID(0))
 
-	// WithPermissionId(0) should be explicitly set (not nil)
-	if ctrl.Behavior.PermissionId == nil {
+	// WithPermissionID(0) should be explicitly set (not nil)
+	if ctrl.Behavior.PermissionID == nil {
 		t.Fatal("expected PermissionId to be set, got nil")
 	}
-	if *ctrl.Behavior.PermissionId != 0 {
-		t.Errorf("expected PermissionId=0, got %d", *ctrl.Behavior.PermissionId)
+	if *ctrl.Behavior.PermissionID != 0 {
+		t.Errorf("expected PermissionId=0, got %d", *ctrl.Behavior.PermissionID)
 	}
 
 	// Apply should overwrite the contract's PermissionId back to 0
-	ctrl.applyPermissionId()
+	ctrl.applyPermissionID()
 
 	if tx.GetRawData().GetContract()[0].PermissionId != 0 {
 		t.Errorf("expected contract PermissionId=0 after apply, got %d",
@@ -58,20 +58,20 @@ func TestWithPermissionIdZero(t *testing.T) {
 	}
 }
 
-func TestWithPermissionIdDefault(t *testing.T) {
+func TestWithPermissionIDDefault(t *testing.T) {
 	tx := newTestTransaction()
 
 	ctrl := NewController(nil, nil, nil, tx)
 
-	if ctrl.Behavior.PermissionId != nil {
-		t.Errorf("expected default PermissionId=nil, got %d", *ctrl.Behavior.PermissionId)
+	if ctrl.Behavior.PermissionID != nil {
+		t.Errorf("expected default PermissionId=nil, got %d", *ctrl.Behavior.PermissionID)
 	}
 }
 
-func TestSetPermissionId(t *testing.T) {
+func TestSetPermissionID(t *testing.T) {
 	tx := newTestTransaction()
 
-	setPermissionId(tx, 2)
+	setPermissionID(tx, 2)
 
 	contracts := tx.GetRawData().GetContract()
 	if len(contracts) != 1 {
@@ -82,7 +82,7 @@ func TestSetPermissionId(t *testing.T) {
 	}
 }
 
-func TestSetPermissionIdMultipleContracts(t *testing.T) {
+func TestSetPermissionIDMultipleContracts(t *testing.T) {
 	tx := &core.Transaction{
 		RawData: &core.TransactionRaw{
 			Contract: []*core.Transaction_Contract{
@@ -92,7 +92,7 @@ func TestSetPermissionIdMultipleContracts(t *testing.T) {
 		},
 	}
 
-	setPermissionId(tx, 3)
+	setPermissionID(tx, 3)
 
 	for i, contract := range tx.GetRawData().GetContract() {
 		if contract.PermissionId != 3 {
@@ -101,11 +101,11 @@ func TestSetPermissionIdMultipleContracts(t *testing.T) {
 	}
 }
 
-func TestApplyPermissionId(t *testing.T) {
+func TestApplyPermissionID(t *testing.T) {
 	tx := newTestTransaction()
-	ctrl := NewController(nil, nil, nil, tx, WithPermissionId(2))
+	ctrl := NewController(nil, nil, nil, tx, WithPermissionID(2))
 
-	ctrl.applyPermissionId()
+	ctrl.applyPermissionID()
 
 	contracts := ctrl.tx.GetRawData().GetContract()
 	if contracts[0].PermissionId != 2 {
@@ -113,29 +113,29 @@ func TestApplyPermissionId(t *testing.T) {
 	}
 }
 
-func TestApplyPermissionIdSkipsWhenNotSet(t *testing.T) {
+func TestApplyPermissionIDSkipsWhenNotSet(t *testing.T) {
 	tx := newTestTransaction()
 	// Manually set a non-zero value on the contract
 	tx.GetRawData().GetContract()[0].PermissionId = 5
 
-	ctrl := NewController(nil, nil, nil, tx) // no WithPermissionId option
+	ctrl := NewController(nil, nil, nil, tx) // no WithPermissionID option
 
-	ctrl.applyPermissionId()
+	ctrl.applyPermissionID()
 
-	// Should NOT overwrite because Behavior.PermissionId is nil
+	// Should NOT overwrite because Behavior.PermissionID is nil
 	if tx.GetRawData().GetContract()[0].PermissionId != 5 {
 		t.Errorf("expected PermissionId=5 to be preserved, got %d",
 			tx.GetRawData().GetContract()[0].PermissionId)
 	}
 }
 
-func TestSetPermissionIdNilSafe(t *testing.T) {
+func TestSetPermissionIDNilSafe(t *testing.T) {
 	// Should not panic on nil transaction or nil raw data
-	setPermissionId(&core.Transaction{}, 2)
-	setPermissionId(&core.Transaction{RawData: &core.TransactionRaw{}}, 2)
+	setPermissionID(&core.Transaction{}, 2)
+	setPermissionID(&core.Transaction{RawData: &core.TransactionRaw{}}, 2)
 }
 
-func TestSignTransactionWithPermissionId(t *testing.T) {
+func TestSignTransactionWithPermissionID(t *testing.T) {
 	privKey, err := btcec.NewPrivateKey()
 	if err != nil {
 		t.Fatalf("failed to generate key: %v", err)
@@ -163,7 +163,7 @@ func TestSignTransactionWithPermissionId(t *testing.T) {
 
 	// Sign with PermissionId = 2
 	tx2 := makeTx()
-	setPermissionId(tx2, 2)
+	setPermissionID(tx2, 2)
 	signed2, err := SignTransaction(tx2, privKey)
 	if err != nil {
 		t.Fatalf("sign tx2: %v", err)
@@ -192,7 +192,7 @@ func TestSignTransactionMultiSig(t *testing.T) {
 	}
 
 	tx := newTestTransaction()
-	setPermissionId(tx, 2)
+	setPermissionID(tx, 2)
 
 	// Capture raw data before signing
 	rawBefore, err := proto.Marshal(tx.GetRawData())

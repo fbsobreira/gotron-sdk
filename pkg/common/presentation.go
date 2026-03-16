@@ -14,7 +14,7 @@ func JSONPrettyFormat(in string) string {
 	return out.String()
 }
 
-// returns "{}" on failure case
+// ToJSONUnsafe returns "{}" on failure case.
 func ToJSONUnsafe(payload interface{}, pretty bool) string {
 	j, err := json.Marshal(payload)
 	if err != nil {

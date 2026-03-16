@@ -1,3 +1,4 @@
+// Package numeric provides decimal arithmetic utilities.
 package numeric
 
 // Incorporated from cosmos-sdk

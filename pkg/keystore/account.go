@@ -125,7 +125,7 @@ const (
 	WalletDropped
 )
 
-// departure is detected.
+// WalletEvent is emitted when a wallet arrival or departure is detected.
 type WalletEvent struct {
 	Wallet Wallet          // Wallet instance arrived or departed
 	Kind   WalletEventType // Event type that happened in the system

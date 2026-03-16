@@ -1,3 +1,4 @@
+// Package ledger provides hardware wallet integration for TRON signing.
 package ledger
 
 import (

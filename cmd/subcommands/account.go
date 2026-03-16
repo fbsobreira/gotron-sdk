@@ -1,3 +1,4 @@
+// Package cmd provides CLI subcommands for the tronctl command-line tool.
 package cmd
 
 import (

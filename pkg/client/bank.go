@@ -46,7 +46,7 @@ func (g *GrpcClient) FreezeBalance(from, delegateTo string,
 	return tx, nil
 }
 
-// FreezeBalance from base58 address
+// FreezeBalanceV2 freezes balance from base58 address.
 func (g *GrpcClient) FreezeBalanceV2(from string,
 	resource core.ResourceCode, frozenBalance int64) (*api.TransactionExtention, error) {
 	var err error
@@ -108,7 +108,7 @@ func (g *GrpcClient) UnfreezeBalance(from, delegateTo string, resource core.Reso
 	return tx, nil
 }
 
-// UnfreezeBalance from base58 address
+// UnfreezeBalanceV2 unfreezes balance from base58 address.
 func (g *GrpcClient) UnfreezeBalanceV2(from string, resource core.ResourceCode, unfreezeBalance int64) (*api.TransactionExtention, error) {
 	var err error
 

@@ -1,3 +1,4 @@
+// Package contract provides smart contract interaction utilities for TRON.
 package contract
 
 import (

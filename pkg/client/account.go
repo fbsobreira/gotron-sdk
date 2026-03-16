@@ -1,3 +1,4 @@
+// Package client provides a gRPC client for interacting with the TRON network.
 package client
 
 import (

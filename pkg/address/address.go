@@ -1,3 +1,4 @@
+// Package address provides TRON address encoding, decoding, and validation.
 package address
 
 import (

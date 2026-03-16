@@ -10,8 +10,12 @@ on:
 
 jobs:
   test:
-    name: Test
+    name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ['1.24', '1.26']
     steps:
       - name: Check out code
         uses: actions/checkout@v6
@@ -19,7 +23,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version-file: 'go.mod'
+          go-version: ${{ matrix.go-version }}
           cache: true
 
       - name: Get dependencies
@@ -29,6 +33,7 @@ jobs:
         run: go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $(go list ./... | grep -v -E '/pkg/proto/|/cmd')
 
       - name: Upload coverage to Codecov
+        if: matrix.go-version == '1.26'
         uses: codecov/codecov-action@v5
         with:
           files: coverage.out

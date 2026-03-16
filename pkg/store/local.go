@@ -1,3 +1,4 @@
+// Package store provides local keystore management for TRON accounts.
 package store
 
 import (

@@ -51,7 +51,7 @@ func NewParams(purpose, coinType, account uint32, change bool, addressIdx uint32
 	}
 }
 
-// Parse the BIP44 path and unmarshal into the struct.
+// NewParamsFromPath parses the BIP44 path and unmarshals into the struct.
 func NewParamsFromPath(path string) (*BIP44Params, error) {
 	spl := strings.Split(path, "/")
 	if len(spl) != 5 {

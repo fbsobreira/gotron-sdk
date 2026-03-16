@@ -1,3 +1,4 @@
+// Package mnemonic provides BIP39 mnemonic phrase generation and validation.
 package mnemonic
 
 import (

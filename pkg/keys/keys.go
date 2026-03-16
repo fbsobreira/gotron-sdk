@@ -1,3 +1,4 @@
+// Package keys provides key management utilities for TRON accounts.
 package keys
 
 import (
@@ -11,8 +12,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-
-	// "github.com/ethereum/go-ethereum/crypto"
 
 	homedir "github.com/mitchellh/go-homedir"
 )

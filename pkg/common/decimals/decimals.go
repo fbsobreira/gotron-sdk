@@ -1,3 +1,4 @@
+// Package decimals provides decimal formatting and conversion utilities.
 package decimals
 
 import (
