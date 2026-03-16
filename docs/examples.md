@@ -572,9 +572,12 @@ func main() {
 		fmt.Printf("  - %s\n", hex.EncodeToString(addr))
 	}
 
-	if weight.GetPermission() != nil && weight.CurrentWeight < weight.Permission.Threshold {
+	switch {
+	case weight.GetPermission() == nil:
+		fmt.Println("Permission info not available — cannot determine threshold.")
+	case weight.CurrentWeight < weight.Permission.Threshold:
 		fmt.Println("Not enough signatures yet — collect more before broadcasting.")
-	} else {
+	default:
 		fmt.Println("Threshold met — ready to broadcast!")
 	}
 }

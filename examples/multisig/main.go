@@ -311,9 +311,12 @@ func exampleValidateSignWeight() {
 		fmt.Printf("    - %s\n", hex.EncodeToString(addr))
 	}
 
-	if weight.GetPermission() != nil && weight.CurrentWeight < weight.Permission.Threshold {
+	switch {
+	case weight.GetPermission() == nil:
+		fmt.Println("  Permission info not available — cannot determine threshold.")
+	case weight.CurrentWeight < weight.Permission.Threshold:
 		fmt.Println("  Not enough signatures yet — collect more before broadcasting.")
-	} else {
+	default:
 		fmt.Println("  Threshold met — ready to broadcast!")
 	}
 	fmt.Println("  OK")
@@ -371,7 +374,11 @@ func exampleSignExternalTransaction() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("  Need more signatures. Share transaction JSON: %s...\n", string(partialJSON)[:80])
+		preview := string(partialJSON)
+		if len(preview) > 80 {
+			preview = preview[:80]
+		}
+		fmt.Printf("  Need more signatures. Share transaction JSON: %s...\n", preview)
 		fmt.Printf("  Signatures so far: %d\n", len(signedTx.Signature))
 	} else {
 		// Broadcast when threshold is met
