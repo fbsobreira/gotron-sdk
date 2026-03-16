@@ -17,6 +17,18 @@ func (g *GrpcClient) ListWitnesses() (*api.WitnessList, error) {
 	return g.Client.ListWitnesses(ctx, new(api.EmptyMessage))
 }
 
+// ListWitnessesPaginated returns a paginated list of current witnesses
+func (g *GrpcClient) ListWitnessesPaginated(page int64, limit ...int) (*api.WitnessList, error) {
+	ctx, cancel := g.getContext()
+	defer cancel()
+
+	useLimit := int64(10)
+	if len(limit) == 1 {
+		useLimit = int64(limit[0])
+	}
+	return g.Client.GetPaginatedNowWitnessList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
+}
+
 // CreateWitness upgrade account to network witness
 func (g *GrpcClient) CreateWitness(from, urlStr string) (*api.TransactionExtention, error) {
 	var err error

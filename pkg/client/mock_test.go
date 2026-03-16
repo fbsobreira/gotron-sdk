@@ -60,15 +60,16 @@ type mockWalletServer struct {
 	UnDelegateResourceFunc func(context.Context, *core.UnDelegateResourceContract) (*api.TransactionExtention, error)
 
 	// Network
-	ListNodesFunc                func(context.Context, *api.EmptyMessage) (*api.NodeList, error)
-	GetNextMaintenanceTimeFunc   func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
-	TotalTransactionFunc         func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
-	GetNodeInfoFunc              func(context.Context, *api.EmptyMessage) (*core.NodeInfo, error)
-	GetBrokerageInfoFunc         func(context.Context, *api.BytesMessage) (*api.NumberMessage, error)
-	ListWitnessesFunc            func(context.Context, *api.EmptyMessage) (*api.WitnessList, error)
-	VoteWitnessAccount2Func      func(context.Context, *core.VoteWitnessContract) (*api.TransactionExtention, error)
-	CreateWitness2Func           func(context.Context, *core.WitnessCreateContract) (*api.TransactionExtention, error)
-	GetTransactionSignWeightFunc func(context.Context, *core.Transaction) (*api.TransactionSignWeight, error)
+	ListNodesFunc                  func(context.Context, *api.EmptyMessage) (*api.NodeList, error)
+	GetNextMaintenanceTimeFunc     func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
+	TotalTransactionFunc           func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
+	GetNodeInfoFunc                func(context.Context, *api.EmptyMessage) (*core.NodeInfo, error)
+	GetBrokerageInfoFunc           func(context.Context, *api.BytesMessage) (*api.NumberMessage, error)
+	ListWitnessesFunc              func(context.Context, *api.EmptyMessage) (*api.WitnessList, error)
+	GetPaginatedNowWitnessListFunc func(context.Context, *api.PaginatedMessage) (*api.WitnessList, error)
+	VoteWitnessAccount2Func        func(context.Context, *core.VoteWitnessContract) (*api.TransactionExtention, error)
+	CreateWitness2Func             func(context.Context, *core.WitnessCreateContract) (*api.TransactionExtention, error)
+	GetTransactionSignWeightFunc   func(context.Context, *core.Transaction) (*api.TransactionSignWeight, error)
 
 	// Assets
 	GetAssetIssueByAccountFunc     func(context.Context, *core.Account) (*api.AssetIssueList, error)
@@ -342,6 +343,13 @@ func (m *mockWalletServer) ListWitnesses(ctx context.Context, in *api.EmptyMessa
 		return m.ListWitnessesFunc(ctx, in)
 	}
 	return m.UnimplementedWalletServer.ListWitnesses(ctx, in)
+}
+
+func (m *mockWalletServer) GetPaginatedNowWitnessList(ctx context.Context, in *api.PaginatedMessage) (*api.WitnessList, error) {
+	if m.GetPaginatedNowWitnessListFunc != nil {
+		return m.GetPaginatedNowWitnessListFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetPaginatedNowWitnessList(ctx, in)
 }
 
 func (m *mockWalletServer) VoteWitnessAccount2(ctx context.Context, in *core.VoteWitnessContract) (*api.TransactionExtention, error) {

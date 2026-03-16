@@ -327,6 +327,40 @@ func TestListWitnesses(t *testing.T) {
 	assert.Equal(t, int64(1000), list.Witnesses[0].VoteCount)
 }
 
+func TestListWitnessesPaginated(t *testing.T) {
+	mock := &mockWalletServer{
+		GetPaginatedNowWitnessListFunc: func(_ context.Context, in *api.PaginatedMessage) (*api.WitnessList, error) {
+			assert.Equal(t, int64(0), in.Offset)
+			assert.Equal(t, int64(10), in.Limit)
+			return &api.WitnessList{
+				Witnesses: []*core.Witness{
+					{VoteCount: 2000, TotalProduced: 300},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	list, err := c.ListWitnessesPaginated(0)
+	require.NoError(t, err)
+	require.Len(t, list.Witnesses, 1)
+	assert.Equal(t, int64(2000), list.Witnesses[0].VoteCount)
+}
+
+func TestListWitnessesPaginated_CustomLimit(t *testing.T) {
+	mock := &mockWalletServer{
+		GetPaginatedNowWitnessListFunc: func(_ context.Context, in *api.PaginatedMessage) (*api.WitnessList, error) {
+			assert.Equal(t, int64(20), in.Offset)
+			assert.Equal(t, int64(20), in.Limit)
+			return &api.WitnessList{}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.ListWitnessesPaginated(1, 20)
+	require.NoError(t, err)
+}
+
 func TestVoteWitnessAccount(t *testing.T) {
 	mock := &mockWalletServer{
 		VoteWitnessAccount2Func: func(_ context.Context, in *core.VoteWitnessContract) (*api.TransactionExtention, error) {
