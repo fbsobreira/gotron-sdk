@@ -6,6 +6,34 @@
 
 GoTRON SDK is a comprehensive Go SDK and CLI tool for interacting with the TRON blockchain. It provides both a command-line interface (`tronctl`) and Go libraries for TRON blockchain operations.
 
+## Built For
+
+- **Exchanges** — deposit/withdrawal engines, hot wallet management
+- **Wallets** — HD wallet derivation, hardware signing, multi-sig
+- **Trading Bots** — fast gRPC client, typed responses, batch operations
+- **Staking Services** — freeze/delegate resources, vote for SRs
+- **Infrastructure** — CLI scripting, monitoring, automation
+
+## Why GoTRON?
+
+GoTRON SDK is built for **backend and infrastructure** teams that need performance, reliability, and operational tooling.
+
+| | GoTRON SDK | [tronweb] (JS/TS) | [tron-api-python] |
+|--|-----------|-----------------|-----------------|
+| **Transport** | gRPC (binary, streaming) | HTTP/JSON | HTTP/JSON |
+| **Deployment** | Single static binary | Node.js runtime | Python runtime |
+| **Hardware Signing** | Built-in Ledger support | Separate adapter | No |
+| **CLI Tooling** | `tronctl` included | None | Yes (CLI framework) |
+| **Concurrency** | Goroutines (native) | Event loop | GIL-limited |
+| **HD Wallets** | Yes (BIP39/44) | Yes (BIP39/44) | No |
+| **Multi-sig** | Yes | Yes | Not documented |
+| **Type Safety** | Full (compiled) | Full (TypeScript) | Not documented |
+
+> Comparison as of 2026-03-16. Verify claims against each project's README.
+
+[tronweb]: https://github.com/tronprotocol/tronweb
+[tron-api-python]: https://github.com/iexbase/tron-api-python
+
 ## Features
 
 - 🔧 **Complete CLI Tool**: Manage accounts, send transactions, interact with smart contracts
@@ -44,7 +72,7 @@ tronctl account balance <address>
 tronctl account send <to-address> <amount> --signer <signer-name>
 ```
 
-#### SDK Usage
+#### 30-Second Quickstart (SDK)
 ```go
 package main
 
@@ -52,29 +80,23 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 )
 
 func main() {
-	// Create client
 	c := client.NewGrpcClient("grpc.trongrid.io:50051")
-	err := c.Start(client.GRPCInsecure())
-	if err != nil {
+	if err := c.Start(client.GRPCInsecure()); err != nil {
 		log.Fatal(err)
 	}
 	defer c.Stop()
 
-	// Get account info
-	addr, _ := address.Base58ToAddress("TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH")
-	account, err := c.GetAccount(addr.String())
+	account, err := c.GetAccount("TUEZSdKsoDHQMeZwihtdoBiN46zxhGWYdH")
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("Balance: %d\n", account.Balance)
+	fmt.Printf("Balance: %d SUN\n", account.Balance)
 }
-
 ```
 
 ## Documentation
@@ -179,7 +201,7 @@ source <(tronctl completion zsh)
 ## Development
 
 ### Requirements
-- Go 1.18 or higher
+- Go 1.24 or higher
 - Make (for building)
 - Protocol Buffers compiler (for regenerating protos)
 
@@ -216,9 +238,13 @@ We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.
 ### Note on Versions
 The v2.x.x releases were incorrectly tagged without proper Go module versioning. These versions have been retracted. Please use v1.x.x versions or later.
 
+## Projects Using GoTRON
+
+> Using GoTRON SDK in your project? [Open an issue](https://github.com/fbsobreira/gotron-sdk/issues/new?title=Add+my+project+to+README&labels=documentation) to add it here!
+
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the LGPL-3.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## Support
 
