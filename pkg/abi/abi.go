@@ -55,9 +55,16 @@ func convetToAddress(v interface{}) (eCommon.Address, error) {
 	return eCommon.Address{}, fmt.Errorf("invalid address %v", v)
 }
 
-func convertToInt(ty eABI.Type, v interface{}) interface{} {
+func convertToInt(ty eABI.Type, v interface{}) (interface{}, error) {
+	s, ok := v.(string)
+	if !ok {
+		return nil, fmt.Errorf("expected string, got %T", v)
+	}
 	if ty.T == eABI.IntTy && ty.Size <= 64 {
-		tmp, _ := strconv.ParseInt(v.(string), 10, ty.Size)
+		tmp, err := strconv.ParseInt(s, 10, ty.Size)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse %q as int%d: %w", s, ty.Size, err)
+		}
 		switch ty.Size {
 		case 8:
 			v = int8(tmp)
@@ -69,7 +76,10 @@ func convertToInt(ty eABI.Type, v interface{}) interface{} {
 			v = int64(tmp)
 		}
 	} else if ty.T == eABI.UintTy && ty.Size <= 64 {
-		tmp, _ := strconv.ParseUint(v.(string), 10, ty.Size)
+		tmp, err := strconv.ParseUint(s, 10, ty.Size)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse %q as uint%d: %w", s, ty.Size, err)
+		}
 		switch ty.Size {
 		case 8:
 			v = uint8(tmp)
@@ -81,15 +91,18 @@ func convertToInt(ty eABI.Type, v interface{}) interface{} {
 			v = uint64(tmp)
 		}
 	} else {
-		s := v.(string)
 		// check for hex char
+		var ok bool
 		if strings.HasPrefix(s, "0x") {
-			v, _ = new(big.Int).SetString(s[2:], 16)
+			v, ok = new(big.Int).SetString(s[2:], 16)
 		} else {
-			v, _ = new(big.Int).SetString(s, 10)
+			v, ok = new(big.Int).SetString(s, 10)
+		}
+		if !ok {
+			return nil, fmt.Errorf("cannot parse %q as big.Int", s)
 		}
 	}
-	return v
+	return v, nil
 }
 
 // GetPaddedParam from struct
@@ -138,15 +151,22 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 					if ty.Elem.Size > 64 {
 						tmp := make([]*big.Int, len(strs))
 						for i, s := range strs {
+							var ok bool
 							if strings.HasPrefix(s, "0x") {
-								tmp[i], _ = new(big.Int).SetString(s[2:], 16)
+								tmp[i], ok = new(big.Int).SetString(s[2:], 16)
 							} else {
-								tmp[i], _ = new(big.Int).SetString(s, 10)
+								tmp[i], ok = new(big.Int).SetString(s, 10)
+							}
+							if !ok {
+								return nil, fmt.Errorf("element %d: cannot parse %q as big.Int", i, s)
 							}
 						}
 						v = tmp
 					} else {
-						v = convertSmallIntSlice(*ty.Elem, strs)
+						v, err = convertSmallIntSlice(*ty.Elem, strs)
+						if err != nil {
+							return nil, err
+						}
 					}
 				}
 
@@ -172,7 +192,10 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 				}
 			}
 			if (ty.T == eABI.IntTy || ty.T == eABI.UintTy) && reflect.TypeOf(v).Kind() == reflect.String {
-				v = convertToInt(ty, v)
+				v, err = convertToInt(ty, v)
+				if err != nil {
+					return nil, err
+				}
 			}
 
 			if ty.T == eABI.BytesTy || ty.T == eABI.FixedBytesTy {
@@ -210,71 +233,99 @@ func toStringSlice(v interface{}) ([]string, error) {
 }
 
 // convertSmallIntSlice handles int/uint arrays with size <= 64.
-func convertSmallIntSlice(elemTy eABI.Type, strs []string) interface{} {
+func convertSmallIntSlice(elemTy eABI.Type, strs []string) (interface{}, error) {
 	switch {
 	case elemTy.T == eABI.UintTy && elemTy.Size == 8:
 		out := make([]uint8, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseUint(s, 10, 8)
+			tmp, err := strconv.ParseUint(s, 10, 8)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as uint8: %w", i, s, err)
+			}
 			out[i] = uint8(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.UintTy && elemTy.Size == 16:
 		out := make([]uint16, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseUint(s, 10, 16)
+			tmp, err := strconv.ParseUint(s, 10, 16)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as uint16: %w", i, s, err)
+			}
 			out[i] = uint16(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.UintTy && elemTy.Size == 32:
 		out := make([]uint32, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseUint(s, 10, 32)
+			tmp, err := strconv.ParseUint(s, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as uint32: %w", i, s, err)
+			}
 			out[i] = uint32(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.UintTy && elemTy.Size == 64:
 		out := make([]uint64, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseUint(s, 10, 64)
+			tmp, err := strconv.ParseUint(s, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as uint64: %w", i, s, err)
+			}
 			out[i] = tmp
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.IntTy && elemTy.Size == 8:
 		out := make([]int8, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseInt(s, 10, 8)
+			tmp, err := strconv.ParseInt(s, 10, 8)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as int8: %w", i, s, err)
+			}
 			out[i] = int8(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.IntTy && elemTy.Size == 16:
 		out := make([]int16, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseInt(s, 10, 16)
+			tmp, err := strconv.ParseInt(s, 10, 16)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as int16: %w", i, s, err)
+			}
 			out[i] = int16(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.IntTy && elemTy.Size == 32:
 		out := make([]int32, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseInt(s, 10, 32)
+			tmp, err := strconv.ParseInt(s, 10, 32)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as int32: %w", i, s, err)
+			}
 			out[i] = int32(tmp)
 		}
-		return out
+		return out, nil
 	case elemTy.T == eABI.IntTy && elemTy.Size == 64:
 		out := make([]int64, len(strs))
 		for i, s := range strs {
-			tmp, _ := strconv.ParseInt(s, 10, 64)
+			tmp, err := strconv.ParseInt(s, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as int64: %w", i, s, err)
+			}
 			out[i] = tmp
 		}
-		return out
+		return out, nil
 	default:
 		// Fallback to big.Int for unexpected sizes
 		out := make([]*big.Int, len(strs))
 		for i, s := range strs {
-			out[i], _ = new(big.Int).SetString(s, 10)
+			val, ok := new(big.Int).SetString(s, 10)
+			if !ok {
+				return nil, fmt.Errorf("element %d: cannot parse %q as big.Int", i, s)
+			}
+			out[i] = val
 		}
-		return out
+		return out, nil
 	}
 }
 
