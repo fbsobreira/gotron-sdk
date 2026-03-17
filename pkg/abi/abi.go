@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -481,14 +482,172 @@ func ParseTopicsIntoMap(out map[string]interface{}, fields eABI.Arguments, topic
 	// Convert any Ethereum addresses to TRON addresses
 	for k, v := range out {
 		if addr, ok := v.(eCommon.Address); ok {
-			addrBytes := make([]byte, 1+len(addr.Bytes()))
-			addrBytes[0] = address.TronBytePrefix
-			copy(addrBytes[1:], addr.Bytes())
-			out[k] = address.Address(addrBytes)
+			out[k] = ethToTronAddress(addr)
 		}
 	}
 
 	return nil
+}
+
+// revertSelector is the 4-byte function selector for Error(string),
+// used by Solidity's revert/require statements.
+var revertSelector = [4]byte{0x08, 0xc3, 0x79, 0xa0}
+
+// panicSelector is the 4-byte function selector for Panic(uint256),
+// emitted by Solidity for assertion failures, arithmetic overflow, etc.
+var panicSelector = [4]byte{0x4e, 0x48, 0x7b, 0x71}
+
+// panicReasons maps Solidity panic codes to human-readable descriptions.
+var panicReasons = map[uint8]string{
+	0x00: "generic compiler panic",
+	0x01: "assertion failure",
+	0x11: "arithmetic overflow/underflow",
+	0x12: "division or modulo by zero",
+	0x21: "invalid enum conversion",
+	0x22: "invalid storage byte array encoding",
+	0x31: "pop on empty array",
+	0x32: "array index out of bounds",
+	0x41: "out of memory",
+	0x51: "zero-initialized function pointer call",
+}
+
+// ethToTronAddress converts an Ethereum common.Address to a TRON address
+// by prepending the 0x41 prefix byte.
+func ethToTronAddress(addr eCommon.Address) address.Address {
+	tronAddr := make([]byte, 1+len(addr.Bytes()))
+	tronAddr[0] = address.TronBytePrefix
+	copy(tronAddr[1:], addr.Bytes())
+	return address.Address(tronAddr)
+}
+
+// DecodeOutput decodes ABI-encoded output bytes from a constant contract call
+// into a slice of typed values. Addresses are automatically converted from
+// Ethereum format to TRON base58 format.
+func DecodeOutput(contractABI *core.SmartContract_ABI, method string, data []byte) ([]interface{}, error) {
+	args, err := GetParser(contractABI, method)
+	if err != nil {
+		return nil, fmt.Errorf("get output parser: %w", err)
+	}
+
+	// Functions with no declared outputs produce empty data — return early.
+	if len(args) == 0 {
+		return nil, nil
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("empty output data")
+	}
+
+	values, err := args.UnpackValues(data)
+	if err != nil {
+		return nil, fmt.Errorf("unpack output: %w", err)
+	}
+
+	// Convert Ethereum addresses to TRON addresses in-place.
+	for i, v := range values {
+		values[i] = convertOutputValue(v)
+	}
+
+	return values, nil
+}
+
+// convertOutputValue converts Ethereum addresses to TRON addresses in decoded
+// ABI output values. Handles single addresses, address slices, and fixed-size
+// address arrays (e.g. [3]common.Address). For unrecognized types, the value
+// is returned unchanged.
+func convertOutputValue(v interface{}) interface{} {
+	switch val := v.(type) {
+	case eCommon.Address:
+		return ethToTronAddress(val)
+	case []eCommon.Address:
+		result := make([]address.Address, len(val))
+		for i, addr := range val {
+			result[i] = ethToTronAddress(addr)
+		}
+		return result
+	default:
+		// Handle fixed-size address arrays ([N]common.Address) which
+		// go-ethereum returns for Solidity fixed-size array outputs.
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Array && rv.Type().Elem() == reflect.TypeOf(eCommon.Address{}) {
+			result := make([]address.Address, rv.Len())
+			for i := range result {
+				result[i] = ethToTronAddress(rv.Index(i).Interface().(eCommon.Address))
+			}
+			return result
+		}
+		return v
+	}
+}
+
+// DecodeRevertReason extracts the human-readable error string from
+// ABI-encoded revert data. Supports both Error(string) (selector 0x08c379a0)
+// from revert/require and Panic(uint256) (selector 0x4e487b71) from
+// assertion failures and arithmetic errors.
+func DecodeRevertReason(data []byte) (string, error) {
+	if len(data) < 4 {
+		return "", fmt.Errorf("data too short for revert selector: %d bytes", len(data))
+	}
+
+	selector := [4]byte(data[:4])
+
+	switch selector {
+	case revertSelector:
+		return decodeErrorString(data[4:])
+	case panicSelector:
+		return decodePanicReason(data[4:])
+	default:
+		return "", fmt.Errorf("unknown error selector: 0x%x", data[:4])
+	}
+}
+
+// decodeErrorString decodes the ABI-encoded string from Error(string) revert data.
+func decodeErrorString(data []byte) (string, error) {
+	strTy, err := eABI.NewType("string", "", nil)
+	if err != nil {
+		return "", fmt.Errorf("create string type: %w", err)
+	}
+
+	args := eABI.Arguments{{Type: strTy}}
+	values, err := args.UnpackValues(data)
+	if err != nil {
+		return "", fmt.Errorf("unpack revert reason: %w", err)
+	}
+
+	reason, ok := values[0].(string)
+	if !ok {
+		return "", fmt.Errorf("unexpected revert reason type: %T", values[0])
+	}
+
+	return reason, nil
+}
+
+// decodePanicReason decodes the ABI-encoded uint256 from Panic(uint256) data
+// and returns a human-readable description of the panic code.
+func decodePanicReason(data []byte) (string, error) {
+	uintTy, err := eABI.NewType("uint256", "", nil)
+	if err != nil {
+		return "", fmt.Errorf("create uint256 type: %w", err)
+	}
+
+	args := eABI.Arguments{{Type: uintTy}}
+	values, err := args.UnpackValues(data)
+	if err != nil {
+		return "", fmt.Errorf("unpack panic code: %w", err)
+	}
+
+	code, ok := values[0].(*big.Int)
+	if !ok {
+		return "", fmt.Errorf("unexpected panic code type: %T", values[0])
+	}
+
+	if code.IsUint64() && code.Uint64() <= 0xFF {
+		if desc, found := panicReasons[uint8(code.Uint64())]; found {
+			return fmt.Sprintf("panic: %s (0x%02x)", desc, code.Uint64()), nil
+		}
+	}
+
+	return fmt.Sprintf("panic: unknown code (0x%x)", code), nil
 }
 
 // GetInputsParser returns input method parser arguments from ABI

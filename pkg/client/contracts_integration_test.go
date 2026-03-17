@@ -4,11 +4,14 @@ package client_test
 
 import (
 	"errors"
+	"math/big"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/abi"
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -111,6 +114,75 @@ func TestIntegration_TriggerConstantContract(t *testing.T) {
 	require.NotNil(t, result)
 	require.NotEmpty(t, result.GetConstantResult(), "totalSupply() should return a result")
 	assert.Len(t, result.GetConstantResult()[0], 32, "totalSupply() should return a 32-byte uint256")
+}
+
+func TestIntegration_DecodeOutput(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// Fetch the USDT contract ABI from chain.
+	contractABI, err := c.GetContractABI(nileUSDTContract)
+	require.NoError(t, err)
+	require.NotNil(t, contractABI)
+
+	t.Run("totalSupply_uint256", func(t *testing.T) {
+		tx, err := c.TriggerConstantContract("", nileUSDTContract, "totalSupply()", "[]")
+		require.NoError(t, err)
+		require.NotEmpty(t, tx.GetConstantResult())
+
+		values, err := abi.DecodeOutput(contractABI, "totalSupply", tx.GetConstantResult()[0])
+		require.NoError(t, err)
+		require.Len(t, values, 1)
+
+		supply, ok := values[0].(*big.Int)
+		require.True(t, ok, "expected *big.Int, got %T", values[0])
+		assert.True(t, supply.Sign() > 0, "totalSupply should be positive, got %s", supply)
+		t.Logf("totalSupply = %s", supply)
+	})
+
+	t.Run("name_string", func(t *testing.T) {
+		tx, err := c.TriggerConstantContract("", nileUSDTContract, "name()", "[]")
+		require.NoError(t, err)
+		require.NotEmpty(t, tx.GetConstantResult())
+
+		values, err := abi.DecodeOutput(contractABI, "name", tx.GetConstantResult()[0])
+		require.NoError(t, err)
+		require.Len(t, values, 1)
+
+		name, ok := values[0].(string)
+		require.True(t, ok, "expected string, got %T", values[0])
+		assert.NotEmpty(t, name, "name should not be empty")
+		t.Logf("name = %q", name)
+	})
+
+	t.Run("decimals_uint8", func(t *testing.T) {
+		tx, err := c.TriggerConstantContract("", nileUSDTContract, "decimals()", "[]")
+		require.NoError(t, err)
+		require.NotEmpty(t, tx.GetConstantResult())
+
+		values, err := abi.DecodeOutput(contractABI, "decimals", tx.GetConstantResult()[0])
+		require.NoError(t, err)
+		require.Len(t, values, 1)
+
+		decimals, ok := values[0].(uint8)
+		require.True(t, ok, "expected uint8, got %T", values[0])
+		assert.Equal(t, uint8(6), decimals, "USDT should have 6 decimals")
+		t.Logf("decimals = %d", decimals)
+	})
+
+	t.Run("owner_address", func(t *testing.T) {
+		tx, err := c.TriggerConstantContract("", nileUSDTContract, "owner()", "[]")
+		require.NoError(t, err)
+		require.NotEmpty(t, tx.GetConstantResult())
+
+		values, err := abi.DecodeOutput(contractABI, "owner", tx.GetConstantResult()[0])
+		require.NoError(t, err)
+		require.Len(t, values, 1)
+
+		ownerAddr, ok := values[0].(address.Address)
+		require.True(t, ok, "expected address.Address, got %T", values[0])
+		assert.Equal(t, byte(0x41), ownerAddr[0], "should be TRON address")
+		t.Logf("owner = %s", ownerAddr.String())
+	})
 }
 
 func TestIntegration_TriggerContract(t *testing.T) {

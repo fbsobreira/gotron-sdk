@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	eABI "github.com/ethereum/go-ethereum/accounts/abi"
+	eCommon "github.com/ethereum/go-ethereum/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
@@ -441,6 +442,393 @@ func TestGetEventParser(t *testing.T) {
 	// Should not find nonexistent event
 	_, _, err = GetEventParser(contractABI, "Approval")
 	require.Error(t, err)
+}
+
+func TestDecodeOutput_SingleUint256(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "totalSupply",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "uint256"},
+				},
+			},
+		},
+	}
+
+	// ABI-encode uint256(1000)
+	val := new(big.Int).SetInt64(1000)
+	data := eCommon.LeftPadBytes(val.Bytes(), 32)
+
+	result, err := DecodeOutput(contractABI, "totalSupply", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	decoded, ok := result[0].(*big.Int)
+	require.True(t, ok, "expected *big.Int, got %T", result[0])
+	assert.Equal(t, int64(1000), decoded.Int64())
+}
+
+func TestDecodeOutput_Bool(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "paused",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "bool"},
+				},
+			},
+		},
+	}
+
+	// ABI-encode bool(true) — 32 bytes, last byte = 1
+	data := make([]byte, 32)
+	data[31] = 1
+
+	result, err := DecodeOutput(contractABI, "paused", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, true, result[0])
+}
+
+func TestDecodeOutput_Address(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "owner",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "address"},
+				},
+			},
+		},
+	}
+
+	// ABI-encode an address (20 bytes, left-padded to 32)
+	ethAddr := make([]byte, 32)
+	for i := 12; i < 32; i++ {
+		ethAddr[i] = byte(i - 12 + 1) // 0x01..0x14
+	}
+
+	result, err := DecodeOutput(contractABI, "owner", ethAddr)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	tronAddr, ok := result[0].(address.Address)
+	require.True(t, ok, "expected address.Address, got %T", result[0])
+	assert.Equal(t, byte(0x41), tronAddr[0], "TRON address must start with 0x41")
+	assert.Equal(t, 21, len(tronAddr), "TRON address must be 21 bytes")
+}
+
+func TestDecodeOutput_MultipleReturns(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "getInfo",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "balance", Type: "uint256"},
+					{Name: "owner", Type: "address"},
+					{Name: "active", Type: "bool"},
+				},
+			},
+		},
+	}
+
+	// Pack: uint256(42) + address + bool(true)
+	data := make([]byte, 96)
+	// uint256(42)
+	data[31] = 42
+	// address — put 0xAB in last byte of the 20-byte address area
+	data[63] = 0xAB
+	// bool(true)
+	data[95] = 1
+
+	result, err := DecodeOutput(contractABI, "getInfo", data)
+	require.NoError(t, err)
+	require.Len(t, result, 3)
+
+	balance, ok := result[0].(*big.Int)
+	require.True(t, ok)
+	assert.Equal(t, int64(42), balance.Int64())
+
+	tronAddr, ok := result[1].(address.Address)
+	require.True(t, ok)
+	assert.Equal(t, byte(0x41), tronAddr[0])
+
+	assert.Equal(t, true, result[2])
+}
+
+func TestDecodeOutput_String(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "name",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "string"},
+				},
+			},
+		},
+	}
+
+	// ABI-encode string "Tether USD":
+	// offset(32) + length(32) + data(32 padded)
+	eArgs := eABI.Arguments{{Type: mustNewType("string")}}
+	data, err := eArgs.Pack("Tether USD")
+	require.NoError(t, err)
+
+	result, err := DecodeOutput(contractABI, "name", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "Tether USD", result[0])
+}
+
+func TestDecodeOutput_AddressArray(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "getOwners",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "address[]"},
+				},
+			},
+		},
+	}
+
+	eArgs := eABI.Arguments{{Type: mustNewType("address[]")}}
+	data, err := eArgs.Pack([]eCommon.Address{
+		eCommon.HexToAddress("0x0000000000000000000000000000000000000001"),
+		eCommon.HexToAddress("0x0000000000000000000000000000000000000002"),
+	})
+	require.NoError(t, err)
+
+	result, err := DecodeOutput(contractABI, "getOwners", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	addrs, ok := result[0].([]address.Address)
+	require.True(t, ok, "expected []address.Address, got %T", result[0])
+	require.Len(t, addrs, 2)
+	assert.Equal(t, byte(0x41), addrs[0][0])
+	assert.Equal(t, byte(0x41), addrs[1][0])
+}
+
+func TestDecodeOutput_EmptyData(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "totalSupply",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "uint256"},
+				},
+			},
+		},
+	}
+
+	_, err := DecodeOutput(contractABI, "totalSupply", nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty output data")
+
+	_, err = DecodeOutput(contractABI, "totalSupply", []byte{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "empty output data")
+}
+
+func TestDecodeOutput_ZeroOutputFunction(t *testing.T) {
+	// Functions with returns() produce empty data — this is valid.
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "pause",
+				Type: core.SmartContract_ABI_Entry_Function,
+				// No Outputs
+			},
+		},
+	}
+
+	result, err := DecodeOutput(contractABI, "pause", nil)
+	require.NoError(t, err)
+	assert.Nil(t, result)
+
+	result, err = DecodeOutput(contractABI, "pause", []byte{})
+	require.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+func TestDecodeOutput_FixedSizeAddressArray(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "getTopThree",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "address[3]"},
+				},
+			},
+		},
+	}
+
+	// Pack 3 addresses using go-ethereum's ABI encoder.
+	ty, err := eABI.NewType("address[3]", "", nil)
+	require.NoError(t, err)
+	eArgs := eABI.Arguments{{Type: ty}}
+	data, err := eArgs.Pack([3]eCommon.Address{
+		eCommon.HexToAddress("0x0000000000000000000000000000000000000001"),
+		eCommon.HexToAddress("0x0000000000000000000000000000000000000002"),
+		eCommon.HexToAddress("0x0000000000000000000000000000000000000003"),
+	})
+	require.NoError(t, err)
+
+	result, err := DecodeOutput(contractABI, "getTopThree", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	addrs, ok := result[0].([]address.Address)
+	require.True(t, ok, "expected []address.Address, got %T", result[0])
+	require.Len(t, addrs, 3)
+	for i, addr := range addrs {
+		assert.Equal(t, byte(0x41), addr[0], "address[%d] should be TRON format", i)
+	}
+}
+
+func TestDecodeOutput_Bytes32(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "getHash",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "bytes32"},
+				},
+			},
+		},
+	}
+
+	expected := [32]byte{0xde, 0xad, 0xbe, 0xef}
+	eArgs := eABI.Arguments{{Type: mustNewType("bytes32")}}
+	data, err := eArgs.Pack(expected)
+	require.NoError(t, err)
+
+	result, err := DecodeOutput(contractABI, "getHash", data)
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	decoded, ok := result[0].([32]byte)
+	require.True(t, ok, "expected [32]byte, got %T", result[0])
+	assert.Equal(t, expected, decoded)
+}
+
+func TestDecodeOutput_MethodNotFound(t *testing.T) {
+	contractABI := &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{},
+	}
+
+	_, err := DecodeOutput(contractABI, "doesNotExist", []byte{0x01})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "get output parser")
+}
+
+func TestDecodeOutput_OverloadedMethod(t *testing.T) {
+	contractABI := makeOverloadedABI()
+
+	// Encode (uint256(7), bool(true)) for rollDice(uint256,uint256,address)
+	eArgs := eABI.Arguments{
+		{Type: mustNewType("uint256")},
+		{Type: mustNewType("bool")},
+	}
+	data, err := eArgs.Pack(big.NewInt(7), true)
+	require.NoError(t, err)
+
+	result, err := DecodeOutput(contractABI, "rollDice(uint256,uint256,address)", data)
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	val, ok := result[0].(*big.Int)
+	require.True(t, ok)
+	assert.Equal(t, int64(7), val.Int64())
+	assert.Equal(t, true, result[1])
+}
+
+func TestDecodeRevertReason_Valid(t *testing.T) {
+	// Build revert data: selector(4) + ABI-encoded string
+	eArgs := eABI.Arguments{{Type: mustNewType("string")}}
+	encodedMsg, err := eArgs.Pack("insufficient balance")
+	require.NoError(t, err)
+
+	data := append([]byte{0x08, 0xc3, 0x79, 0xa0}, encodedMsg...)
+
+	reason, err := DecodeRevertReason(data)
+	require.NoError(t, err)
+	assert.Equal(t, "insufficient balance", reason)
+}
+
+func TestDecodeRevertReason_EmptyMessage(t *testing.T) {
+	eArgs := eABI.Arguments{{Type: mustNewType("string")}}
+	encodedMsg, err := eArgs.Pack("")
+	require.NoError(t, err)
+
+	data := append([]byte{0x08, 0xc3, 0x79, 0xa0}, encodedMsg...)
+
+	reason, err := DecodeRevertReason(data)
+	require.NoError(t, err)
+	assert.Equal(t, "", reason)
+}
+
+func TestDecodeRevertReason_TooShort(t *testing.T) {
+	_, err := DecodeRevertReason([]byte{0x08, 0xc3})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "too short")
+}
+
+func TestDecodeRevertReason_WrongSelector(t *testing.T) {
+	data := make([]byte, 36)
+	data[0] = 0xFF // wrong selector
+
+	_, err := DecodeRevertReason(data)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown error selector")
+}
+
+func TestDecodeRevertReason_Panic(t *testing.T) {
+	// Build Panic(uint256) data: selector(4) + ABI-encoded uint256
+	eArgs := eABI.Arguments{{Type: mustNewType("uint256")}}
+
+	tests := []struct {
+		name     string
+		code     *big.Int
+		contains string
+	}{
+		{"overflow", big.NewInt(0x11), "arithmetic overflow/underflow"},
+		{"assertion", big.NewInt(0x01), "assertion failure"},
+		{"div by zero", big.NewInt(0x12), "division or modulo by zero"},
+		{"unknown code", big.NewInt(0xFF), "unknown code"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			encoded, err := eArgs.Pack(tc.code)
+			require.NoError(t, err)
+
+			data := append([]byte{0x4e, 0x48, 0x7b, 0x71}, encoded...)
+			reason, err := DecodeRevertReason(data)
+			require.NoError(t, err)
+			assert.Contains(t, reason, tc.contains)
+		})
+	}
+}
+
+// mustNewType creates an eABI.Type, panicking on error. Test helper only.
+func mustNewType(typeName string) eABI.Type {
+	ty, err := eABI.NewType(typeName, "", nil)
+	if err != nil {
+		panic(fmt.Sprintf("bad type %q: %v", typeName, err))
+	}
+	return ty
 }
 
 func TestEntrySignature_UsesRawTypes(t *testing.T) {
