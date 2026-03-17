@@ -404,6 +404,9 @@ func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, err
 	if err != nil {
 		return "", nil // call reverted — not a proxy
 	}
+	if tx == nil {
+		return "", nil
+	}
 	if len(tx.GetConstantResult()) == 0 || len(tx.GetConstantResult()[0]) < 32 {
 		return "", nil
 	}

@@ -12,6 +12,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func mustDecodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	require.NoError(t, err)
+	return b
+}
+
 func TestTriggerContract(t *testing.T) {
 	mock := &mockWalletServer{
 		TriggerContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
@@ -269,7 +276,7 @@ func TestGetContractABIResolved_ProxyResolution(t *testing.T) {
 	// ABI-encoded address: 20 bytes left-padded to 32 bytes.
 	// Using TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH (hex 41...) — the EVM
 	// part is the last 20 bytes without the 0x41 prefix.
-	implResult, _ := hex.DecodeString(
+	implResult := mustDecodeHex(t,
 		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
 	)
 
@@ -374,7 +381,7 @@ func TestGetContractABIResolved_EmptyResult(t *testing.T) {
 func TestGetContractABIResolved_ProxyABIWithImplementationFunc(t *testing.T) {
 	// TransparentUpgradeableProxy: proxy ABI has entries (admin functions
 	// including "implementation"), but the real ABI is on the implementation.
-	implResult, _ := hex.DecodeString(
+	implResult := mustDecodeHex(t,
 		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
 	)
 
@@ -442,7 +449,7 @@ func TestGetContractABIResolved_ProxyABIImplEmpty(t *testing.T) {
 			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
 		},
 		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-			implResult, _ := hex.DecodeString(
+			implResult := mustDecodeHex(t,
 				"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
 			)
 			return &api.TransactionExtention{
@@ -485,8 +492,8 @@ func TestGetContractABIResolved_OversizedResult(t *testing.T) {
 	// data), the address must be extracted from bytes [12:32], not the tail.
 	// The address 7a1c816367bae03d04eb1836f027314d9ebcea16 sits at offset
 	// 12..32; bytes 32..63 are trailing garbage that must be ignored.
-	oversized, _ := hex.DecodeString(
-		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16" +
+	oversized := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16"+
 			"00000000000000000000000000000000000000000000000000000000deadbeef",
 	)
 
@@ -533,7 +540,7 @@ func TestGetContractABIResolved_ImplGetContractError(t *testing.T) {
 			return nil, fmt.Errorf("rate limited")
 		},
 		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-			implResult, _ := hex.DecodeString(
+			implResult := mustDecodeHex(t,
 				"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
 			)
 			return &api.TransactionExtention{
