@@ -55,7 +55,7 @@ make install
 
 # Or install to GOPATH/bin
 make build
-go install ./cmd/...
+go install ./cmd/tronctl
 ```
 
 ### Install with Go Get
@@ -176,7 +176,7 @@ cd gotron-sdk
 make build-windows
 
 # Or use go build directly
-GOOS=windows GOARCH=amd64 go build -o tronctl.exe ./cmd/main.go
+GOOS=windows GOARCH=amd64 go build -o tronctl.exe ./cmd/tronctl
 ```
 
 #### Using PowerShell
@@ -187,7 +187,7 @@ git clone https://github.com/fbsobreira/gotron-sdk.git
 cd gotron-sdk
 
 # Build
-go build -o tronctl.exe ./cmd/main.go
+go build -o tronctl.exe ./cmd/tronctl
 
 # Add to PATH
 $env:Path += ";$PWD"

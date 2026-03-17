@@ -3,7 +3,7 @@ version: 2
 project_name: tronctl
 
 builds:
-  - main: ./cmd/
+  - main: ./cmd/tronctl
     binary: tronctl
     env:
       - CGO_ENABLED=0
