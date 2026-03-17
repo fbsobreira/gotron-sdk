@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -191,10 +190,12 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 					return nil, err
 				}
 			}
-			if (ty.T == eABI.IntTy || ty.T == eABI.UintTy) && reflect.TypeOf(v).Kind() == reflect.String {
-				v, err = convertToInt(ty, v)
-				if err != nil {
-					return nil, err
+			if ty.T == eABI.IntTy || ty.T == eABI.UintTy {
+				if _, ok := v.(string); ok {
+					v, err = convertToInt(ty, v)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 
