@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
@@ -420,4 +421,67 @@ func TestGetTransactionSignWeight(t *testing.T) {
 	weight, err := c.GetTransactionSignWeight(&core.Transaction{RawData: &core.TransactionRaw{}})
 	require.NoError(t, err)
 	assert.Equal(t, api.TransactionSignWeight_Result_ENOUGH_PERMISSION, weight.Result.Code)
+}
+
+func TestParsePrices(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    []client.PriceEntry
+		wantErr bool
+	}{
+		{
+			name: "multiple entries",
+			raw:  "0:100,1542607200000:20,1606240800000:40",
+			want: []client.PriceEntry{
+				{Timestamp: 0, Price: 100},
+				{Timestamp: 1542607200000, Price: 20},
+				{Timestamp: 1606240800000, Price: 40},
+			},
+		},
+		{
+			name: "single entry",
+			raw:  "0:420",
+			want: []client.PriceEntry{
+				{Timestamp: 0, Price: 420},
+			},
+		},
+		{
+			name: "empty string",
+			raw:  "",
+			want: nil,
+		},
+		{
+			name:    "missing colon",
+			raw:     "0:100,badentry,1000:20",
+			wantErr: true,
+		},
+		{
+			name:    "non-numeric timestamp",
+			raw:     "abc:100",
+			wantErr: true,
+		},
+		{
+			name:    "non-numeric price",
+			raw:     "0:xyz",
+			wantErr: true,
+		},
+		{
+			name:    "whitespace around separator",
+			raw:     "0:100, 1000:20",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.ParsePrices(tt.raw)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
