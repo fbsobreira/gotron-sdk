@@ -70,6 +70,9 @@ type mockWalletServer struct {
 	VoteWitnessAccount2Func        func(context.Context, *core.VoteWitnessContract) (*api.TransactionExtention, error)
 	CreateWitness2Func             func(context.Context, *core.WitnessCreateContract) (*api.TransactionExtention, error)
 	GetTransactionSignWeightFunc   func(context.Context, *core.Transaction) (*api.TransactionSignWeight, error)
+	GetEnergyPricesFunc            func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
+	GetBandwidthPricesFunc         func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
+	GetMemoFeeFunc                 func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
 
 	// Assets
 	GetAssetIssueByAccountFunc     func(context.Context, *core.Account) (*api.AssetIssueList, error)
@@ -371,6 +374,27 @@ func (m *mockWalletServer) GetTransactionSignWeight(ctx context.Context, in *cor
 		return m.GetTransactionSignWeightFunc(ctx, in)
 	}
 	return m.UnimplementedWalletServer.GetTransactionSignWeight(ctx, in)
+}
+
+func (m *mockWalletServer) GetEnergyPrices(ctx context.Context, in *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+	if m.GetEnergyPricesFunc != nil {
+		return m.GetEnergyPricesFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetEnergyPrices(ctx, in)
+}
+
+func (m *mockWalletServer) GetBandwidthPrices(ctx context.Context, in *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+	if m.GetBandwidthPricesFunc != nil {
+		return m.GetBandwidthPricesFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetBandwidthPrices(ctx, in)
+}
+
+func (m *mockWalletServer) GetMemoFee(ctx context.Context, in *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+	if m.GetMemoFeeFunc != nil {
+		return m.GetMemoFeeFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetMemoFee(ctx, in)
 }
 
 func (m *mockWalletServer) GetAssetIssueByAccount(ctx context.Context, in *core.Account) (*api.AssetIssueList, error) {
