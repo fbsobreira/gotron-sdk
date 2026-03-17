@@ -485,3 +485,61 @@ func TestParsePrices(t *testing.T) {
 		})
 	}
 }
+
+func TestGetEnergyPriceHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetEnergyPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:100,1542607200000:20"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetEnergyPriceHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, int64(0), entries[0].Timestamp)
+	assert.Equal(t, int64(100), entries[0].Price)
+	assert.Equal(t, int64(1542607200000), entries[1].Timestamp)
+	assert.Equal(t, int64(20), entries[1].Price)
+}
+
+func TestGetEnergyPriceHistory_RPCError(t *testing.T) {
+	mock := &mockWalletServer{
+		GetEnergyPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return nil, fmt.Errorf("rpc unavailable")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.GetEnergyPriceHistory()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rpc unavailable")
+}
+
+func TestGetBandwidthPriceHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetBandwidthPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:1000"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetBandwidthPriceHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, int64(1000), entries[0].Price)
+}
+
+func TestGetMemoFeeHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetMemoFeeFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:0,1668981600000:1000000"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetMemoFeeHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, int64(1000000), entries[1].Price)
+}
