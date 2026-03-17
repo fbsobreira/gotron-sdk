@@ -650,6 +650,139 @@ func decodePanicReason(data []byte) (string, error) {
 	return fmt.Sprintf("panic: unknown code (0x%x)", code), nil
 }
 
+// entryTypeName maps proto EntryType enum values to lowercase Ethereum ABI
+// JSON labels. Unknown or out-of-range values produce an empty string.
+var entryTypeName = map[core.SmartContract_ABI_Entry_EntryType]string{
+	core.SmartContract_ABI_Entry_Constructor: "constructor",
+	core.SmartContract_ABI_Entry_Function:    "function",
+	core.SmartContract_ABI_Entry_Event:       "event",
+	core.SmartContract_ABI_Entry_Fallback:    "fallback",
+	core.SmartContract_ABI_Entry_Receive:     "receive",
+	core.SmartContract_ABI_Entry_Error:       "error",
+}
+
+// stateMutabilityName maps proto StateMutabilityType enum values to lowercase
+// Ethereum ABI JSON labels.
+var stateMutabilityName = map[core.SmartContract_ABI_Entry_StateMutabilityType]string{
+	core.SmartContract_ABI_Entry_Pure:       "pure",
+	core.SmartContract_ABI_Entry_View:       "view",
+	core.SmartContract_ABI_Entry_Nonpayable: "nonpayable",
+	core.SmartContract_ABI_Entry_Payable:    "payable",
+}
+
+// entryHasName reports whether the entry type carries a name field in
+// canonical Ethereum ABI JSON. Fallback and receive entries are unnamed.
+func entryHasName(t core.SmartContract_ABI_Entry_EntryType) bool {
+	return t != core.SmartContract_ABI_Entry_Fallback &&
+		t != core.SmartContract_ABI_Entry_Receive
+}
+
+// entryHasOutputs reports whether the entry type carries an outputs field
+// in canonical Ethereum ABI JSON.
+func entryHasOutputs(t core.SmartContract_ABI_Entry_EntryType) bool {
+	return t == core.SmartContract_ABI_Entry_Function
+}
+
+// entryHasInputs reports whether the entry type carries an inputs field
+// in canonical Ethereum ABI JSON.
+func entryHasInputs(t core.SmartContract_ABI_Entry_EntryType) bool {
+	return t != core.SmartContract_ABI_Entry_Fallback &&
+		t != core.SmartContract_ABI_Entry_Receive
+}
+
+// entryHasMutability reports whether the entry type carries a
+// stateMutability field in canonical Ethereum ABI JSON.
+func entryHasMutability(t core.SmartContract_ABI_Entry_EntryType) bool {
+	return t == core.SmartContract_ABI_Entry_Constructor ||
+		t == core.SmartContract_ABI_Entry_Function ||
+		t == core.SmartContract_ABI_Entry_Fallback ||
+		t == core.SmartContract_ABI_Entry_Receive
+}
+
+// FormatABIEntry converts a single proto ABI entry into a map using
+// human-readable string labels for type and stateMutability, matching the
+// canonical Ethereum ABI JSON format. Fields that are not applicable to
+// a given entry type are omitted (e.g., events have no outputs).
+// A nil entry returns an empty map.
+func FormatABIEntry(entry *core.SmartContract_ABI_Entry) map[string]any {
+	if entry == nil {
+		return map[string]any{}
+	}
+
+	eType := entry.GetType()
+	m := map[string]any{}
+
+	if t, ok := entryTypeName[eType]; ok {
+		m["type"] = t
+	}
+
+	if entryHasName(eType) {
+		m["name"] = entry.GetName()
+	}
+
+	if entryHasMutability(eType) {
+		if sm, ok := stateMutabilityName[entry.GetStateMutability()]; ok {
+			m["stateMutability"] = sm
+		}
+	}
+
+	if entry.GetAnonymous() {
+		m["anonymous"] = true
+	}
+	if entry.GetPayable() {
+		m["payable"] = true
+	}
+	if entry.GetConstant() {
+		m["constant"] = true
+	}
+
+	if entryHasInputs(eType) {
+		if inputs := entry.GetInputs(); len(inputs) > 0 {
+			m["inputs"] = formatParams(inputs)
+		} else {
+			m["inputs"] = []map[string]any{}
+		}
+	}
+
+	if entryHasOutputs(eType) {
+		if outputs := entry.GetOutputs(); len(outputs) > 0 {
+			m["outputs"] = formatParams(outputs)
+		} else {
+			m["outputs"] = []map[string]any{}
+		}
+	}
+
+	return m
+}
+
+// FormatABI converts an entire proto SmartContract_ABI into a slice of
+// human-readable maps suitable for JSON serialization. A nil ABI returns
+// an empty slice.
+func FormatABI(abi *core.SmartContract_ABI) []map[string]any {
+	entries := abi.GetEntrys()
+	result := make([]map[string]any, len(entries))
+	for i, entry := range entries {
+		result[i] = FormatABIEntry(entry)
+	}
+	return result
+}
+
+// formatParams converts proto ABI entry params to a slice of maps.
+func formatParams(params []*core.SmartContract_ABI_Entry_Param) []map[string]any {
+	out := make([]map[string]any, len(params))
+	for i, p := range params {
+		pm := map[string]any{
+			"name": p.GetName(),
+			"type": p.GetType(),
+		}
+		if p.GetIndexed() {
+			pm["indexed"] = true
+		}
+		out[i] = pm
+	}
+	return out
+}
+
 // GetInputsParser returns input method parser arguments from ABI
 func GetInputsParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}

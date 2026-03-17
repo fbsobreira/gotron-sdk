@@ -51,6 +51,10 @@ func getType(str string) core.SmartContract_ABI_Entry_EntryType {
 		return core.SmartContract_ABI_Entry_Event
 	case "fallback":
 		return core.SmartContract_ABI_Entry_Fallback
+	case "receive":
+		return core.SmartContract_ABI_Entry_Receive
+	case "error":
+		return core.SmartContract_ABI_Entry_Error
 	default:
 		return core.SmartContract_ABI_Entry_UnknownEntryType
 	}
