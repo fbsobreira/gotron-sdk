@@ -190,6 +190,34 @@ func TestIntegration_GetMemoFee(t *testing.T) {
 	// Memo fee may be empty on some networks, but the call should succeed.
 }
 
+func TestIntegration_GetEnergyPriceHistory(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	entries, err := c.GetEnergyPriceHistory()
+	require.NoError(t, err)
+	require.NotEmpty(t, entries, "energy price history should not be empty")
+	assert.Equal(t, int64(0), entries[0].Timestamp, "first entry should have timestamp 0 (genesis price)")
+	assert.Greater(t, entries[0].Price, int64(0), "genesis price should be positive")
+}
+
+func TestIntegration_GetBandwidthPriceHistory(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	entries, err := c.GetBandwidthPriceHistory()
+	require.NoError(t, err)
+	require.NotEmpty(t, entries, "bandwidth price history should not be empty")
+	assert.Equal(t, int64(0), entries[0].Timestamp, "first entry should have timestamp 0 (genesis price)")
+	assert.Greater(t, entries[0].Price, int64(0), "genesis price should be positive")
+}
+
+func TestIntegration_GetMemoFeeHistory(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	entries, err := c.GetMemoFeeHistory()
+	require.NoError(t, err)
+	// Memo fee may be empty on some networks, just verify no error and valid parse.
+}
+
 func TestIntegration_GetTransactionSignWeight(t *testing.T) {
 	c := newIntegrationClient(t)
 
