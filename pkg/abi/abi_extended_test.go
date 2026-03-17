@@ -287,14 +287,9 @@ func TestConvertToInt(t *testing.T) {
 			if tc.expected != nil {
 				assert.Equal(t, tc.expected, result)
 			}
-			// For big ints just verify we got a *big.Int
-			if ty.Size > 64 || (ty.T != eABI.IntTy && ty.T != eABI.UintTy) ||
-				(ty.T == eABI.IntTy && ty.Size > 64) ||
-				(ty.T == eABI.UintTy && ty.Size > 64) {
-				if tc.expected == nil {
-					_, ok := result.(*big.Int)
-					assert.True(t, ok, "expected *big.Int for %s", tc.typeName)
-				}
+			if tc.expected == nil {
+				_, ok := result.(*big.Int)
+				assert.True(t, ok, "expected *big.Int for %s", tc.typeName)
 			}
 		})
 	}
@@ -918,7 +913,8 @@ func TestGetPaddedParam_NonStandardIntSlice(t *testing.T) {
 			params := []Param{{tc.typeName: tc.values}}
 			b, err := GetPaddedParam(params)
 			require.NoError(t, err)
-			assert.Greater(t, len(b), 0, "encoded result should not be empty")
+			expected := 32 + 32 + len(tc.values)*32
+			assert.Len(t, b, expected, "unexpected length for %s", tc.typeName)
 		})
 	}
 }
