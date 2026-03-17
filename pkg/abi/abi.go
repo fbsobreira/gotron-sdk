@@ -59,7 +59,7 @@ func convertToInt(ty eABI.Type, v interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected string, got %T", v)
 	}
-	if ty.T == eABI.IntTy && ty.Size <= 64 {
+	if ty.T == eABI.IntTy && (ty.Size == 8 || ty.Size == 16 || ty.Size == 32 || ty.Size == 64) {
 		tmp, err := strconv.ParseInt(s, 10, ty.Size)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse %q as int%d: %w", s, ty.Size, err)
@@ -74,7 +74,7 @@ func convertToInt(ty eABI.Type, v interface{}) (interface{}, error) {
 		case 64:
 			v = int64(tmp)
 		}
-	} else if ty.T == eABI.UintTy && ty.Size <= 64 {
+	} else if ty.T == eABI.UintTy && (ty.Size == 8 || ty.Size == 16 || ty.Size == 32 || ty.Size == 64) {
 		tmp, err := strconv.ParseUint(s, 10, ty.Size)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse %q as uint%d: %w", s, ty.Size, err)
@@ -317,7 +317,6 @@ func convertSmallIntSlice(elemTy eABI.Type, strs []string) (interface{}, error) 
 		}
 		return out, nil
 	default:
-		// Fallback to big.Int for unexpected sizes
 		out := make([]*big.Int, len(strs))
 		for i, s := range strs {
 			val, ok := new(big.Int).SetString(s, 10)
