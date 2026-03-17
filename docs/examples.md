@@ -20,8 +20,11 @@ This document provides practical examples for common use cases with the GoTRON S
     - [Multi-Sig TRC20 Token Transfer](#multi-sig-trc20-token-transfer)
     - [Multi-Sig Resource Delegation](#multi-sig-resource-delegation)
     - [Common Pitfalls](#common-pitfalls)
+  - [Smart Contract Interactions](#smart-contract-interactions)
+    - [JustLend Energy Rental](#justlend-energy-rental)
   - [Advanced Use Cases](#advanced-use-cases)
     - [Resource Manager](#resource-manager)
+  - [More Examples](#more-examples)
   - [Best Practices Summary](#best-practices-summary)
 
 ## Basic Operations
@@ -882,6 +885,76 @@ encoding of `TransactionRaw`, not the full `Transaction`. The `ToRawDataHex` and
 `FromRawDataHex` functions handle this correctly. A `0x` prefix is accepted and
 automatically stripped.
 
+## Smart Contract Interactions
+
+### JustLend Energy Rental
+
+This example shows how to simulate and execute energy rental operations via
+[JustLend DAO's energy rental contract](https://docs.justlend.org/developers/energy-rental)
+using `TriggerConstantContract` (read-only) and `TriggerContract` (state-changing).
+
+The contract exposes two main methods:
+
+| Method | Description |
+|--------|-------------|
+| `rentResource(address,uint256,uint32)` | Rent bandwidth (0) or energy (1) for a receiver |
+| `returnResource(address,uint256,uint32)` | Return previously rented resources |
+
+**Simulate a rent (read-only, no key needed):**
+
+```go
+c := client.NewGrpcClient("grpc.trongrid.io:50051")
+if err := c.Start(client.GRPCInsecure()); err != nil {
+	log.Fatal(err)
+}
+defer c.Stop()
+
+contract := "TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd"
+receiver := "TReceiverBase58..."
+
+method := "rentResource(address,uint256,uint32)"
+params := fmt.Sprintf(`[{"address": "%s"}, {"uint256": "1000000"}, {"uint32": "1"}]`, receiver)
+
+tx, err := c.TriggerConstantContract("", contract, method, params)
+if err != nil {
+	log.Fatal(err)
+}
+
+fmt.Printf("Result: %x\n", tx.GetConstantResult()[0])
+```
+
+**Execute a rent (requires signing):**
+
+```go
+signerAddr := "TYourAddress..."
+
+tx, err := c.TriggerContract(
+	signerAddr,
+	contract,
+	"rentResource(address,uint256,uint32)",
+	fmt.Sprintf(`[{"address": "%s"}, {"uint256": "1000000"}, {"uint32": "1"}]`, receiver),
+	50_000_000, // fee limit: 50 TRX
+	0, "", 0,
+)
+if err != nil {
+	log.Fatal(err)
+}
+
+signedTx, err := transaction.SignTransaction(tx.Transaction, privateKey)
+if err != nil {
+	log.Fatal(err)
+}
+
+result, err := c.Broadcast(signedTx)
+if err != nil {
+	log.Fatal(err)
+}
+fmt.Printf("TX: %x\n", tx.Txid)
+```
+
+> **Runnable example:** See [`examples/justlend/main.go`](../examples/justlend/main.go) for a
+> complete working example with dry-run and live modes.
+
 ## Advanced Use Cases
 
 ### Resource Manager
@@ -1010,6 +1083,11 @@ func (rm *ResourceManager) DelegateEnergy(to string, amount int64) error {
 	return nil
 }
 ```
+
+## More Examples
+
+For more detailed and protocol-specific examples, visit the
+[gotron-examples](https://github.com/fbsobreira/gotron-examples) repository.
 
 ## Best Practices Summary
 

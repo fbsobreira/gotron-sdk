@@ -106,6 +106,7 @@ func main() {
 - [SDK Usage Guide](docs/sdk-usage.md) - Go SDK examples and patterns
 - [API Reference](docs/api-reference.md) - Detailed API documentation
 - [Examples](docs/examples.md) - Common use cases and examples
+- [More Examples](https://github.com/fbsobreira/gotron-examples) - Detailed protocol-specific examples
 
 ## Supported Features
 
