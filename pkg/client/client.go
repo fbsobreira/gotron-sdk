@@ -18,6 +18,7 @@ type GrpcClient struct {
 	grpcTimeout time.Duration
 	opts        []grpc.DialOption
 	apiKey      string
+	baseCtx     context.Context
 }
 
 // NewGrpcClient create grpc controller
@@ -64,8 +65,27 @@ func (g *GrpcClient) SetAPIKey(apiKey string) error {
 	return nil
 }
 
+// SetContext sets a base context for all RPC calls.
+// This allows callers to propagate cancellation, deadlines, and tracing metadata.
+// If not set, context.Background() is used.
+//
+// Note: cancelling the base context will cause all subsequent RPCs on this
+// client to fail immediately. SetContext must not be called concurrently
+// with RPC methods.
+func (g *GrpcClient) SetContext(ctx context.Context) error {
+	if ctx == nil {
+		return fmt.Errorf("gotron: nil context")
+	}
+	g.baseCtx = ctx
+	return nil
+}
+
 func (g *GrpcClient) getContext() (context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(context.Background(), g.grpcTimeout)
+	base := g.baseCtx
+	if base == nil {
+		base = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(base, g.grpcTimeout)
 	if len(g.apiKey) > 0 {
 		ctx = metadata.AppendToOutgoingContext(ctx, "TRON-PRO-API-KEY", g.apiKey)
 	}
