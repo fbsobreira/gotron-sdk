@@ -5,6 +5,7 @@ package client_test
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -31,6 +32,69 @@ func TestIntegration_GetContractABI(t *testing.T) {
 	assert.True(t, methods["transfer"], "ABI should contain transfer method")
 	assert.True(t, methods["balanceOf"], "ABI should contain balanceOf method")
 	assert.True(t, methods["approve"], "ABI should contain approve method")
+}
+
+func TestIntegration_GetContractABIResolved_NonProxy(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	// USDT is not a proxy — ABI should be returned directly.
+	abi, err := c.GetContractABIResolved(nileUSDTContract)
+	require.NoError(t, err)
+	require.NotNil(t, abi)
+	require.NotEmpty(t, abi.GetEntrys(), "non-proxy ABI should have entries")
+}
+
+func TestIntegration_GetContractABIResolved_InvalidAddress(t *testing.T) {
+	c := newIntegrationClient(t)
+
+	_, err := c.GetContractABIResolved("invalid-address")
+	require.Error(t, err)
+}
+
+func TestIntegration_GetContractABIResolved_Proxy(t *testing.T) {
+	// ERC-1967 proxy on mainnet whose implementation stores its ABI on-chain.
+	// Proxy:          T9yDMyUdQDTVKuMANP6S6zMFCnC6wZtVML  (0 ABI entries)
+	// Implementation: TJdimGcAMywGfryiVsGFQsk1Uo58oi5s8x  (30 ABI entries)
+	const (
+		mainnetEndpoint = "grpc.trongrid.io:50051"
+		proxyContract   = "T9yDMyUdQDTVKuMANP6S6zMFCnC6wZtVML"
+	)
+
+	mc := client.NewGrpcClientWithTimeout(mainnetEndpoint, 30*time.Second)
+	err := mc.Start(grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Skipf("cannot connect to mainnet at %s: %v", mainnetEndpoint, err)
+	}
+	t.Cleanup(mc.Stop)
+
+	// Plain GetContractABI should return an empty ABI for the proxy.
+	directABI, err := mc.GetContractABI(proxyContract)
+	if err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("rate-limited by TronGrid, skipping")
+	}
+	require.NoError(t, err)
+	assert.Empty(t, directABI.GetEntrys(), "proxy contract should have empty ABI")
+
+	// Brief pause to avoid TronGrid rate limits between calls.
+	time.Sleep(1 * time.Second)
+
+	// GetContractABIResolved should resolve through to the implementation ABI.
+	resolved, err := mc.GetContractABIResolved(proxyContract)
+	if err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("rate-limited by TronGrid, skipping")
+	}
+	require.NoError(t, err)
+	require.NotNil(t, resolved)
+	require.NotEmpty(t, resolved.GetEntrys(),
+		"resolved proxy ABI should contain implementation entries")
+
+	// Verify well-known methods from the implementation ABI.
+	methods := make(map[string]bool)
+	for _, entry := range resolved.GetEntrys() {
+		methods[entry.GetName()] = true
+	}
+	assert.True(t, methods["execute"], "resolved ABI should contain execute()")
+	assert.True(t, methods["owner"], "resolved ABI should contain owner()")
 }
 
 func TestIntegration_TriggerConstantContract(t *testing.T) {

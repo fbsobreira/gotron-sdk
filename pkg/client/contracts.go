@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 
@@ -323,4 +324,103 @@ func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract
 	}
 
 	return sm.Abi, nil
+}
+
+// implementationSelector is the 4-byte EVM function selector for
+// implementation() — keccak256("implementation()")[:4].
+// This is the standard getter exposed by most ERC-1967 proxy contracts
+// (OpenZeppelin TransparentUpgradeableProxy, UUPS, etc.).
+var implementationSelector = [4]byte{0x5c, 0x60, 0xda, 0x1b}
+
+// GetContractABIResolved returns the ABI for a contract, resolving proxy
+// contracts transparently.  It first calls GetContractABI on the given
+// address; if the returned ABI has no entries, or if the ABI looks like a
+// proxy-only ABI (contains an "implementation" function), it attempts to
+// detect a proxy by calling the implementation() view function and, on
+// success, fetches the ABI from the implementation contract instead.
+//
+// Only a single level of proxy indirection is resolved; chained proxies
+// (proxy → proxy → implementation) are not followed.
+func (g *GrpcClient) GetContractABIResolved(contractAddress string) (*core.SmartContract_ABI, error) {
+	contractABI, err := g.GetContractABI(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+	if len(contractABI.GetEntrys()) > 0 && !isProxyABI(contractABI) {
+		return contractABI, nil
+	}
+
+	implAddr, err := g.getProxyImplementation(contractAddress)
+	if err != nil || implAddr == "" {
+		// Not a recognised proxy — return the original ABI.
+		return contractABI, nil
+	}
+
+	implABI, err := g.GetContractABI(implAddr)
+	if err != nil {
+		return contractABI, nil
+	}
+	if len(implABI.GetEntrys()) == 0 {
+		return contractABI, nil
+	}
+	return implABI, nil
+}
+
+// isProxyABI reports whether the given ABI looks like a proxy contract ABI
+// (e.g. OpenZeppelin TransparentUpgradeableProxy) rather than a real
+// business-logic ABI.  It returns true when the ABI declares an
+// "implementation" function — the hallmark of an ERC-1967 proxy.
+//
+// This is a heuristic: a non-proxy contract with a function named
+// "implementation" would trigger proxy resolution, but the fallback logic
+// in GetContractABIResolved ensures the original ABI is returned if
+// resolution fails or produces no improvement.
+func isProxyABI(contractABI *core.SmartContract_ABI) bool {
+	for _, entry := range contractABI.GetEntrys() {
+		if entry.GetType() == core.SmartContract_ABI_Entry_Function &&
+			entry.GetName() == "implementation" {
+			return true
+		}
+	}
+	return false
+}
+
+// getProxyImplementation calls implementation() on the given contract and
+// returns the implementation address in Base58 format.  If the call fails
+// or returns an invalid address it returns an empty string and nil error.
+func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, error) {
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return "", err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    address.HexToAddress("410000000000000000000000000000000000000000").Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            implementationSelector[:],
+	}
+
+	tx, err := g.triggerConstantContract(ct)
+	if err != nil {
+		return "", nil // call reverted — not a proxy
+	}
+	if len(tx.GetConstantResult()) == 0 || len(tx.GetConstantResult()[0]) < 32 {
+		return "", nil
+	}
+
+	// The result is an ABI-encoded address: 12 bytes zero-padding followed
+	// by the 20-byte EVM address.  Extract bytes [12:32] rather than
+	// using the tail, so oversized responses are handled correctly.
+	result := tx.GetConstantResult()[0]
+	evmAddr := result[12:32]
+
+	// Check for zero address — not a valid implementation.
+	if bytes.Equal(evmAddr, make([]byte, 20)) {
+		return "", nil
+	}
+
+	tronAddr := make([]byte, 0, address.AddressLength)
+	tronAddr = append(tronAddr, address.TronBytePrefix)
+	tronAddr = append(tronAddr, evmAddr...)
+	return address.Address(tronAddr).String(), nil
 }
