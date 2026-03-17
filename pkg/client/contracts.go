@@ -9,6 +9,8 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // UpdateEnergyLimitContract update contract enery limit
@@ -231,6 +233,9 @@ func (g *GrpcClient) estimateEnergy(ct *core.TriggerSmartContract) (*api.Estimat
 
 	tx, err := g.Client.EstimateEnergy(ctx, ct)
 	if err != nil {
+		if s, ok := status.FromError(err); ok && s.Code() == codes.Unimplemented {
+			return nil, fmt.Errorf("%w: %w", ErrEstimateEnergyNotSupported, err)
+		}
 		return nil, err
 	}
 
