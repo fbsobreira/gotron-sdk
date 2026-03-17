@@ -102,8 +102,18 @@ func TestJSONtoABI_EntryTypes(t *testing.T) {
 			wantType: core.SmartContract_ABI_Entry_Fallback,
 		},
 		{
+			name:     "receive",
+			json:     `[{"type": "receive"}]`,
+			wantType: core.SmartContract_ABI_Entry_Receive,
+		},
+		{
+			name:     "error",
+			json:     `[{"type": "error", "name": "InsufficientBalance", "inputs": [{"name": "balance", "type": "uint256"}]}]`,
+			wantType: core.SmartContract_ABI_Entry_Error,
+		},
+		{
 			name:     "unknown type",
-			json:     `[{"type": "receive", "name": "test"}]`,
+			json:     `[{"type": "bogus", "name": "test"}]`,
 			wantType: core.SmartContract_ABI_Entry_UnknownEntryType,
 		},
 	}
