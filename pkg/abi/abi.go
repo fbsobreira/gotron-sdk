@@ -680,8 +680,7 @@ func entryHasName(t core.SmartContract_ABI_Entry_EntryType) bool {
 // entryHasOutputs reports whether the entry type carries an outputs field
 // in canonical Ethereum ABI JSON.
 func entryHasOutputs(t core.SmartContract_ABI_Entry_EntryType) bool {
-	return t == core.SmartContract_ABI_Entry_Function ||
-		t == core.SmartContract_ABI_Entry_Error
+	return t == core.SmartContract_ABI_Entry_Function
 }
 
 // entryHasInputs reports whether the entry type carries an inputs field

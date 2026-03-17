@@ -229,9 +229,8 @@ func TestFormatABIEntry_ErrorShape(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, inputs, 1)
 
-	outputs, ok := got["outputs"].([]map[string]any)
-	require.True(t, ok)
-	assert.Empty(t, outputs, "error with no outputs should have empty outputs slice")
+	_, hasOutputs := got["outputs"]
+	assert.False(t, hasOutputs, "error should not have outputs per Solidity ABI spec")
 }
 
 // ---------------------------------------------------------------------------
