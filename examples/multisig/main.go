@@ -367,6 +367,11 @@ func exampleSignExternalTransaction() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if weight.GetPermission() == nil {
+		fmt.Printf("  [skipped] no permission info returned (weight result: %v)\n", weight.GetResult())
+		fmt.Println("  OK")
+		return
+	}
 	if weight.CurrentWeight < weight.Permission.Threshold {
 		// Share the partially-signed transaction with the next signer.
 		// Use ToJSON to preserve existing signatures — ToRawDataHex would drop them.

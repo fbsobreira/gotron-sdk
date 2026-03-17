@@ -633,6 +633,9 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if weight.GetPermission() == nil {
+		log.Fatal("no permission info returned — cannot determine threshold")
+	}
 	if weight.CurrentWeight < weight.Permission.Threshold {
 		// Share the partially-signed transaction with the next signer.
 		// Use ToJSON to preserve existing signatures — ToRawDataHex would drop them.
