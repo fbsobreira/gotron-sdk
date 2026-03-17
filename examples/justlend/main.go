@@ -231,8 +231,12 @@ func exampleExecuteReturn(c *client.GrpcClient) {
 // printConstantResult decodes and prints the result from a TriggerConstantContract call.
 func printConstantResult(tx *api.TransactionExtention, method string) {
 	if tx.GetResult().GetCode() != 0 {
-		msg, _ := abi.DecodeRevertReason(tx.GetConstantResult()[0])
-		fmt.Printf("  Reverted: %s\n", msg)
+		if results := tx.GetConstantResult(); len(results) > 0 {
+			msg, _ := abi.DecodeRevertReason(results[0])
+			fmt.Printf("  Reverted: %s\n", msg)
+		} else {
+			fmt.Printf("  Reverted: (no revert data)\n")
+		}
 		return
 	}
 
