@@ -91,11 +91,15 @@ func (g *GrpcClient) newContext() (context.Context, context.CancelFunc) {
 }
 
 // withAPIKey injects the API key as gRPC outgoing metadata if configured.
+// It uses Set (not Append) so that chained Ctx calls don't produce duplicate headers.
 func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
-	if len(g.apiKey) > 0 {
-		return metadata.AppendToOutgoingContext(ctx, "TRON-PRO-API-KEY", g.apiKey)
+	if len(g.apiKey) == 0 {
+		return ctx
 	}
-	return ctx
+	md, _ := metadata.FromOutgoingContext(ctx)
+	md = md.Copy()
+	md.Set("TRON-PRO-API-KEY", g.apiKey)
+	return metadata.NewOutgoingContext(ctx, md)
 }
 
 // Stop GRPC Connection

@@ -195,7 +195,7 @@ func (g *GrpcClient) TRC20ContractBalanceCtx(ctx context.Context, addr, contract
 
 	addrB, err := address.Base58ToAddress(addr)
 	if err != nil {
-		return nil, fmt.Errorf("invalid address %s: %v", addr, addr)
+		return nil, fmt.Errorf("invalid address %s: %v", addr, err)
 	}
 	req := trc20BalanceOf + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-2:] + addrB.Hex()[2:]
 	result, err := g.TRC20CallCtx(ctx, "", contractAddress, req, true, 0)

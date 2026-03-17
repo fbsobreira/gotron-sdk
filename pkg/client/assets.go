@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -57,8 +56,7 @@ func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract
 // GetAssetIssueByIDCtx is the context-aware version of GetAssetIssueByID.
 func (g *GrpcClient) GetAssetIssueByIDCtx(ctx context.Context, tokenID string) (*core.AssetIssueContract, error) {
 	ctx = g.withAPIKey(ctx)
-	bn := new(big.Int).SetBytes([]byte(tokenID))
-	return g.Client.GetAssetIssueById(ctx, GetMessageBytes(bn.Bytes()))
+	return g.Client.GetAssetIssueById(ctx, GetMessageBytes([]byte(tokenID)))
 }
 
 // GetAssetIssueList list all TRC10

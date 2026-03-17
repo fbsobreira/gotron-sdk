@@ -23,7 +23,7 @@ func (g *GrpcClient) GetNowBlockCtx(ctx context.Context) (*api.BlockExtention, e
 	result, err := g.Client.GetNowBlock2(ctx, new(api.EmptyMessage))
 
 	if err != nil {
-		return nil, fmt.Errorf("Get block now: %v", err)
+		return nil, fmt.Errorf("Get block now: %w", err)
 	}
 
 	return result, nil
@@ -46,7 +46,7 @@ func (g *GrpcClient) GetBlockByNumCtx(ctx context.Context, num int64) (*api.Bloc
 	result, err := g.Client.GetBlockByNum2(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
-		return nil, fmt.Errorf("Get block by num: %v", err)
+		return nil, fmt.Errorf("Get block by num: %w", err)
 
 	}
 	return result, nil
@@ -70,7 +70,7 @@ func (g *GrpcClient) GetBlockInfoByNumCtx(ctx context.Context, num int64) (*api.
 	result, err := g.Client.GetTransactionInfoByBlockNum(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
-		return nil, fmt.Errorf("Get block info by num: %v", err)
+		return nil, fmt.Errorf("Get block info by num: %w", err)
 
 	}
 	return result, nil
