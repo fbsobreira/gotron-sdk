@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 
@@ -12,8 +13,14 @@ import (
 
 // ExchangeList of bancor TRC10, use page -1 to list all
 func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.ExchangeListCtx(ctx, page, limit...)
+}
+
+// ExchangeListCtx is the context-aware version of ExchangeList.
+func (g *GrpcClient) ExchangeListCtx(ctx context.Context, page int64, limit ...int) (*api.ExchangeList, error) {
+	ctx = g.withAPIKey(ctx)
 
 	if page == -1 {
 		return g.Client.ListExchanges(ctx, new(api.EmptyMessage))
@@ -28,8 +35,15 @@ func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, 
 
 // ExchangeByID returns exchangeDetails
 func (g *GrpcClient) ExchangeByID(id int64) (*core.Exchange, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.ExchangeByIDCtx(ctx, id)
+}
+
+// ExchangeByIDCtx is the context-aware version of ExchangeByID.
+func (g *GrpcClient) ExchangeByIDCtx(ctx context.Context, id int64) (*core.Exchange, error) {
+	ctx = g.withAPIKey(ctx)
+
 	bID := make([]byte, 8)
 	binary.BigEndian.PutUint64(bID, uint64(id))
 
@@ -51,6 +65,22 @@ func (g *GrpcClient) ExchangeCreate(
 	tokenID2 string,
 	amountToken2 int64,
 ) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.ExchangeCreateCtx(ctx, from, tokenID1, amountToken1, tokenID2, amountToken2)
+}
+
+// ExchangeCreateCtx is the context-aware version of ExchangeCreate.
+func (g *GrpcClient) ExchangeCreateCtx(
+	ctx context.Context,
+	from string,
+	tokenID1 string,
+	amountToken1 int64,
+	tokenID2 string,
+	amountToken2 int64,
+) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 
 	contract := &core.ExchangeCreateContract{
@@ -62,9 +92,6 @@ func (g *GrpcClient) ExchangeCreate(
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.ExchangeCreate(ctx, contract)
 	if err != nil {
@@ -86,6 +113,21 @@ func (g *GrpcClient) ExchangeInject(
 	tokenID string,
 	amountToken int64,
 ) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.ExchangeInjectCtx(ctx, from, exchangeID, tokenID, amountToken)
+}
+
+// ExchangeInjectCtx is the context-aware version of ExchangeInject.
+func (g *GrpcClient) ExchangeInjectCtx(
+	ctx context.Context,
+	from string,
+	exchangeID int64,
+	tokenID string,
+	amountToken int64,
+) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 
 	contract := &core.ExchangeInjectContract{
@@ -96,9 +138,6 @@ func (g *GrpcClient) ExchangeInject(
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.ExchangeInject(ctx, contract)
 	if err != nil {
@@ -120,6 +159,21 @@ func (g *GrpcClient) ExchangeWithdraw(
 	tokenID string,
 	amountToken int64,
 ) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.ExchangeWithdrawCtx(ctx, from, exchangeID, tokenID, amountToken)
+}
+
+// ExchangeWithdrawCtx is the context-aware version of ExchangeWithdraw.
+func (g *GrpcClient) ExchangeWithdrawCtx(
+	ctx context.Context,
+	from string,
+	exchangeID int64,
+	tokenID string,
+	amountToken int64,
+) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 
 	contract := &core.ExchangeWithdrawContract{
@@ -130,9 +184,6 @@ func (g *GrpcClient) ExchangeWithdraw(
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.ExchangeWithdraw(ctx, contract)
 	if err != nil {
@@ -155,6 +206,22 @@ func (g *GrpcClient) ExchangeTrade(
 	amountToken int64,
 	amountExpected int64,
 ) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.ExchangeTradeCtx(ctx, from, exchangeID, tokenID, amountToken, amountExpected)
+}
+
+// ExchangeTradeCtx is the context-aware version of ExchangeTrade.
+func (g *GrpcClient) ExchangeTradeCtx(
+	ctx context.Context,
+	from string,
+	exchangeID int64,
+	tokenID string,
+	amountToken int64,
+	amountExpected int64,
+) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 
 	contract := &core.ExchangeTransactionContract{
@@ -166,9 +233,6 @@ func (g *GrpcClient) ExchangeTrade(
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.ExchangeTransaction(ctx, contract)
 	if err != nil {

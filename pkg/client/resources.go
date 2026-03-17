@@ -1,6 +1,8 @@
 package client
 
 import (
+	"context"
+
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
@@ -8,6 +10,15 @@ import (
 
 // GetAccountResource from BASE58 address
 func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessage, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetAccountResourceCtx(ctx, addr)
+}
+
+// GetAccountResourceCtx is the context-aware version of GetAccountResource.
+func (g *GrpcClient) GetAccountResourceCtx(ctx context.Context, addr string) (*api.AccountResourceMessage, error) {
+	ctx = g.withAPIKey(ctx)
+
 	account := new(core.Account)
 	var err error
 
@@ -16,20 +27,24 @@ func (g *GrpcClient) GetAccountResource(addr string) (*api.AccountResourceMessag
 		return nil, err
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	return g.Client.GetAccountResource(ctx, account)
 }
 
 // GetDelegatedResources from BASE58 address
 func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedResourceList, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetDelegatedResourcesCtx(ctx, address)
+}
+
+// GetDelegatedResourcesCtx is the context-aware version of GetDelegatedResources.
+func (g *GrpcClient) GetDelegatedResourcesCtx(ctx context.Context, address string) ([]*api.DelegatedResourceList, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrBytes, err := common.DecodeCheck(address)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	ai, err := g.Client.GetDelegatedResourceAccountIndex(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
@@ -53,12 +68,19 @@ func (g *GrpcClient) GetDelegatedResources(address string) ([]*api.DelegatedReso
 
 // GetDelegatedResourcesV2 from BASE58 address
 func (g *GrpcClient) GetDelegatedResourcesV2(address string) ([]*api.DelegatedResourceList, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetDelegatedResourcesV2Ctx(ctx, address)
+}
+
+// GetDelegatedResourcesV2Ctx is the context-aware version of GetDelegatedResourcesV2.
+func (g *GrpcClient) GetDelegatedResourcesV2Ctx(ctx context.Context, address string) ([]*api.DelegatedResourceList, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrBytes, err := common.DecodeCheck(address)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	ai, err := g.Client.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
@@ -84,12 +106,19 @@ func (g *GrpcClient) GetDelegatedResourcesV2(address string) ([]*api.DelegatedRe
 // GetReceivedDelegatedResourcesV2 returns resources delegated to the given
 // BASE58 address by other accounts (Stake 2.0).
 func (g *GrpcClient) GetReceivedDelegatedResourcesV2(address string) ([]*api.DelegatedResourceList, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetReceivedDelegatedResourcesV2Ctx(ctx, address)
+}
+
+// GetReceivedDelegatedResourcesV2Ctx is the context-aware version of GetReceivedDelegatedResourcesV2.
+func (g *GrpcClient) GetReceivedDelegatedResourcesV2Ctx(ctx context.Context, address string) ([]*api.DelegatedResourceList, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrBytes, err := common.DecodeCheck(address)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	ai, err := g.Client.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
@@ -113,12 +142,19 @@ func (g *GrpcClient) GetReceivedDelegatedResourcesV2(address string) ([]*api.Del
 
 // GetCanDelegatedMaxSize from BASE58 address
 func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*api.CanDelegatedMaxSizeResponseMessage, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetCanDelegatedMaxSizeCtx(ctx, address, resource)
+}
+
+// GetCanDelegatedMaxSizeCtx is the context-aware version of GetCanDelegatedMaxSize.
+func (g *GrpcClient) GetCanDelegatedMaxSizeCtx(ctx context.Context, address string, resource int32) (*api.CanDelegatedMaxSizeResponseMessage, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrBytes, err := common.DecodeCheck(address)
 	if err != nil {
 		return nil, err
 	}
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	dm := &api.CanDelegatedMaxSizeRequestMessage{}
 
@@ -136,6 +172,15 @@ func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*ap
 
 // DelegateResource from BASE58 address
 func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCode, delegateBalance int64, lock bool, lockPeriod int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.DelegateResourceCtx(ctx, from, to, resource, delegateBalance, lock, lockPeriod)
+}
+
+// DelegateResourceCtx is the context-aware version of DelegateResource.
+func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, resource core.ResourceCode, delegateBalance int64, lock bool, lockPeriod int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrFromBytes, err := common.DecodeCheck(from)
 	if err != nil {
 		return nil, err
@@ -145,9 +190,6 @@ func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCod
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	contract := &core.DelegateResourceContract{}
 
@@ -169,6 +211,15 @@ func (g *GrpcClient) DelegateResource(from, to string, resource core.ResourceCod
 
 // UnDelegateResource from BASE58 address
 func (g *GrpcClient) UnDelegateResource(owner, receiver string, resource core.ResourceCode, delegateBalance int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.UnDelegateResourceCtx(ctx, owner, receiver, resource, delegateBalance)
+}
+
+// UnDelegateResourceCtx is the context-aware version of UnDelegateResource.
+func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver string, resource core.ResourceCode, delegateBalance int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	addrOwnerBytes, err := common.DecodeCheck(owner)
 	if err != nil {
 		return nil, err
@@ -178,9 +229,6 @@ func (g *GrpcClient) UnDelegateResource(owner, receiver string, resource core.Re
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	contract := &core.UnDelegateResourceContract{}
 

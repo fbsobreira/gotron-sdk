@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 
@@ -16,6 +17,15 @@ import (
 
 // UpdateEnergyLimitContract update contract enery limit
 func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.UpdateEnergyLimitContractCtx(ctx, from, contractAddress, value)
+}
+
+// UpdateEnergyLimitContractCtx is the context-aware version of UpdateEnergyLimitContract.
+func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	fromDesc, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, err
@@ -32,9 +42,6 @@ func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, val
 		OriginEnergyLimit: value,
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	tx, err := g.Client.UpdateEnergyLimit(ctx, ct)
 	if err != nil {
 		return nil, err
@@ -49,6 +56,15 @@ func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, val
 
 // UpdateSettingContract change contract owner consumption ratio
 func (g *GrpcClient) UpdateSettingContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.UpdateSettingContractCtx(ctx, from, contractAddress, value)
+}
+
+// UpdateSettingContractCtx is the context-aware version of UpdateSettingContract.
+func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contractAddress string, value int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	fromDesc, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, err
@@ -65,9 +81,6 @@ func (g *GrpcClient) UpdateSettingContract(from, contractAddress string, value i
 		ConsumeUserResourcePercent: value,
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	tx, err := g.Client.UpdateSetting(ctx, ct)
 	if err != nil {
 		return nil, err
@@ -82,6 +95,15 @@ func (g *GrpcClient) UpdateSettingContract(from, contractAddress string, value i
 
 // TriggerConstantContract and return tx result
 func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TriggerConstantContractCtx(ctx, from, contractAddress, method, jsonString)
+}
+
+// TriggerConstantContractCtx is the context-aware version of TriggerConstantContract.
+func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
 	if len(from) > 0 {
@@ -111,20 +133,27 @@ func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, json
 		Data:            dataBytes,
 	}
 
-	return g.triggerConstantContract(ct)
+	return g.triggerConstantContract(ctx, ct)
 }
 
 // triggerConstantContract and return tx result
-func (g *GrpcClient) triggerConstantContract(ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-	ctx, cancel := g.getContext()
-	defer cancel()
-
+func (g *GrpcClient) triggerConstantContract(ctx context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
 	return g.Client.TriggerConstantContract(ctx, ct)
 }
 
 // TriggerContract and return tx result
 func (g *GrpcClient) TriggerContract(from, contractAddress, method, jsonString string,
 	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TriggerContractCtx(ctx, from, contractAddress, method, jsonString, feeLimit, tAmount, tTokenID, tTokenAmount)
+}
+
+// TriggerContractCtx is the context-aware version of TriggerContract.
+func (g *GrpcClient) TriggerContractCtx(ctx context.Context, from, contractAddress, method, jsonString string,
+	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
 	fromDesc, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, err
@@ -161,14 +190,11 @@ func (g *GrpcClient) TriggerContract(from, contractAddress, method, jsonString s
 		}
 	}
 
-	return g.triggerContract(ct, feeLimit)
+	return g.triggerContract(ctx, ct, feeLimit)
 }
 
 // triggerContract and return tx result
-func (g *GrpcClient) triggerContract(ct *core.TriggerSmartContract, feeLimit int64) (*api.TransactionExtention, error) {
-	ctx, cancel := g.getContext()
-	defer cancel()
-
+func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartContract, feeLimit int64) (*api.TransactionExtention, error) {
 	tx, err := g.Client.TriggerContract(ctx, ct)
 	if err != nil {
 		return nil, err
@@ -188,6 +214,16 @@ func (g *GrpcClient) triggerContract(ct *core.TriggerSmartContract, feeLimit int
 // EstimateEnergy returns enery required
 func (g *GrpcClient) EstimateEnergy(from, contractAddress, method, jsonString string,
 	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.EstimateEnergyCtx(ctx, from, contractAddress, method, jsonString, tAmount, tTokenID, tTokenAmount)
+}
+
+// EstimateEnergyCtx is the context-aware version of EstimateEnergy.
+func (g *GrpcClient) EstimateEnergyCtx(ctx context.Context, from, contractAddress, method, jsonString string,
+	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	ctx = g.withAPIKey(ctx)
+
 	fromDesc, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, err
@@ -224,14 +260,11 @@ func (g *GrpcClient) EstimateEnergy(from, contractAddress, method, jsonString st
 		}
 	}
 
-	return g.estimateEnergy(ct)
+	return g.estimateEnergy(ctx, ct)
 }
 
 // triggerContract and return tx result
-func (g *GrpcClient) estimateEnergy(ct *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
-	ctx, cancel := g.getContext()
-	defer cancel()
-
+func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
 	tx, err := g.Client.EstimateEnergy(ctx, ct)
 	if err != nil {
 		if s, ok := status.FromError(err); ok && s.Code() == codes.Unimplemented {
@@ -252,6 +285,17 @@ func (g *GrpcClient) DeployContract(from, contractName string,
 	abi *core.SmartContract_ABI, codeStr string,
 	feeLimit, curPercent, oeLimit int64,
 ) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.DeployContractCtx(ctx, from, contractName, abi, codeStr, feeLimit, curPercent, oeLimit)
+}
+
+// DeployContractCtx is the context-aware version of DeployContract.
+func (g *GrpcClient) DeployContractCtx(ctx context.Context, from, contractName string,
+	abi *core.SmartContract_ABI, codeStr string,
+	feeLimit, curPercent, oeLimit int64,
+) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 
 	var err error
 
@@ -284,9 +328,6 @@ func (g *GrpcClient) DeployContract(from, contractName string,
 		},
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	tx, err := g.Client.DeployContract(ctx, ct)
 	if err != nil {
 		return nil, err
@@ -306,14 +347,20 @@ func (g *GrpcClient) UpdateHash(tx *api.TransactionExtention) error {
 
 // GetContractABI return smartContract
 func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract_ABI, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetContractABICtx(ctx, contractAddress)
+}
+
+// GetContractABICtx is the context-aware version of GetContractABI.
+func (g *GrpcClient) GetContractABICtx(ctx context.Context, contractAddress string) (*core.SmartContract_ABI, error) {
+	ctx = g.withAPIKey(ctx)
+
 	var err error
 	contractDesc, err := address.Base58ToAddress(contractAddress)
 	if err != nil {
 		return nil, err
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	sm, err := g.Client.GetContract(ctx, GetMessageBytes(contractDesc))
 	if err != nil {
@@ -353,7 +400,16 @@ var zeroEVMAddr [20]byte
 // Only a single level of proxy indirection is resolved; chained proxies
 // (proxy → proxy → implementation) are not followed.
 func (g *GrpcClient) GetContractABIResolved(contractAddress string) (*core.SmartContract_ABI, error) {
-	contractABI, err := g.GetContractABI(contractAddress)
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetContractABIResolvedCtx(ctx, contractAddress)
+}
+
+// GetContractABIResolvedCtx is the context-aware version of GetContractABIResolved.
+func (g *GrpcClient) GetContractABIResolvedCtx(ctx context.Context, contractAddress string) (*core.SmartContract_ABI, error) {
+	ctx = g.withAPIKey(ctx)
+
+	contractABI, err := g.GetContractABICtx(ctx, contractAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -361,13 +417,13 @@ func (g *GrpcClient) GetContractABIResolved(contractAddress string) (*core.Smart
 		return contractABI, nil
 	}
 
-	implAddr, err := g.getProxyImplementation(contractAddress)
+	implAddr, err := g.getProxyImplementation(ctx, contractAddress)
 	if err != nil || implAddr == "" {
 		// Not a recognised proxy — return the original ABI.
 		return contractABI, nil
 	}
 
-	implABI, err := g.GetContractABI(implAddr)
+	implABI, err := g.GetContractABICtx(ctx, implAddr)
 	if err != nil {
 		return contractABI, nil
 	}
@@ -402,7 +458,7 @@ func isProxyABI(contractABI *core.SmartContract_ABI) bool {
 // discover the implementation address behind a proxy contract.  Returns the
 // implementation address in Base58 format, or an empty string if no
 // strategy succeeds.
-func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, error) {
+func (g *GrpcClient) getProxyImplementation(ctx context.Context, contractAddress string) (string, error) {
 	contractDesc, err := address.Base58ToAddress(contractAddress)
 	if err != nil {
 		return "", err
@@ -411,7 +467,7 @@ func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, err
 	ownerBytes := address.HexToAddress("410000000000000000000000000000000000000000").Bytes()
 
 	for _, sel := range proxySelectors {
-		addr := g.callForAddress(ownerBytes, contractBytes, sel[:])
+		addr := g.callForAddress(ctx, ownerBytes, contractBytes, sel[:])
 		if addr != "" {
 			return addr, nil
 		}
@@ -424,14 +480,14 @@ func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, err
 // interprets the result as an ABI-encoded address.  Returns the Base58
 // Tron address on success, or an empty string if the call fails or
 // returns a zero/invalid address.
-func (g *GrpcClient) callForAddress(ownerBytes, contractBytes, data []byte) string {
+func (g *GrpcClient) callForAddress(ctx context.Context, ownerBytes, contractBytes, data []byte) string {
 	ct := &core.TriggerSmartContract{
 		OwnerAddress:    ownerBytes,
 		ContractAddress: contractBytes,
 		Data:            data,
 	}
 
-	tx, err := g.triggerConstantContract(ct)
+	tx, err := g.triggerConstantContract(ctx, ct)
 	if err != nil || tx == nil {
 		return ""
 	}

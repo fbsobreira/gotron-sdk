@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -11,6 +12,14 @@ import (
 
 // Transfer from to base58 address
 func (g *GrpcClient) Transfer(from, toAddress string, amount int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TransferCtx(ctx, from, toAddress, amount)
+}
+
+// TransferCtx is the context-aware version of Transfer.
+func (g *GrpcClient) TransferCtx(ctx context.Context, from, toAddress string, amount int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 
 	contract := &core.TransferContract{}
@@ -21,9 +30,6 @@ func (g *GrpcClient) Transfer(from, toAddress string, amount int64) (*api.Transa
 		return nil, err
 	}
 	contract.Amount = amount
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.CreateTransaction2(ctx, contract)
 	if err != nil {

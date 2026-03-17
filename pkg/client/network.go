@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/proto"
@@ -17,36 +17,55 @@ import (
 
 // ListNodes provides list of network nodes
 func (g *GrpcClient) ListNodes() (*api.NodeList, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.ListNodesCtx(ctx)
+}
 
-	nodeList, err := g.Client.ListNodes(ctx, new(api.EmptyMessage))
-	if err != nil {
-		zap.L().Error("List nodes", zap.Error(err))
-	}
-	return nodeList, nil
+// ListNodesCtx is the context-aware version of ListNodes.
+func (g *GrpcClient) ListNodesCtx(ctx context.Context) (*api.NodeList, error) {
+	ctx = g.withAPIKey(ctx)
+	return g.Client.ListNodes(ctx, new(api.EmptyMessage))
 }
 
 // GetNextMaintenanceTime get next epoch timestamp
 func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetNextMaintenanceTimeCtx(ctx)
+}
 
+// GetNextMaintenanceTimeCtx is the context-aware version of GetNextMaintenanceTime.
+func (g *GrpcClient) GetNextMaintenanceTimeCtx(ctx context.Context) (*api.NumberMessage, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetNextMaintenanceTime(ctx,
 		new(api.EmptyMessage))
 }
 
 // TotalTransaction return total transciton in network
 func (g *GrpcClient) TotalTransaction() (*api.NumberMessage, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.TotalTransactionCtx(ctx)
+}
 
+// TotalTransactionCtx is the context-aware version of TotalTransaction.
+func (g *GrpcClient) TotalTransactionCtx(ctx context.Context) (*api.NumberMessage, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.TotalTransaction(ctx,
 		new(api.EmptyMessage))
 }
 
 // GetTransactionByID returns transaction details by ID
 func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetTransactionByIDCtx(ctx, id)
+}
+
+// GetTransactionByIDCtx is the context-aware version of GetTransactionByID.
+func (g *GrpcClient) GetTransactionByIDCtx(ctx context.Context, id string) (*core.Transaction, error) {
+	ctx = g.withAPIKey(ctx)
 	transactionID := new(api.BytesMessage)
 	var err error
 
@@ -54,9 +73,6 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.GetTransactionById(ctx, transactionID)
 	if err != nil {
@@ -70,6 +86,14 @@ func (g *GrpcClient) GetTransactionByID(id string) (*core.Transaction, error) {
 
 // GetTransactionInfoByID returns transaction receipt by ID
 func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetTransactionInfoByIDCtx(ctx, id)
+}
+
+// GetTransactionInfoByIDCtx is the context-aware version of GetTransactionInfoByID.
+func (g *GrpcClient) GetTransactionInfoByIDCtx(ctx context.Context, id string) (*core.TransactionInfo, error) {
+	ctx = g.withAPIKey(ctx)
 	transactionID := new(api.BytesMessage)
 	var err error
 
@@ -77,9 +101,6 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 	if err != nil {
 		return nil, fmt.Errorf("get transaction by id error: %v", err)
 	}
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	txi, err := g.Client.GetTransactionInfoById(ctx, transactionID)
 	if err != nil {
@@ -93,8 +114,14 @@ func (g *GrpcClient) GetTransactionInfoByID(id string) (*core.TransactionInfo, e
 
 // Broadcast broadcast TX
 func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.BroadcastCtx(ctx, tx)
+}
+
+// BroadcastCtx is the context-aware version of Broadcast.
+func (g *GrpcClient) BroadcastCtx(ctx context.Context, tx *core.Transaction) (*api.Return, error) {
+	ctx = g.withAPIKey(ctx)
 	result, err := g.Client.BroadcastTransaction(ctx, tx)
 	if err != nil {
 		return nil, err
@@ -110,33 +137,53 @@ func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 
 // GetNodeInfo current connection
 func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetNodeInfoCtx(ctx)
+}
 
+// GetNodeInfoCtx is the context-aware version of GetNodeInfo.
+func (g *GrpcClient) GetNodeInfoCtx(ctx context.Context) (*core.NodeInfo, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetNodeInfo(ctx, new(api.EmptyMessage))
 }
 
 // GetEnergyPrices returns energy prices
 func (g *GrpcClient) GetEnergyPrices() (*api.PricesResponseMessage, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetEnergyPricesCtx(ctx)
+}
 
+// GetEnergyPricesCtx is the context-aware version of GetEnergyPrices.
+func (g *GrpcClient) GetEnergyPricesCtx(ctx context.Context) (*api.PricesResponseMessage, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetEnergyPrices(ctx, new(api.EmptyMessage))
 }
 
 // GetBandwidthPrices returns bandwidth prices
 func (g *GrpcClient) GetBandwidthPrices() (*api.PricesResponseMessage, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetBandwidthPricesCtx(ctx)
+}
 
+// GetBandwidthPricesCtx is the context-aware version of GetBandwidthPrices.
+func (g *GrpcClient) GetBandwidthPricesCtx(ctx context.Context) (*api.PricesResponseMessage, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetBandwidthPrices(ctx, new(api.EmptyMessage))
 }
 
 // GetMemoFee returns memo fee
 func (g *GrpcClient) GetMemoFee() (*api.PricesResponseMessage, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetMemoFeeCtx(ctx)
+}
 
+// GetMemoFeeCtx is the context-aware version of GetMemoFee.
+func (g *GrpcClient) GetMemoFeeCtx(ctx context.Context) (*api.PricesResponseMessage, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetMemoFee(ctx, new(api.EmptyMessage))
 }
 
@@ -185,7 +232,14 @@ func ParsePrices(raw string) ([]PriceEntry, error) {
 
 // GetEnergyPriceHistory returns parsed energy price history.
 func (g *GrpcClient) GetEnergyPriceHistory() ([]PriceEntry, error) {
-	resp, err := g.GetEnergyPrices()
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetEnergyPriceHistoryCtx(ctx)
+}
+
+// GetEnergyPriceHistoryCtx is the context-aware version of GetEnergyPriceHistory.
+func (g *GrpcClient) GetEnergyPriceHistoryCtx(ctx context.Context) ([]PriceEntry, error) {
+	resp, err := g.GetEnergyPricesCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +252,14 @@ func (g *GrpcClient) GetEnergyPriceHistory() ([]PriceEntry, error) {
 
 // GetBandwidthPriceHistory returns parsed bandwidth price history.
 func (g *GrpcClient) GetBandwidthPriceHistory() ([]PriceEntry, error) {
-	resp, err := g.GetBandwidthPrices()
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetBandwidthPriceHistoryCtx(ctx)
+}
+
+// GetBandwidthPriceHistoryCtx is the context-aware version of GetBandwidthPriceHistory.
+func (g *GrpcClient) GetBandwidthPriceHistoryCtx(ctx context.Context) ([]PriceEntry, error) {
+	resp, err := g.GetBandwidthPricesCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +272,14 @@ func (g *GrpcClient) GetBandwidthPriceHistory() ([]PriceEntry, error) {
 
 // GetMemoFeeHistory returns parsed memo fee history.
 func (g *GrpcClient) GetMemoFeeHistory() ([]PriceEntry, error) {
-	resp, err := g.GetMemoFee()
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetMemoFeeHistoryCtx(ctx)
+}
+
+// GetMemoFeeHistoryCtx is the context-aware version of GetMemoFeeHistory.
+func (g *GrpcClient) GetMemoFeeHistoryCtx(ctx context.Context) ([]PriceEntry, error) {
+	resp, err := g.GetMemoFeeCtx(ctx)
 	if err != nil {
 		return nil, err
 	}
