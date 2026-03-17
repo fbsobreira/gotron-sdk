@@ -232,6 +232,47 @@ func TestConvertToInt(t *testing.T) {
 			typeName: "int256",
 			input:    "-1",
 		},
+		// Non-standard widths (fall through to big.Int)
+		{
+			name:     "uint24 falls through to big.Int",
+			typeName: "uint24",
+			input:    "16777215",
+		},
+		{
+			name:     "int24 falls through to big.Int",
+			typeName: "int24",
+			input:    "-8388608",
+		},
+		{
+			name:     "uint40 falls through to big.Int",
+			typeName: "uint40",
+			input:    "1099511627775",
+		},
+		{
+			name:     "int40 falls through to big.Int",
+			typeName: "int40",
+			input:    "-549755813888",
+		},
+		{
+			name:     "uint48 falls through to big.Int",
+			typeName: "uint48",
+			input:    "281474976710655",
+		},
+		{
+			name:     "int48 falls through to big.Int",
+			typeName: "int48",
+			input:    "-140737488355328",
+		},
+		{
+			name:     "uint56 falls through to big.Int",
+			typeName: "uint56",
+			input:    "100",
+		},
+		{
+			name:     "int56 falls through to big.Int",
+			typeName: "int56",
+			input:    "-100",
+		},
 	}
 
 	for _, tc := range tests {
@@ -246,14 +287,9 @@ func TestConvertToInt(t *testing.T) {
 			if tc.expected != nil {
 				assert.Equal(t, tc.expected, result)
 			}
-			// For big ints just verify we got a *big.Int
-			if ty.Size > 64 || (ty.T != eABI.IntTy && ty.T != eABI.UintTy) ||
-				(ty.T == eABI.IntTy && ty.Size > 64) ||
-				(ty.T == eABI.UintTy && ty.Size > 64) {
-				if tc.expected == nil {
-					_, ok := result.(*big.Int)
-					assert.True(t, ok, "expected *big.Int for %s", tc.typeName)
-				}
+			if tc.expected == nil {
+				_, ok := result.(*big.Int)
+				assert.True(t, ok, "expected *big.Int for %s", tc.typeName)
 			}
 		})
 	}
@@ -552,29 +588,54 @@ func TestConvertSmallIntSlice(t *testing.T) {
 	}
 }
 
-func TestConvertSmallIntSlice_Fallback(t *testing.T) {
-	// The default case falls back to big.Int for unexpected sizes.
-	// We can trigger this with a uint24 type which has Size=24 (not 8/16/32/64).
-	// However, eABI.NewType may not support uint24 directly.
-	// Instead, we construct a type manually or use uint128 which also falls through.
-	// Actually, go-ethereum ABI supports uint256 but Size=256 > 64 so it won't enter
-	// convertSmallIntSlice at all (it's handled earlier). Let's use uint48.
-	// Actually, eABI.NewType only supports standard EVM sizes (multiples of 8 up to 256).
-	// Let's test with uint24 which is valid in Solidity.
-	elemTy, err := eABI.NewType("uint24", "", nil)
-	require.NoError(t, err)
+func TestConvertSmallIntSlice_NonStandardWidths(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		input    []string
+		expected []*big.Int
+	}{
+		{
+			name:     "uint24 falls through to []*big.Int",
+			typeName: "uint24",
+			input:    []string{"100", "16777215"},
+			expected: []*big.Int{big.NewInt(100), big.NewInt(16777215)},
+		},
+		{
+			name:     "int24 falls through to []*big.Int",
+			typeName: "int24",
+			input:    []string{"-8388608", "8388607"},
+			expected: []*big.Int{big.NewInt(-8388608), big.NewInt(8388607)},
+		},
+		{
+			name:     "uint48 falls through to []*big.Int",
+			typeName: "uint48",
+			input:    []string{"100", "281474976710655"},
+			expected: []*big.Int{big.NewInt(100), big.NewInt(281474976710655)},
+		},
+		{
+			name:     "int48 falls through to []*big.Int",
+			typeName: "int48",
+			input:    []string{"-140737488355328", "140737488355327"},
+			expected: []*big.Int{big.NewInt(-140737488355328), big.NewInt(140737488355327)},
+		},
+	}
 
-	result, err := convertSmallIntSlice(elemTy, []string{"100", "200"})
-	require.NoError(t, err)
-	// Should fall through to big.Int default case since 24 is not 8/16/32/64
-	bigSlice, ok := result.([]*big.Int)
-	require.True(t, ok, "expected []*big.Int for uint24 fallback, got %T", result)
-	assert.Equal(t, big.NewInt(100), bigSlice[0])
-	assert.Equal(t, big.NewInt(200), bigSlice[1])
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			elemTy, err := eABI.NewType(tc.typeName, "", nil)
+			require.NoError(t, err)
+
+			result, err := convertSmallIntSlice(elemTy, tc.input)
+			require.NoError(t, err)
+			bigSlice, ok := result.([]*big.Int)
+			require.True(t, ok, "expected []*big.Int, got %T", result)
+			assert.Equal(t, tc.expected, bigSlice)
+		})
+	}
 }
 
-func TestConvertSmallIntSlice_FallbackInvalidInput(t *testing.T) {
-	// Test the default/fallback branch (big.Int) with invalid input (uint24 has Size=24, not 8/16/32/64)
+func TestConvertSmallIntSlice_NonStandardInvalidInput(t *testing.T) {
 	elemTy, err := eABI.NewType("uint24", "", nil)
 	require.NoError(t, err)
 
@@ -807,6 +868,53 @@ func TestGetPaddedParam_InvalidIntSlice(t *testing.T) {
 			_, err := GetPaddedParam(params)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.wantMsg)
+		})
+	}
+}
+
+func TestGetPaddedParam_NonStandardIntWidths(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		value    string
+	}{
+		{"uint24", "uint24", "16777215"},
+		{"int24", "int24", "-8388608"},
+		{"uint40", "uint40", "1099511627775"},
+		{"int40", "int40", "-549755813888"},
+		{"uint48", "uint48", "281474976710655"},
+		{"int48", "int48", "-140737488355328"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := []Param{{tc.typeName: tc.value}}
+			b, err := GetPaddedParam(params)
+			require.NoError(t, err)
+			assert.Len(t, b, 32, "ABI-encoded int should be 32 bytes")
+		})
+	}
+}
+
+func TestGetPaddedParam_NonStandardIntSlice(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		values   []string
+	}{
+		{"uint24 slice", "uint24[]", []string{"100", "200"}},
+		{"int24 slice", "int24[]", []string{"-100", "100"}},
+		{"uint48 slice", "uint48[]", []string{"100", "200"}},
+		{"int48 slice", "int48[]", []string{"-100", "100"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := []Param{{tc.typeName: tc.values}}
+			b, err := GetPaddedParam(params)
+			require.NoError(t, err)
+			expected := 32 + 32 + len(tc.values)*32
+			assert.Len(t, b, expected, "unexpected length for %s", tc.typeName)
 		})
 	}
 }
