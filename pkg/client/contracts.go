@@ -326,18 +326,29 @@ func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract
 	return sm.Abi, nil
 }
 
-// implementationSelector is the 4-byte EVM function selector for
-// implementation() — keccak256("implementation()")[:4].
-// This is the standard getter exposed by most ERC-1967 proxy contracts
-// (OpenZeppelin TransparentUpgradeableProxy, UUPS, etc.).
-var implementationSelector = [4]byte{0x5c, 0x60, 0xda, 0x1b}
+// proxySelectors lists the EVM function selectors tried (in order) when
+// resolving a proxy contract's implementation address.  Each entry is a
+// 4-byte keccak256 prefix of a well-known getter exposed by different
+// proxy patterns.
+var proxySelectors = [][4]byte{
+	{0x5c, 0x60, 0xda, 0x1b}, // implementation()              — ERC-1967 / OpenZeppelin / UUPS
+	{0xbb, 0x82, 0xaa, 0x5e}, // comptrollerImplementation()   — Compound-style (Unitroller, etc.)
+	{0xaa, 0xf1, 0x0f, 0x42}, // getImplementation()           — alternate proxy getter
+	{0xa6, 0x19, 0x48, 0x6e}, // masterCopy()                  — Gnosis Safe / GnosisSafeProxy
+}
+
+// zeroEVMAddr is a pre-allocated zero address used by callForAddress to
+// detect invalid implementation addresses without allocating on each call.
+var zeroEVMAddr [20]byte
 
 // GetContractABIResolved returns the ABI for a contract, resolving proxy
 // contracts transparently.  It first calls GetContractABI on the given
 // address; if the returned ABI has no entries, or if the ABI looks like a
 // proxy-only ABI (contains an "implementation" function), it attempts to
-// detect a proxy by calling the implementation() view function and, on
-// success, fetches the ABI from the implementation contract instead.
+// detect a proxy by trying several well-known proxy getter selectors
+// (implementation(), comptrollerImplementation(), getImplementation(),
+// masterCopy()).  On success it fetches the ABI from the implementation
+// contract instead.
 //
 // Only a single level of proxy indirection is resolved; chained proxies
 // (proxy → proxy → implementation) are not followed.
@@ -367,48 +378,68 @@ func (g *GrpcClient) GetContractABIResolved(contractAddress string) (*core.Smart
 }
 
 // isProxyABI reports whether the given ABI looks like a proxy contract ABI
-// (e.g. OpenZeppelin TransparentUpgradeableProxy) rather than a real
-// business-logic ABI.  It returns true when the ABI declares an
-// "implementation" function — the hallmark of an ERC-1967 proxy.
+// rather than a real business-logic ABI.  It returns true when the ABI
+// declares a function matching one of the well-known proxy getter names.
 //
-// This is a heuristic: a non-proxy contract with a function named
-// "implementation" would trigger proxy resolution, but the fallback logic
-// in GetContractABIResolved ensures the original ABI is returned if
-// resolution fails or produces no improvement.
+// This is a heuristic: a non-proxy contract with a matching function name
+// would trigger proxy resolution, but the fallback logic in
+// GetContractABIResolved ensures the original ABI is returned if resolution
+// fails or produces no improvement.
 func isProxyABI(contractABI *core.SmartContract_ABI) bool {
 	for _, entry := range contractABI.GetEntrys() {
-		if entry.GetType() == core.SmartContract_ABI_Entry_Function &&
-			entry.GetName() == "implementation" {
+		if entry.GetType() != core.SmartContract_ABI_Entry_Function {
+			continue
+		}
+		switch entry.GetName() {
+		case "implementation", "comptrollerImplementation", "getImplementation", "masterCopy":
 			return true
 		}
 	}
 	return false
 }
 
-// getProxyImplementation calls implementation() on the given contract and
-// returns the implementation address in Base58 format.  If the call fails
-// or returns an invalid address it returns an empty string and nil error.
+// getProxyImplementation tries multiple well-known getter selectors to
+// discover the implementation address behind a proxy contract.  Returns the
+// implementation address in Base58 format, or an empty string if no
+// strategy succeeds.
 func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, error) {
 	contractDesc, err := address.Base58ToAddress(contractAddress)
 	if err != nil {
 		return "", err
 	}
+	contractBytes := contractDesc.Bytes()
+	ownerBytes := address.HexToAddress("410000000000000000000000000000000000000000").Bytes()
 
+	for _, sel := range proxySelectors {
+		addr := g.callForAddress(ownerBytes, contractBytes, sel[:])
+		if addr != "" {
+			return addr, nil
+		}
+	}
+
+	return "", nil
+}
+
+// callForAddress sends a constant contract call with the given data and
+// interprets the result as an ABI-encoded address.  Returns the Base58
+// Tron address on success, or an empty string if the call fails or
+// returns a zero/invalid address.
+func (g *GrpcClient) callForAddress(ownerBytes, contractBytes, data []byte) string {
 	ct := &core.TriggerSmartContract{
-		OwnerAddress:    address.HexToAddress("410000000000000000000000000000000000000000").Bytes(),
-		ContractAddress: contractDesc.Bytes(),
-		Data:            implementationSelector[:],
+		OwnerAddress:    ownerBytes,
+		ContractAddress: contractBytes,
+		Data:            data,
 	}
 
 	tx, err := g.triggerConstantContract(ct)
-	if err != nil {
-		return "", nil // call reverted — not a proxy
+	if err != nil || tx == nil {
+		return ""
 	}
-	if tx == nil {
-		return "", nil
+	if res := tx.GetResult(); res == nil || res.GetCode() != 0 || !res.GetResult() {
+		return ""
 	}
 	if len(tx.GetConstantResult()) == 0 || len(tx.GetConstantResult()[0]) < 32 {
-		return "", nil
+		return ""
 	}
 
 	// The result is an ABI-encoded address: 12 bytes zero-padding followed
@@ -418,12 +449,12 @@ func (g *GrpcClient) getProxyImplementation(contractAddress string) (string, err
 	evmAddr := result[12:32]
 
 	// Check for zero address — not a valid implementation.
-	if bytes.Equal(evmAddr, make([]byte, 20)) {
-		return "", nil
+	if bytes.Equal(evmAddr, zeroEVMAddr[:]) {
+		return ""
 	}
 
 	tronAddr := make([]byte, 0, address.AddressLength)
 	tronAddr = append(tronAddr, address.TronBytePrefix)
 	tronAddr = append(tronAddr, evmAddr...)
-	return address.Address(tronAddr).String(), nil
+	return address.Address(tronAddr).String()
 }
