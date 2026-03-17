@@ -239,7 +239,8 @@ func TestConvertToInt(t *testing.T) {
 			ty, err := eABI.NewType(tc.typeName, "", nil)
 			require.NoError(t, err)
 
-			result := convertToInt(ty, tc.input)
+			result, err := convertToInt(ty, tc.input)
+			require.NoError(t, err)
 			require.NotNil(t, result)
 
 			if tc.expected != nil {
@@ -259,18 +260,17 @@ func TestConvertToInt(t *testing.T) {
 }
 
 func TestConvertToInt_InvalidStrings(t *testing.T) {
-	// The original convertToInt silently returns zero/nil for invalid input.
-	// Verify it does not panic on bad input.
 	tests := []struct {
 		name     string
 		typeName string
 		input    interface{}
+		wantMsg  string
 	}{
-		{name: "invalid uint8", typeName: "uint8", input: "not-a-number"},
-		{name: "overflow uint8", typeName: "uint8", input: "256"},
-		{name: "invalid int16", typeName: "int16", input: "abc"},
-		{name: "invalid uint256 decimal", typeName: "uint256", input: "xyz"},
-		{name: "invalid uint256 hex", typeName: "uint256", input: "0xnothex"},
+		{name: "invalid uint8", typeName: "uint8", input: "not-a-number", wantMsg: "as uint8"},
+		{name: "overflow uint8", typeName: "uint8", input: "256", wantMsg: "as uint8"},
+		{name: "invalid int16", typeName: "int16", input: "abc", wantMsg: "as int16"},
+		{name: "invalid uint256 decimal", typeName: "uint256", input: "xyz", wantMsg: "as big.Int"},
+		{name: "invalid uint256 hex", typeName: "uint256", input: "0xnothex", wantMsg: "as big.Int"},
 	}
 
 	for _, tt := range tests {
@@ -278,9 +278,9 @@ func TestConvertToInt_InvalidStrings(t *testing.T) {
 			ty, err := eABI.NewType(tt.typeName, "", nil)
 			require.NoError(t, err)
 
-			assert.NotPanics(t, func() {
-				convertToInt(ty, tt.input)
-			})
+			_, err = convertToInt(ty, tt.input)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantMsg)
 		})
 	}
 }
@@ -544,7 +544,8 @@ func TestConvertSmallIntSlice(t *testing.T) {
 			elemTy, err := eABI.NewType(tc.typeName, "", nil)
 			require.NoError(t, err)
 
-			result := convertSmallIntSlice(elemTy, tc.input)
+			result, err := convertSmallIntSlice(elemTy, tc.input)
+			require.NoError(t, err)
 			require.NotNil(t, result)
 			tc.validate(t, result)
 		})
@@ -563,7 +564,8 @@ func TestConvertSmallIntSlice_Fallback(t *testing.T) {
 	elemTy, err := eABI.NewType("uint24", "", nil)
 	require.NoError(t, err)
 
-	result := convertSmallIntSlice(elemTy, []string{"100", "200"})
+	result, err := convertSmallIntSlice(elemTy, []string{"100", "200"})
+	require.NoError(t, err)
 	// Should fall through to big.Int default case since 24 is not 8/16/32/64
 	bigSlice, ok := result.([]*big.Int)
 	require.True(t, ok, "expected []*big.Int for uint24 fallback, got %T", result)
@@ -571,15 +573,25 @@ func TestConvertSmallIntSlice_Fallback(t *testing.T) {
 	assert.Equal(t, big.NewInt(200), bigSlice[1])
 }
 
+func TestConvertSmallIntSlice_FallbackInvalidInput(t *testing.T) {
+	// Test the default/fallback branch (big.Int) with invalid input (uint24 has Size=24, not 8/16/32/64)
+	elemTy, err := eABI.NewType("uint24", "", nil)
+	require.NoError(t, err)
+
+	_, err = convertSmallIntSlice(elemTy, []string{"100", "not-a-number"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "element 1")
+	assert.Contains(t, err.Error(), "as big.Int")
+}
+
 func TestConvertSmallIntSlice_InvalidInput(t *testing.T) {
-	// The original convertSmallIntSlice silently returns zero for invalid input.
-	// Verify it does not panic.
 	elemTy, err := eABI.NewType("uint8", "", nil)
 	require.NoError(t, err)
 
-	assert.NotPanics(t, func() {
-		convertSmallIntSlice(elemTy, []string{"1", "overflow-999"})
-	})
+	_, err = convertSmallIntSlice(elemTy, []string{"1", "overflow-999"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "element 1")
+	assert.Contains(t, err.Error(), "cannot parse")
 }
 
 // ---------------------------------------------------------------------------
@@ -735,8 +747,6 @@ func TestGetPaddedParam_IntTypes(t *testing.T) {
 }
 
 func TestGetPaddedParam_IntTypes_Overflow(t *testing.T) {
-	// With the current implementation, convertToInt silently truncates
-	// overflowing values. Verify the function does not panic.
 	tests := []struct {
 		name     string
 		typeName string
@@ -749,11 +759,54 @@ func TestGetPaddedParam_IntTypes_Overflow(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			params := []Param{{tc.typeName: tc.value}}
-			// strconv.ParseUint/ParseInt silently returns 0 on error,
-			// so we get a zero-value encoding rather than an error.
-			b, err := GetPaddedParam(params)
-			require.NoError(t, err)
-			assert.Len(t, b, 32)
+			_, err := GetPaddedParam(params)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "cannot parse")
+		})
+	}
+}
+
+func TestGetPaddedParam_InvalidIntInput(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		value    string
+		wantMsg  string
+	}{
+		{"non-numeric uint256", "uint256", "abc", "cannot parse"},
+		{"non-numeric int32", "int32", "xyz", "cannot parse"},
+		{"invalid hex big int", "uint256", "0xZZZ", "cannot parse"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := []Param{{tc.typeName: tc.value}}
+			_, err := GetPaddedParam(params)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantMsg)
+		})
+	}
+}
+
+func TestGetPaddedParam_InvalidIntSlice(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		values   []string
+		wantMsg  string
+	}{
+		{"invalid uint8 in slice", "uint8[]", []string{"1", "abc"}, "cannot parse"},
+		{"overflow uint16 in slice", "uint16[]", []string{"65536"}, "cannot parse"},
+		{"invalid big int in slice", "uint256[]", []string{"100", "notanumber"}, "cannot parse"},
+		{"invalid hex big int in slice", "uint256[]", []string{"0xZZZ"}, "cannot parse"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params := []Param{{tc.typeName: tc.values}}
+			_, err := GetPaddedParam(params)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tc.wantMsg)
 		})
 	}
 }
