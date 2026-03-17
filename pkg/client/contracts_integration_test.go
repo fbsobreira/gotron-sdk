@@ -3,10 +3,16 @@
 package client_test
 
 import (
+	"errors"
+	"os"
 	"testing"
+	"time"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func TestIntegration_GetContractABI(t *testing.T) {
@@ -91,6 +97,29 @@ func TestIntegration_EstimateEnergy(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Greater(t, result.GetEnergyRequired(), int64(0), "energy estimate should be positive")
+}
+
+func TestIntegration_EstimateEnergyNotSupported(t *testing.T) {
+	endpoint := os.Getenv("TRON_UNSUPPORTED_ENDPOINT")
+	if endpoint == "" {
+		t.Skip("TRON_UNSUPPORTED_ENDPOINT not set — skipping unsupported-node test")
+	}
+
+	c := client.NewGrpcClientWithTimeout(endpoint, 30*time.Second)
+	err := c.Start(grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err, "failed to connect to %s", endpoint)
+	t.Cleanup(c.Stop)
+
+	_, err = c.EstimateEnergy(
+		nileTestAccountAddress,
+		nileUSDTContract,
+		"balanceOf(address)",
+		`[{"address": "`+nileTestAccountAddress+`"}]`,
+		0, "", 0,
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, client.ErrEstimateEnergyNotSupported),
+		"expected ErrEstimateEnergyNotSupported, got: %v", err)
 }
 
 func TestIntegration_DeployContract(t *testing.T) {

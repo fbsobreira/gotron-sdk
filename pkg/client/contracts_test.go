@@ -3,15 +3,19 @@ package client_test
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"math/big"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/abi"
+	client "github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/contract"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -103,6 +107,26 @@ func TestEstimateEnergy(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, estimate.Result.Result)
 	assert.Equal(t, int64(20000), estimate.EnergyRequired)
+}
+
+func TestEstimateEnergyNotSupported(t *testing.T) {
+	mock := &mockWalletServer{
+		EstimateEnergyFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
+			return nil, status.Error(codes.Unimplemented, "method not found")
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	_, err := c.EstimateEnergy(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"transfer(address,uint256)",
+		`[{"address": "TE4c73WubeWPhSF1nAovQDmQytjcaLZyY9"},{"uint256": "100"}]`,
+		0, "", 0,
+	)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, client.ErrEstimateEnergyNotSupported))
 }
 
 func TestGetAccount(t *testing.T) {
