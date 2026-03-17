@@ -213,7 +213,7 @@ func TestIntegration_GetBandwidthPriceHistory(t *testing.T) {
 func TestIntegration_GetMemoFeeHistory(t *testing.T) {
 	c := newIntegrationClient(t)
 
-	entries, err := c.GetMemoFeeHistory()
+	_, err := c.GetMemoFeeHistory()
 	require.NoError(t, err)
 	// Memo fee may be empty on some networks, just verify no error and valid parse.
 }
