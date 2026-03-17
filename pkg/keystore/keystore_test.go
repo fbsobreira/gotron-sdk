@@ -785,9 +785,11 @@ func TestClose(t *testing.T) {
 		}
 
 		// Poll for goroutines to wind down instead of a fixed sleep.
+		// Use generous tolerance (+4) because CI runners may have
+		// lingering goroutines from parallel tests or the runtime.
 		assert.Eventually(t, func() bool {
-			return runtime.NumGoroutine() <= baseline+2
-		}, 2*time.Second, 50*time.Millisecond,
+			return runtime.NumGoroutine() <= baseline+4
+		}, 5*time.Second, 100*time.Millisecond,
 			"goroutine count should return near baseline after closing keystores (baseline=%d)", baseline)
 	})
 

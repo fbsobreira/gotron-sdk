@@ -2,6 +2,8 @@ package client_test
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -9,6 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func mustDecodeHex(t *testing.T, s string) []byte {
+	t.Helper()
+	b, err := hex.DecodeString(s)
+	require.NoError(t, err)
+	return b
+}
 
 func TestTriggerContract(t *testing.T) {
 	mock := &mockWalletServer{
@@ -235,6 +244,317 @@ func TestGetContractABI_InvalidAddress(t *testing.T) {
 	c := newMockClient(t, &mockWalletServer{})
 	_, err := c.GetContractABI("invalid")
 	require.Error(t, err)
+}
+
+func TestGetContractABIResolved_DirectABI(t *testing.T) {
+	// When the contract has a non-empty ABI, return it directly without
+	// attempting proxy resolution.
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "transfer"},
+						{Name: "balanceOf"},
+					},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 2)
+	assert.Equal(t, "transfer", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_ProxyResolution(t *testing.T) {
+	// Proxy contract has empty ABI; implementation() returns an address
+	// whose contract has the real ABI.
+
+	// ABI-encoded address: 20 bytes left-padded to 32 bytes.
+	// Using TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH (hex 41...) — the EVM
+	// part is the last 20 bytes without the 0x41 prefix.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+
+	proxyAddr := "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+	callCount := 0
+
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				// First call: proxy — empty ABI.
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			// Second call: implementation — real ABI.
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "mint"},
+						{Name: "redeem"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			// Verify the selector is implementation() = 0x5c60da1b.
+			assert.Equal(t, []byte{0x5c, 0x60, 0xda, 0x1b}, in.Data)
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{implResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved(proxyAddr)
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 2)
+	assert.Equal(t, "mint", abi.Entrys[0].Name)
+	assert.Equal(t, "redeem", abi.Entrys[1].Name)
+	assert.Equal(t, 2, callCount, "should call GetContract twice (proxy + impl)")
+}
+
+func TestGetContractABIResolved_ImplementationCallFails(t *testing.T) {
+	// When implementation() reverts (not a proxy), return the original ABI.
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return nil, fmt.Errorf("REVERT opcode executed")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	assert.Empty(t, abi.GetEntrys())
+}
+
+func TestGetContractABIResolved_ZeroImplementation(t *testing.T) {
+	// When implementation() returns the zero address, don't try to fetch ABI.
+	zeroResult := make([]byte, 32)
+
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{zeroResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	assert.Empty(t, abi.GetEntrys())
+}
+
+func TestGetContractABIResolved_EmptyResult(t *testing.T) {
+	// When implementation() returns an empty result, treat as non-proxy.
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	assert.Empty(t, abi.GetEntrys())
+}
+
+func TestGetContractABIResolved_ProxyABIWithImplementationFunc(t *testing.T) {
+	// TransparentUpgradeableProxy: proxy ABI has entries (admin functions
+	// including "implementation"), but the real ABI is on the implementation.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				// Proxy ABI with "implementation" function — looks like a proxy.
+				return &core.SmartContract{
+					Abi: &core.SmartContract_ABI{
+						Entrys: []*core.SmartContract_ABI_Entry{
+							{Name: "admin", Type: core.SmartContract_ABI_Entry_Function},
+							{Name: "implementation", Type: core.SmartContract_ABI_Entry_Function},
+							{Name: "upgradeTo", Type: core.SmartContract_ABI_Entry_Function},
+							{Name: "Upgraded", Type: core.SmartContract_ABI_Entry_Event},
+						},
+					},
+				}, nil
+			}
+			// Implementation ABI with business logic.
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "execute", Type: core.SmartContract_ABI_Entry_Function},
+						{Name: "owner", Type: core.SmartContract_ABI_Entry_Function},
+						{Name: "initialize", Type: core.SmartContract_ABI_Entry_Function},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{implResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 3)
+	assert.Equal(t, "execute", abi.Entrys[0].Name)
+	assert.Equal(t, 2, callCount)
+}
+
+func TestGetContractABIResolved_ProxyABIImplEmpty(t *testing.T) {
+	// Proxy ABI has "implementation" function but the implementation
+	// contract also has an empty ABI — should fall back to proxy ABI.
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{
+					Abi: &core.SmartContract_ABI{
+						Entrys: []*core.SmartContract_ABI_Entry{
+							{Name: "implementation", Type: core.SmartContract_ABI_Entry_Function},
+							{Name: "admin", Type: core.SmartContract_ABI_Entry_Function},
+						},
+					},
+				}, nil
+			}
+			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			implResult := mustDecodeHex(t,
+				"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+			)
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{implResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	// Falls back to proxy ABI since implementation ABI is empty.
+	require.Len(t, abi.Entrys, 2)
+	assert.Equal(t, "implementation", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_InvalidAddress(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+	_, err := c.GetContractABIResolved("invalid")
+	require.Error(t, err)
+}
+
+func TestGetContractABIResolved_GetContractError(t *testing.T) {
+	// When GetContractABI fails, propagate the error.
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connection refused")
+}
+
+func TestGetContractABIResolved_OversizedResult(t *testing.T) {
+	// When implementation() returns more than 32 bytes (e.g., extra trailing
+	// data), the address must be extracted from bytes [12:32], not the tail.
+	// The address 7a1c816367bae03d04eb1836f027314d9ebcea16 sits at offset
+	// 12..32; bytes 32..63 are trailing garbage that must be ignored.
+	oversized := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16"+
+			"00000000000000000000000000000000000000000000000000000000deadbeef",
+	)
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "execute"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{oversized},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, "execute", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_ImplGetContractError(t *testing.T) {
+	// When GetContractABI succeeds for the proxy but fails for the
+	// implementation, fall back to the proxy ABI.
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return nil, fmt.Errorf("rate limited")
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			implResult := mustDecodeHex(t,
+				"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+			)
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{implResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	assert.Empty(t, abi.GetEntrys(), "should fall back to original proxy ABI")
+	assert.Equal(t, 2, callCount)
 }
 
 func TestUpdateWitness(t *testing.T) {
