@@ -3,6 +3,8 @@ package client
 import (
 	"bytes"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -140,4 +142,43 @@ func (g *GrpcClient) GetMemoFee() (*api.PricesResponseMessage, error) {
 
 func GRPCInsecure() grpc.DialOption {
 	return grpc.WithTransportCredentials(insecure.NewCredentials())
+}
+
+// PriceEntry represents a single timestamp:price pair from the TRON price history.
+type PriceEntry struct {
+	Timestamp int64
+	Price     int64
+}
+
+// ParsePrices parses the comma-separated "timestamp:price" format returned
+// by GetEnergyPrices, GetBandwidthPrices, and GetMemoFee into structured entries.
+// It does not validate sign — callers should check for negative values if needed.
+func ParsePrices(raw string) ([]PriceEntry, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	parts := strings.Split(raw, ",")
+	entries := make([]PriceEntry, 0, len(parts))
+
+	for _, p := range parts {
+		ts, price, ok := strings.Cut(p, ":")
+		if !ok {
+			return nil, fmt.Errorf("invalid price entry %q: missing colon separator", p)
+		}
+
+		timestamp, err := strconv.ParseInt(ts, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid timestamp in %q: %w", p, err)
+		}
+
+		priceVal, err := strconv.ParseInt(price, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid price in %q: %w", p, err)
+		}
+
+		entries = append(entries, PriceEntry{Timestamp: timestamp, Price: priceVal})
+	}
+
+	return entries, nil
 }
