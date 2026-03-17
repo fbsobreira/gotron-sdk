@@ -378,18 +378,20 @@ func (g *GrpcClient) GetContractABIResolved(contractAddress string) (*core.Smart
 }
 
 // isProxyABI reports whether the given ABI looks like a proxy contract ABI
-// (e.g. OpenZeppelin TransparentUpgradeableProxy) rather than a real
-// business-logic ABI.  It returns true when the ABI declares an
-// "implementation" function — the hallmark of an ERC-1967 proxy.
+// rather than a real business-logic ABI.  It returns true when the ABI
+// declares a function matching one of the well-known proxy getter names.
 //
-// This is a heuristic: a non-proxy contract with a function named
-// "implementation" would trigger proxy resolution, but the fallback logic
-// in GetContractABIResolved ensures the original ABI is returned if
-// resolution fails or produces no improvement.
+// This is a heuristic: a non-proxy contract with a matching function name
+// would trigger proxy resolution, but the fallback logic in
+// GetContractABIResolved ensures the original ABI is returned if resolution
+// fails or produces no improvement.
 func isProxyABI(contractABI *core.SmartContract_ABI) bool {
 	for _, entry := range contractABI.GetEntrys() {
-		if entry.GetType() == core.SmartContract_ABI_Entry_Function &&
-			entry.GetName() == "implementation" {
+		if entry.GetType() != core.SmartContract_ABI_Entry_Function {
+			continue
+		}
+		switch entry.GetName() {
+		case "implementation", "comptrollerImplementation", "getImplementation", "masterCopy":
 			return true
 		}
 	}
@@ -431,6 +433,9 @@ func (g *GrpcClient) callForAddress(ownerBytes, contractBytes, data []byte) stri
 
 	tx, err := g.triggerConstantContract(ct)
 	if err != nil || tx == nil {
+		return ""
+	}
+	if res := tx.GetResult(); res == nil || res.GetCode() != 0 || !res.GetResult() {
 		return ""
 	}
 	if len(tx.GetConstantResult()) == 0 || len(tx.GetConstantResult()[0]) < 32 {

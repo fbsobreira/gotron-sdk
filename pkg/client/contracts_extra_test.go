@@ -322,11 +322,13 @@ func TestGetContractABIResolved_ProxyResolution(t *testing.T) {
 
 func TestGetContractABIResolved_AllStrategiesFail(t *testing.T) {
 	// When all proxy detection strategies revert, return the original ABI.
+	triggerCalls := 0
 	mock := &mockWalletServer{
 		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
 			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
 		},
 		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			triggerCalls++
 			return nil, fmt.Errorf("REVERT opcode executed")
 		},
 	}
@@ -335,6 +337,7 @@ func TestGetContractABIResolved_AllStrategiesFail(t *testing.T) {
 	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
 	require.NoError(t, err)
 	assert.Empty(t, abi.GetEntrys())
+	assert.Equal(t, 4, triggerCalls, "should try all proxy selectors")
 }
 
 func TestGetContractABIResolved_ZeroImplementation(t *testing.T) {
@@ -765,6 +768,57 @@ func TestGetContractABIResolved_ZeroFromFirstSelectorTriesNext(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, abi.Entrys, 1)
 	assert.Equal(t, "supply", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_NonEmptyProxyABIWithComptroller(t *testing.T) {
+	// Proxy ABI has entries including "comptrollerImplementation" — isProxyABI
+	// should detect it as a proxy and proceed to resolution.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+	comptrollerSelector := []byte{0xbb, 0x82, 0xaa, 0x5e}
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				// Proxy ABI with comptrollerImplementation — should trigger resolution.
+				return &core.SmartContract{
+					Abi: &core.SmartContract_ABI{
+						Entrys: []*core.SmartContract_ABI_Entry{
+							{Name: "comptrollerImplementation", Type: core.SmartContract_ABI_Entry_Function},
+							{Name: "admin", Type: core.SmartContract_ABI_Entry_Function},
+						},
+					},
+				}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "mint"},
+						{Name: "borrow"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			if bytes.Equal(in.Data, comptrollerSelector) {
+				return &api.TransactionExtention{
+					Result:         &api.Return{Result: true},
+					ConstantResult: [][]byte{implResult},
+				}, nil
+			}
+			return nil, fmt.Errorf("REVERT opcode executed")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 2)
+	assert.Equal(t, "mint", abi.Entrys[0].Name)
+	assert.Equal(t, 2, callCount)
 }
 
 func TestUpdateWitness(t *testing.T) {
