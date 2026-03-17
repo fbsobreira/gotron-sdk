@@ -182,3 +182,30 @@ func ParsePrices(raw string) ([]PriceEntry, error) {
 
 	return entries, nil
 }
+
+// GetEnergyPriceHistory returns parsed energy price history.
+func (g *GrpcClient) GetEnergyPriceHistory() ([]PriceEntry, error) {
+	resp, err := g.GetEnergyPrices()
+	if err != nil {
+		return nil, err
+	}
+	return ParsePrices(resp.GetPrices())
+}
+
+// GetBandwidthPriceHistory returns parsed bandwidth price history.
+func (g *GrpcClient) GetBandwidthPriceHistory() ([]PriceEntry, error) {
+	resp, err := g.GetBandwidthPrices()
+	if err != nil {
+		return nil, err
+	}
+	return ParsePrices(resp.GetPrices())
+}
+
+// GetMemoFeeHistory returns parsed memo fee history.
+func (g *GrpcClient) GetMemoFeeHistory() ([]PriceEntry, error) {
+	resp, err := g.GetMemoFee()
+	if err != nil {
+		return nil, err
+	}
+	return ParsePrices(resp.GetPrices())
+}
