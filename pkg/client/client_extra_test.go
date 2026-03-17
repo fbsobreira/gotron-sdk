@@ -260,6 +260,56 @@ func TestGetBlockByNum(t *testing.T) {
 	assert.Equal(t, int64(999), block.BlockHeader.RawData.Number)
 }
 
+func TestSetContext_CancellationPropagated(t *testing.T) {
+	mock := &mockWalletServer{
+		GetNextMaintenanceTimeFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NumberMessage, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel
+	require.NoError(t, c.SetContext(ctx))
+
+	_, err := c.GetNextMaintenanceTime()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Canceled")
+}
+
+func TestSetContext_DeadlinePropagated(t *testing.T) {
+	mock := &mockWalletServer{
+		GetNextMaintenanceTimeFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NumberMessage, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	require.NoError(t, c.SetContext(ctx))
+
+	start := time.Now()
+	_, err := c.GetNextMaintenanceTime()
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "DeadlineExceeded")
+	assert.Less(t, elapsed, 1*time.Second)
+}
+
+func TestSetContext_NilReturnsError(t *testing.T) {
+	c := client.NewGrpcClient("localhost:50051")
+	//nolint:staticcheck // SA1012: intentionally passing nil to test error guard
+	err := c.SetContext(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nil context")
+}
+
 func TestGetAccountResource(t *testing.T) {
 	mock := &mockWalletServer{
 		GetAccountResourceFunc: func(_ context.Context, _ *core.Account) (*api.AccountResourceMessage, error) {
