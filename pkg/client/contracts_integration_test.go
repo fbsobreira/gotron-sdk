@@ -100,6 +100,44 @@ func TestIntegration_GetContractABIResolved_Proxy(t *testing.T) {
 	assert.True(t, methods["owner"], "resolved ABI should contain owner()")
 }
 
+func TestIntegration_GetContractABIResolved_CompoundProxy(t *testing.T) {
+	// JustLend MarketProxy on mainnet — uses a Compound-style proxy pattern
+	// where implementation() is not exposed but comptrollerImplementation()
+	// or another fallback selector resolves the implementation.
+	const (
+		mainnetEndpoint = "grpc.trongrid.io:50051"
+		// JustLend MarketProxy (TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd)
+		justLendProxy = "TU2MJ5Veik1LRAgjeSzEdvmDYx7mefJZvd"
+	)
+
+	mc := client.NewGrpcClientWithTimeout(mainnetEndpoint, 30*time.Second)
+	err := mc.Start(grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		t.Skipf("cannot connect to mainnet at %s: %v", mainnetEndpoint, err)
+	}
+	t.Cleanup(mc.Stop)
+
+	// GetContractABIResolved should resolve through fallback strategies.
+	resolved, err := mc.GetContractABIResolved(justLendProxy)
+	if err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("rate-limited by TronGrid, skipping")
+	}
+	require.NoError(t, err)
+	require.NotNil(t, resolved)
+	require.NotEmpty(t, resolved.GetEntrys(),
+		"JustLend MarketProxy should resolve to implementation ABI with entries")
+
+	t.Logf("resolved %d ABI entries for JustLend MarketProxy", len(resolved.GetEntrys()))
+
+	// Log first few method names for debugging.
+	for i, entry := range resolved.GetEntrys() {
+		if i >= 5 {
+			break
+		}
+		t.Logf("  entry[%d]: %s (%s)", i, entry.GetName(), entry.GetType())
+	}
+}
+
 func TestIntegration_TriggerConstantContract(t *testing.T) {
 	c := newIntegrationClient(t)
 

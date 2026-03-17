@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/hex"
 	"fmt"
@@ -319,8 +320,8 @@ func TestGetContractABIResolved_ProxyResolution(t *testing.T) {
 	assert.Equal(t, 2, callCount, "should call GetContract twice (proxy + impl)")
 }
 
-func TestGetContractABIResolved_ImplementationCallFails(t *testing.T) {
-	// When implementation() reverts (not a proxy), return the original ABI.
+func TestGetContractABIResolved_AllStrategiesFail(t *testing.T) {
+	// When all proxy detection strategies revert, return the original ABI.
 	mock := &mockWalletServer{
 		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
 			return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
@@ -555,6 +556,215 @@ func TestGetContractABIResolved_ImplGetContractError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, abi.GetEntrys(), "should fall back to original proxy ABI")
 	assert.Equal(t, 2, callCount)
+}
+
+func TestGetContractABIResolved_FallbackToComptrollerImpl(t *testing.T) {
+	// When implementation() reverts but comptrollerImplementation() succeeds,
+	// the fallback strategy should resolve the proxy.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+	comptrollerSelector := []byte{0xbb, 0x82, 0xaa, 0x5e}
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "mint"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			// Only comptrollerImplementation() should succeed.
+			if bytes.Equal(in.Data, comptrollerSelector) {
+				return &api.TransactionExtention{
+					Result:         &api.Return{Result: true},
+					ConstantResult: [][]byte{implResult},
+				}, nil
+			}
+			return nil, fmt.Errorf("REVERT opcode executed")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, "mint", abi.Entrys[0].Name)
+	assert.Equal(t, 2, callCount)
+}
+
+func TestGetContractABIResolved_FallbackToGetImplementation(t *testing.T) {
+	// When implementation() and comptrollerImplementation() revert but
+	// getImplementation() succeeds.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+	getImplSelector := []byte{0xaa, 0xf1, 0x0f, 0x42}
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "deposit"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			if bytes.Equal(in.Data, getImplSelector) {
+				return &api.TransactionExtention{
+					Result:         &api.Return{Result: true},
+					ConstantResult: [][]byte{implResult},
+				}, nil
+			}
+			return nil, fmt.Errorf("REVERT opcode executed")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, "deposit", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_FallbackToMasterCopy(t *testing.T) {
+	// Gnosis Safe-style proxy: masterCopy() is the only getter that works.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+	masterCopySelector := []byte{0xa6, 0x19, 0x48, 0x6e}
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "execTransaction"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			if bytes.Equal(in.Data, masterCopySelector) {
+				return &api.TransactionExtention{
+					Result:         &api.Return{Result: true},
+					ConstantResult: [][]byte{implResult},
+				}, nil
+			}
+			return nil, fmt.Errorf("REVERT opcode executed")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, "execTransaction", abi.Entrys[0].Name)
+}
+
+func TestGetContractABIResolved_FirstStrategyWins(t *testing.T) {
+	// When implementation() succeeds, later strategies are not tried.
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+
+	triggerCalls := 0
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "mint"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			triggerCalls++
+			// All selectors return a valid address, but only the first should be used.
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{implResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, 1, triggerCalls, "should stop after first successful strategy")
+}
+
+func TestGetContractABIResolved_ZeroFromFirstSelectorTriesNext(t *testing.T) {
+	// When implementation() returns zero address, the next selector is tried.
+	zeroResult := make([]byte, 32)
+	implResult := mustDecodeHex(t,
+		"0000000000000000000000007a1c816367bae03d04eb1836f027314d9ebcea16",
+	)
+	comptrollerSelector := []byte{0xbb, 0x82, 0xaa, 0x5e}
+
+	callCount := 0
+	mock := &mockWalletServer{
+		GetContractFunc: func(_ context.Context, _ *api.BytesMessage) (*core.SmartContract, error) {
+			callCount++
+			if callCount == 1 {
+				return &core.SmartContract{Abi: &core.SmartContract_ABI{}}, nil
+			}
+			return &core.SmartContract{
+				Abi: &core.SmartContract_ABI{
+					Entrys: []*core.SmartContract_ABI_Entry{
+						{Name: "supply"},
+					},
+				},
+			}, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			// implementation() returns zero, comptrollerImplementation() returns real address.
+			if bytes.Equal(in.Data, comptrollerSelector) {
+				return &api.TransactionExtention{
+					Result:         &api.Return{Result: true},
+					ConstantResult: [][]byte{implResult},
+				}, nil
+			}
+			// All other selectors return zero address.
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true},
+				ConstantResult: [][]byte{zeroResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	abi, err := c.GetContractABIResolved("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t")
+	require.NoError(t, err)
+	require.Len(t, abi.Entrys, 1)
+	assert.Equal(t, "supply", abi.Entrys[0].Name)
 }
 
 func TestUpdateWitness(t *testing.T) {
