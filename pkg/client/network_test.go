@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
@@ -420,4 +421,125 @@ func TestGetTransactionSignWeight(t *testing.T) {
 	weight, err := c.GetTransactionSignWeight(&core.Transaction{RawData: &core.TransactionRaw{}})
 	require.NoError(t, err)
 	assert.Equal(t, api.TransactionSignWeight_Result_ENOUGH_PERMISSION, weight.Result.Code)
+}
+
+func TestParsePrices(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		want    []client.PriceEntry
+		wantErr bool
+	}{
+		{
+			name: "multiple entries",
+			raw:  "0:100,1542607200000:20,1606240800000:40",
+			want: []client.PriceEntry{
+				{Timestamp: 0, Price: 100},
+				{Timestamp: 1542607200000, Price: 20},
+				{Timestamp: 1606240800000, Price: 40},
+			},
+		},
+		{
+			name: "single entry",
+			raw:  "0:420",
+			want: []client.PriceEntry{
+				{Timestamp: 0, Price: 420},
+			},
+		},
+		{
+			name: "empty string",
+			raw:  "",
+			want: nil,
+		},
+		{
+			name:    "missing colon",
+			raw:     "0:100,badentry,1000:20",
+			wantErr: true,
+		},
+		{
+			name:    "non-numeric timestamp",
+			raw:     "abc:100",
+			wantErr: true,
+		},
+		{
+			name:    "non-numeric price",
+			raw:     "0:xyz",
+			wantErr: true,
+		},
+		{
+			name:    "whitespace around separator",
+			raw:     "0:100, 1000:20",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := client.ParsePrices(tt.raw)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestGetEnergyPriceHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetEnergyPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:100,1542607200000:20"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetEnergyPriceHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, int64(0), entries[0].Timestamp)
+	assert.Equal(t, int64(100), entries[0].Price)
+	assert.Equal(t, int64(1542607200000), entries[1].Timestamp)
+	assert.Equal(t, int64(20), entries[1].Price)
+}
+
+func TestGetEnergyPriceHistory_RPCError(t *testing.T) {
+	mock := &mockWalletServer{
+		GetEnergyPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return nil, fmt.Errorf("rpc unavailable")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.GetEnergyPriceHistory()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rpc unavailable")
+}
+
+func TestGetBandwidthPriceHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetBandwidthPricesFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:1000"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetBandwidthPriceHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 1)
+	assert.Equal(t, int64(1000), entries[0].Price)
+}
+
+func TestGetMemoFeeHistory(t *testing.T) {
+	mock := &mockWalletServer{
+		GetMemoFeeFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.PricesResponseMessage, error) {
+			return &api.PricesResponseMessage{Prices: "0:0,1668981600000:1000000"}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	entries, err := c.GetMemoFeeHistory()
+	require.NoError(t, err)
+	require.Len(t, entries, 2)
+	assert.Equal(t, int64(1000000), entries[1].Price)
 }
