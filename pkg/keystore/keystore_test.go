@@ -784,13 +784,11 @@ func TestClose(t *testing.T) {
 			ks.Close()
 		}
 
-		// Allow goroutines to wind down
-		time.Sleep(100 * time.Millisecond)
-
-		after := runtime.NumGoroutine()
-		// We allow a small margin for other background goroutines
-		assert.LessOrEqual(t, after, baseline+2,
-			"goroutine count should return near baseline after closing keystores (baseline=%d, after=%d)", baseline, after)
+		// Poll for goroutines to wind down instead of a fixed sleep.
+		assert.Eventually(t, func() bool {
+			return runtime.NumGoroutine() <= baseline+2
+		}, 2*time.Second, 50*time.Millisecond,
+			"goroutine count should return near baseline after closing keystores (baseline=%d)", baseline)
 	})
 
 	t.Run("close is safe to call on unused keystore", func(t *testing.T) {
@@ -815,11 +813,10 @@ func TestClose(t *testing.T) {
 		// Close while subscriber is still active — should terminate the updater
 		ks.Close()
 
-		time.Sleep(100 * time.Millisecond)
-
-		after := runtime.NumGoroutine()
-		assert.LessOrEqual(t, after, baseline,
-			"goroutine count should not grow after Close with active subscriber (baseline=%d, after=%d)", baseline, after)
+		assert.Eventually(t, func() bool {
+			return runtime.NumGoroutine() <= baseline
+		}, 2*time.Second, 50*time.Millisecond,
+			"goroutine count should not grow after Close with active subscriber (baseline=%d)", baseline)
 	})
 }
 
