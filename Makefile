@@ -16,16 +16,16 @@ uname := $(shell uname)
 all: build
 
 build:
-	$(env) go build -o $(cli) -ldflags="$(ldflags)" cmd/main.go
+	$(env) go build -o $(cli) -ldflags="$(ldflags)" ./cmd/tronctl
 
 build-windows:
-	$(env) GOOS=windows GOARCH=amd64 go build -o $(cli).exe -ldflags="$(ldflags)" cmd/main.go
+	$(env) GOOS=windows GOARCH=amd64 go build -o $(cli).exe -ldflags="$(ldflags)" ./cmd/tronctl
 
 run:
-	$(env) go run -ldflags="$(ldflags)" cmd/main.go
+	$(env) go run -ldflags="$(ldflags)" ./cmd/tronctl
 
 debug:
-	$(env) go build $(flags) -o $(cli) -ldflags="$(ldflags)" cmd/main.go
+	$(env) go build $(flags) -o $(cli) -ldflags="$(ldflags)" ./cmd/tronctl
 
 install: all
 	cp $(cli) ~/.local/bin
