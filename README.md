@@ -50,10 +50,13 @@ GoTRON SDK is built for **backend and infrastructure** teams that need performan
 
 ### Installation
 
+#### Quick Install
+```bash
+curl -fsSL gotron.sh/install | sh
+```
+
 #### Install with Go
 ```bash
-go install gotron.sh/cmd/tronctl@latest
-# or
 go install github.com/fbsobreira/gotron-sdk/cmd/tronctl@latest
 ```
 
