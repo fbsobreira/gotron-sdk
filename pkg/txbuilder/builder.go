@@ -106,12 +106,12 @@ func (t *Tx) Send(ctx context.Context, s signer.Signer) (*Receipt, error) {
 		return nil, fmt.Errorf("computing tx ID: %w", err)
 	}
 
+	receipt := &Receipt{TxID: txID}
+
 	result, err := t.client.BroadcastCtx(ctx, signed)
 	if err != nil {
-		return nil, fmt.Errorf("broadcasting transaction: %w", err)
+		return receipt, fmt.Errorf("broadcasting transaction: %w", err)
 	}
-
-	receipt := &Receipt{TxID: txID}
 	if result.Code != 0 {
 		receipt.Error = string(result.GetMessage())
 	}
@@ -124,7 +124,7 @@ func (t *Tx) Send(ctx context.Context, s signer.Signer) (*Receipt, error) {
 func (t *Tx) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, error) {
 	receipt, err := t.Send(ctx, s)
 	if err != nil {
-		return nil, err
+		return receipt, err
 	}
 	if receipt.Error != "" {
 		return receipt, nil
