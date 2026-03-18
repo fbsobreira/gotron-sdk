@@ -114,6 +114,37 @@ func BTCECPrivkeyToAddress(p *btcec.PrivateKey) Address {
 	return PubkeyToAddress(*pubKey)
 }
 
+// BytesToAddress converts raw bytes to a TRON Address.
+// For 20-byte input, the TRON mainnet prefix (0x41) is prepended.
+// For 21-byte input, the bytes are copied as-is.
+// For any other length, a copy of the input bytes is returned without validation.
+func BytesToAddress(b []byte) Address {
+	switch len(b) {
+	case AddressLength - 1:
+		addr := make([]byte, AddressLength)
+		addr[0] = TronBytePrefix
+		copy(addr[1:], b)
+		return addr
+	default:
+		result := make([]byte, len(b))
+		copy(result, b)
+		return result
+	}
+}
+
+// EthAddressToAddress converts a 20-byte Ethereum address to a 21-byte TRON address.
+// It prepends the TRON mainnet prefix (0x41).
+// Returns an error if the input is not exactly 20 bytes.
+func EthAddressToAddress(ethAddr []byte) (Address, error) {
+	if len(ethAddr) != AddressLength-1 {
+		return nil, fmt.Errorf("invalid ethereum address length: got %d, want %d", len(ethAddr), AddressLength-1)
+	}
+	addr := make([]byte, AddressLength)
+	addr[0] = TronBytePrefix
+	copy(addr[1:], ethAddr)
+	return addr, nil
+}
+
 // Scan implements Scanner for database/sql.
 func (a *Address) Scan(src interface{}) error {
 	srcB, ok := src.([]byte)
