@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
@@ -139,7 +140,11 @@ func (t *Tx) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, err
 		case <-ticker.C:
 			info, infoErr := t.client.GetTransactionInfoByIDCtx(ctx, receipt.TxID)
 			if infoErr != nil {
-				continue
+				// "not found" is transient — tx not indexed yet. Other errors are permanent.
+				if strings.Contains(infoErr.Error(), "not found") {
+					continue
+				}
+				return receipt, fmt.Errorf("checking confirmation: %w", infoErr)
 			}
 			if info.GetBlockNumber() == 0 {
 				continue

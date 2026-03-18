@@ -168,8 +168,7 @@ func main() {
 	fmt.Printf("  Signer address: %s\n", s.Address())
 	fmt.Println("  (skipping broadcast in demo mode)")
 
-	_ = s          // signer ready for: tx.Transfer(...).Send(ctx, s)
-	_ = demoRecord // reference demo recording script
+	_ = s // signer ready for: tx.Transfer(...).Send(ctx, s)
 }
 
 func connect() *client.GrpcClient {

@@ -60,6 +60,13 @@ func (m *mockClient) EstimateEnergyCtx(_ context.Context, _, _, _, _ string, _ i
 	}, nil
 }
 
+func (m *mockClient) EstimateEnergyWithDataCtx(_ context.Context, _, _ string, _ []byte, _ int64, _ string, _ int64) (*api.EstimateEnergyMessage, error) {
+	return &api.EstimateEnergyMessage{
+		Result:         &api.Return{Result: true},
+		EnergyRequired: 100000,
+	}, nil
+}
+
 func (m *mockClient) BroadcastCtx(_ context.Context, _ *core.Transaction) (*api.Return, error) {
 	return &api.Return{Result: true}, nil
 }

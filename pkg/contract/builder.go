@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
@@ -165,21 +166,32 @@ func (c *ContractCall) Call(ctx context.Context) (*CallResult, error) {
 }
 
 // EstimateEnergy returns the estimated energy required for the contract call.
+// From address is required for accurate estimation.
 func (c *ContractCall) EstimateEnergy(ctx context.Context) (int64, error) {
 	if c.err != nil {
 		return 0, c.err
 	}
-	from := c.fromOrZero()
-
-	if len(c.data) > 0 {
-		return 0, errors.New("EstimateEnergy does not support pre-packed data; use Method and Params instead")
+	if c.from == "" {
+		return 0, errors.New("From address is required for energy estimation")
 	}
 
-	estimate, err := c.client.EstimateEnergyCtx(
-		ctx, from, c.contractAddress,
-		c.method, c.jsonParams,
-		c.cfg.callValue, c.cfg.tokenID, c.cfg.tokenAmount,
+	var (
+		estimate *api.EstimateEnergyMessage
+		err      error
 	)
+
+	if len(c.data) > 0 {
+		estimate, err = c.client.EstimateEnergyWithDataCtx(
+			ctx, c.from, c.contractAddress, c.data,
+			c.cfg.callValue, c.cfg.tokenID, c.cfg.tokenAmount,
+		)
+	} else {
+		estimate, err = c.client.EstimateEnergyCtx(
+			ctx, c.from, c.contractAddress,
+			c.method, c.jsonParams,
+			c.cfg.callValue, c.cfg.tokenID, c.cfg.tokenAmount,
+		)
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -254,13 +266,13 @@ func (c *ContractCall) Send(ctx context.Context, s signer.Signer) (*Receipt, err
 	if err != nil {
 		return nil, fmt.Errorf("computing tx ID: %w", err)
 	}
+	receipt := &Receipt{TxID: txID}
 
 	result, err := c.client.BroadcastCtx(ctx, signed)
 	if err != nil {
-		return nil, fmt.Errorf("broadcast transaction: %w", err)
+		return receipt, fmt.Errorf("broadcast transaction: %w", err)
 	}
 
-	receipt := &Receipt{TxID: txID}
 	if result.Code != 0 {
 		receipt.Error = string(result.GetMessage())
 	}
@@ -273,7 +285,7 @@ func (c *ContractCall) Send(ctx context.Context, s signer.Signer) (*Receipt, err
 func (c *ContractCall) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, error) {
 	receipt, err := c.Send(ctx, s)
 	if err != nil {
-		return nil, err
+		return receipt, err
 	}
 	if receipt.Error != "" {
 		return receipt, nil
@@ -285,11 +297,14 @@ func (c *ContractCall) SendAndConfirm(ctx context.Context, s signer.Signer) (*Re
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
+			return receipt, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
 		case <-ticker.C:
 			info, infoErr := c.client.GetTransactionInfoByIDCtx(ctx, receipt.TxID)
 			if infoErr != nil {
-				continue
+				if strings.Contains(infoErr.Error(), "not found") {
+					continue
+				}
+				return receipt, fmt.Errorf("checking confirmation: %w", infoErr)
 			}
 			if info.GetBlockNumber() == 0 {
 				continue

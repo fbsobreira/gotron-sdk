@@ -218,7 +218,10 @@ func (t *Token) Transfer(from, to string, amount *big.Int, opts ...contract.Opti
 		return contract.New(t.client, t.contractAddress).
 			SetError(fmt.Errorf("invalid to address %s: %w", to, err))
 	}
-	callData := encodeTransfer(selectorTransfer, toBytes, amount)
+	callData, err := encodeTransfer(selectorTransfer, toBytes, amount)
+	if err != nil {
+		return contract.New(t.client, t.contractAddress).SetError(err)
+	}
 
 	return contract.New(t.client, t.contractAddress).
 		From(from).
@@ -233,7 +236,10 @@ func (t *Token) Approve(from, spender string, amount *big.Int, opts ...contract.
 		return contract.New(t.client, t.contractAddress).
 			SetError(fmt.Errorf("invalid spender address %s: %w", spender, err))
 	}
-	callData := encodeTransfer(selectorApprove, spenderBytes, amount)
+	callData, err := encodeTransfer(selectorApprove, spenderBytes, amount)
+	if err != nil {
+		return contract.New(t.client, t.contractAddress).SetError(err)
+	}
 
 	return contract.New(t.client, t.contractAddress).
 		From(from).
@@ -242,8 +248,9 @@ func (t *Token) Approve(from, spender string, amount *big.Int, opts ...contract.
 }
 
 // TransferFrom returns a ContractCall for transferring tokens on behalf of
-// another address (requires prior approval).
-func (t *Token) TransferFrom(owner, from, to string, amount *big.Int, opts ...contract.Option) *contract.ContractCall {
+// another address (requires prior approval). The caller parameter is the
+// address that signs the transaction (the approved spender).
+func (t *Token) TransferFrom(caller, from, to string, amount *big.Int, opts ...contract.Option) *contract.ContractCall {
 	fromBytes, err := address.Base58ToAddress(from)
 	if err != nil {
 		return contract.New(t.client, t.contractAddress).
@@ -254,10 +261,13 @@ func (t *Token) TransferFrom(owner, from, to string, amount *big.Int, opts ...co
 		return contract.New(t.client, t.contractAddress).
 			SetError(fmt.Errorf("invalid to address %s: %w", to, err))
 	}
-	callData := encodeTransferFrom(fromBytes, toBytes, amount)
+	callData, err := encodeTransferFrom(fromBytes, toBytes, amount)
+	if err != nil {
+		return contract.New(t.client, t.contractAddress).SetError(err)
+	}
 
 	return contract.New(t.client, t.contractAddress).
-		From(owner).
+		From(caller).
 		WithData(callData).
 		Apply(opts...)
 }

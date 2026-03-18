@@ -16,6 +16,7 @@ type Client interface {
 	TriggerConstantContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte, opts ...client.ConstantCallOption) (*api.TransactionExtention, error)
 	TriggerContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte, feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error)
 	EstimateEnergyCtx(ctx context.Context, from, contractAddress, method, jsonString string, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error)
+	EstimateEnergyWithDataCtx(ctx context.Context, from, contractAddress string, data []byte, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error)
 	BroadcastCtx(ctx context.Context, tx *core.Transaction) (*api.Return, error)
 	GetTransactionInfoByIDCtx(ctx context.Context, id string) (*core.TransactionInfo, error)
 }

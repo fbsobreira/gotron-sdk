@@ -1,6 +1,9 @@
 package signer
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -76,4 +79,13 @@ func TestPrivateKeySigner_SignMultiple(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Len(t, tx.Signature, 2)
+}
+
+func TestNewPrivateKeySigner_RejectsP256(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	_, err = NewPrivateKeySigner(key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported curve")
 }

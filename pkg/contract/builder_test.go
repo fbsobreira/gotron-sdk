@@ -21,6 +21,7 @@ type mockClient struct {
 	triggerConstantContractWithDataCtxFunc func(ctx context.Context, from, contractAddress string, data []byte, opts ...client.ConstantCallOption) (*api.TransactionExtention, error)
 	triggerContractWithDataCtxFunc         func(ctx context.Context, from, contractAddress string, data []byte, feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error)
 	estimateEnergyCtxFunc                  func(ctx context.Context, from, contractAddress, method, jsonString string, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error)
+	estimateEnergyWithDataCtxFunc          func(ctx context.Context, from, contractAddress string, data []byte, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error)
 	broadcastCtxFunc                       func(ctx context.Context, tx *core.Transaction) (*api.Return, error)
 	getTransactionInfoByIDCtxFunc          func(ctx context.Context, id string) (*core.TransactionInfo, error)
 }
@@ -56,6 +57,13 @@ func (m *mockClient) TriggerContractWithDataCtx(ctx context.Context, from, contr
 func (m *mockClient) EstimateEnergyCtx(ctx context.Context, from, contractAddress, method, jsonString string, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
 	if m.estimateEnergyCtxFunc != nil {
 		return m.estimateEnergyCtxFunc(ctx, from, contractAddress, method, jsonString, tAmount, tTokenID, tTokenAmount)
+	}
+	return nil, errors.New("not implemented")
+}
+
+func (m *mockClient) EstimateEnergyWithDataCtx(ctx context.Context, from, contractAddress string, data []byte, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	if m.estimateEnergyWithDataCtxFunc != nil {
+		return m.estimateEnergyWithDataCtxFunc(ctx, from, contractAddress, data, tAmount, tTokenID, tTokenAmount)
 	}
 	return nil, errors.New("not implemented")
 }
@@ -262,8 +270,8 @@ func TestPermissionIDApplied(t *testing.T) {
 
 func TestEstimateEnergy(t *testing.T) {
 	mc := &mockClient{
-		estimateEnergyCtxFunc: func(_ context.Context, from, contractAddress, method, jsonString string, tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
-			assert.Equal(t, zeroAddress, from)
+		estimateEnergyCtxFunc: func(_ context.Context, from, contractAddress, _, _ string, _ int64, _ string, _ int64) (*api.EstimateEnergyMessage, error) {
+			assert.Equal(t, "TFrom", from)
 			assert.Equal(t, "TContract", contractAddress)
 			return &api.EstimateEnergyMessage{
 				EnergyRequired: 32000,
@@ -273,6 +281,7 @@ func TestEstimateEnergy(t *testing.T) {
 
 	energy, err := New(mc, "TContract").
 		Method("transfer(address,uint256)").
+		From("TFrom").
 		Params(`[{"address":"TTo"},{"uint256":"100"}]`).
 		EstimateEnergy(context.Background())
 
@@ -280,15 +289,35 @@ func TestEstimateEnergy(t *testing.T) {
 	assert.Equal(t, int64(32000), energy)
 }
 
-func TestEstimateEnergyWithDataReturnsError(t *testing.T) {
-	mc := &mockClient{}
+func TestEstimateEnergyWithData(t *testing.T) {
+	mc := &mockClient{
+		estimateEnergyWithDataCtxFunc: func(_ context.Context, from, contractAddress string, data []byte, _ int64, _ string, _ int64) (*api.EstimateEnergyMessage, error) {
+			assert.Equal(t, "TFrom", from)
+			assert.Equal(t, []byte{0x01}, data)
+			return &api.EstimateEnergyMessage{
+				EnergyRequired: 45000,
+			}, nil
+		},
+	}
 
-	_, err := New(mc, "TContract").
+	energy, err := New(mc, "TContract").
+		From("TFrom").
 		WithData([]byte{0x01}).
 		EstimateEnergy(context.Background())
 
+	require.NoError(t, err)
+	assert.Equal(t, int64(45000), energy)
+}
+
+func TestEstimateEnergyRequiresFrom(t *testing.T) {
+	mc := &mockClient{}
+
+	_, err := New(mc, "TContract").
+		Method("test()").
+		EstimateEnergy(context.Background())
+
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not support pre-packed data")
+	assert.Contains(t, err.Error(), "From address is required")
 }
 
 func TestWithABI(t *testing.T) {

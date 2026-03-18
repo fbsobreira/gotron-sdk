@@ -11,7 +11,9 @@ type config struct {
 func applyOptions(opts []Option) config {
 	var cfg config
 	for _, o := range opts {
-		o(&cfg)
+		if o != nil {
+			o(&cfg)
+		}
 	}
 	return cfg
 }

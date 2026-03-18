@@ -3,6 +3,7 @@ package signer
 import (
 	"crypto/ecdsa"
 	"crypto/sha256"
+	"fmt"
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,7 +19,20 @@ type privateKeySigner struct {
 }
 
 // NewPrivateKeySigner creates a Signer from an ECDSA private key.
+// The key must be on the secp256k1 curve; other curves are rejected.
 func NewPrivateKeySigner(key *ecdsa.PrivateKey) (Signer, error) {
+	// Validate curve is secp256k1. We compare bit size and curve name (when
+	// available) because go-ethereum and btcec use different curve instances
+	// that are not pointer-equal.
+	params := key.Params()
+	if params.BitSize != btcec.S256().Params().BitSize ||
+		(params.Name != "" && params.Name != "secp256k1") {
+		name := params.Name
+		if name == "" {
+			name = fmt.Sprintf("unknown (bitsize=%d)", params.BitSize)
+		}
+		return nil, fmt.Errorf("unsupported curve: expected secp256k1, got %s", name)
+	}
 	// Re-derive through go-ethereum to ensure the correct secp256k1 curve
 	// instance is used (required for non-CGO platforms).
 	canonical, err := crypto.ToECDSA(crypto.FromECDSA(key))
@@ -54,6 +68,7 @@ func (s *privateKeySigner) Sign(tx *core.Transaction) (*core.Transaction, error)
 }
 
 // Address returns the TRON address derived from the signing key.
+// Returns a copy to prevent callers from mutating the cached address.
 func (s *privateKeySigner) Address() address.Address {
-	return s.addr
+	return append(address.Address(nil), s.addr...)
 }

@@ -27,24 +27,32 @@ func encodeWithTwoAddresses(selector string, addr1, addr2 address.Address) []byt
 }
 
 // encodeTransfer builds selector + address + uint256.
-func encodeTransfer(selector string, addr address.Address, amount *big.Int) []byte {
+func encodeTransfer(selector string, addr address.Address, amount *big.Int) ([]byte, error) {
+	amountBytes, err := padUint256(amount)
+	if err != nil {
+		return nil, err
+	}
 	sel, _ := hex.DecodeString(selector)
 	buf := make([]byte, 0, len(sel)+64)
 	buf = append(buf, sel...)
 	buf = append(buf, padAddress(addr)...)
-	buf = append(buf, padUint256(amount)...)
-	return buf
+	buf = append(buf, amountBytes...)
+	return buf, nil
 }
 
 // encodeTransferFrom builds transferFrom(address,address,uint256) call data.
-func encodeTransferFrom(from, to address.Address, amount *big.Int) []byte {
+func encodeTransferFrom(from, to address.Address, amount *big.Int) ([]byte, error) {
+	amountBytes, err := padUint256(amount)
+	if err != nil {
+		return nil, err
+	}
 	sel, _ := hex.DecodeString(selectorTransferFrom)
 	buf := make([]byte, 0, len(sel)+96)
 	buf = append(buf, sel...)
 	buf = append(buf, padAddress(from)...)
 	buf = append(buf, padAddress(to)...)
-	buf = append(buf, padUint256(amount)...)
-	return buf
+	buf = append(buf, amountBytes...)
+	return buf, nil
 }
 
 // padAddress converts a 21-byte TRON address to a 32-byte ABI-encoded value.
@@ -59,14 +67,21 @@ func padAddress(addr address.Address) []byte {
 }
 
 // padUint256 left-pads a non-negative big.Int to 32 bytes.
-// Negative values are treated as zero to prevent silent encoding errors.
-func padUint256(n *big.Int) []byte {
-	var buf [32]byte
-	if n != nil && n.Sign() >= 0 {
-		b := n.Bytes()
-		copy(buf[32-len(b):], b)
+// Returns an error for nil, negative, or >256-bit values.
+func padUint256(n *big.Int) ([]byte, error) {
+	if n == nil {
+		return nil, fmt.Errorf("invalid uint256: nil value")
 	}
-	return buf[:]
+	if n.Sign() < 0 {
+		return nil, fmt.Errorf("invalid uint256: negative value %s", n.String())
+	}
+	if n.BitLen() > 256 {
+		return nil, fmt.Errorf("invalid uint256: value exceeds 256 bits")
+	}
+	var buf [32]byte
+	b := n.Bytes()
+	copy(buf[32-len(b):], b)
+	return buf[:], nil
 }
 
 // decodeUint256 extracts a big.Int from ABI-encoded constant result.
