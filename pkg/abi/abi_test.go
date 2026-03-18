@@ -951,6 +951,22 @@ func TestLoadFromJSONWithMethod(t *testing.T) {
 			json:    `not json`,
 			wantErr: true,
 		},
+		{
+			name:   "raw numbers - transfer",
+			method: "transfer(address,uint256)",
+			json:   `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", 1000000]`,
+			wantParams: []Param{
+				{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"},
+				{"uint256": "1000000"},
+			},
+		},
+		{
+			name:       "empty array non-zero-args",
+			method:     "transfer(address,uint256)",
+			json:       `[]`,
+			wantErr:    true,
+			errContain: "expects 2 params, got 0",
+		},
 	}
 
 	for _, tc := range tests {
@@ -991,6 +1007,51 @@ func TestLoadFromJSONWithMethod_EndToEnd(t *testing.T) {
 
 	assert.Equal(t, hex.EncodeToString(typedBytes), hex.EncodeToString(plainBytes),
 		"plain-value and typed-object formats must produce identical ABI encoding")
+}
+
+func TestLoadFromJSONWithMethod_RawNumberEndToEnd(t *testing.T) {
+	// Verify that unquoted numeric JSON values produce identical ABI encoding
+	// as quoted string values.
+	method := "transfer(address,uint256)"
+
+	quotedJSON := `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "1000000"]`
+	rawJSON := `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", 1000000]`
+
+	quotedParams, err := LoadFromJSONWithMethod(method, quotedJSON)
+	require.NoError(t, err)
+
+	rawParams, err := LoadFromJSONWithMethod(method, rawJSON)
+	require.NoError(t, err)
+
+	quotedBytes, err := Pack(method, quotedParams)
+	require.NoError(t, err)
+
+	rawBytes, err := Pack(method, rawParams)
+	require.NoError(t, err)
+
+	assert.Equal(t, hex.EncodeToString(quotedBytes), hex.EncodeToString(rawBytes),
+		"raw numeric and quoted string values must produce identical ABI encoding")
+}
+
+func TestLoadFromJSONWithMethod_LargeIntegerPrecision(t *testing.T) {
+	// Verify that large integers (> 2^53) don't lose precision via float64.
+	method := "deposit(uint256)"
+	largeNum := "100000000000000000000" // 1e20, exceeds float64 integer precision
+
+	params, err := LoadFromJSONWithMethod(method, `["`+largeNum+`"]`)
+	require.NoError(t, err)
+
+	val, ok := params[0]["uint256"].(string)
+	require.True(t, ok)
+	assert.Equal(t, largeNum, val, "large integer must preserve full precision")
+
+	// Also verify with raw (unquoted) number
+	params, err = LoadFromJSONWithMethod(method, `[`+largeNum+`]`)
+	require.NoError(t, err)
+
+	val, ok = params[0]["uint256"].(string)
+	require.True(t, ok)
+	assert.Equal(t, largeNum, val, "raw large integer must preserve full precision")
 }
 
 func TestEntrySignature_UsesRawTypes(t *testing.T) {

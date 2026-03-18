@@ -2,6 +2,7 @@
 package abi
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -107,6 +108,13 @@ func LoadFromJSONWithMethod(method, jString string) ([]Param, error) {
 	}
 
 	if len(raw) == 0 {
+		types, err := parseMethodTypes(method)
+		if err != nil {
+			return nil, err
+		}
+		if len(types) != 0 {
+			return nil, fmt.Errorf("method %s expects %d params, got 0", method, len(types))
+		}
 		return nil, nil
 	}
 
@@ -129,14 +137,48 @@ func LoadFromJSONWithMethod(method, jString string) ([]Param, error) {
 
 	params := make([]Param, len(raw))
 	for i, r := range raw {
-		var val interface{}
-		if err := json.Unmarshal(r, &val); err != nil {
+		val, err := decodeJSONValue(r)
+		if err != nil {
 			return nil, fmt.Errorf("param %d: %w", i, err)
 		}
 		params[i] = Param{types[i]: val}
 	}
 
 	return params, nil
+}
+
+// decodeJSONValue decodes a JSON value using UseNumber() to preserve numeric
+// precision, then normalizes json.Number to string so GetPaddedParam can parse
+// it correctly (it expects string values for int/uint types).
+func decodeJSONValue(raw json.RawMessage) (interface{}, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var val interface{}
+	if err := dec.Decode(&val); err != nil {
+		return nil, err
+	}
+	return normalizeJSONNumbers(val), nil
+}
+
+// normalizeJSONNumbers recursively converts json.Number values to strings
+// and walks slices/maps to normalize nested values.
+func normalizeJSONNumbers(v interface{}) interface{} {
+	switch val := v.(type) {
+	case json.Number:
+		return val.String()
+	case []interface{}:
+		for i, elem := range val {
+			val[i] = normalizeJSONNumbers(elem)
+		}
+		return val
+	case map[string]interface{}:
+		for k, elem := range val {
+			val[k] = normalizeJSONNumbers(elem)
+		}
+		return val
+	default:
+		return v
+	}
 }
 
 // firstNonSpace returns the first non-whitespace byte in b, or 0 if empty.
