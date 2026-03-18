@@ -524,3 +524,58 @@ func TestGetAccountMigrationContract(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(100000000), result["amount"].(*big.Int).Int64())
 }
+
+func TestTriggerConstantContract_PlainValueParams(t *testing.T) {
+	// Verify that plain-value JSON format produces the same ABI-encoded
+	// data as the typed-object format (backward compatibility).
+	var typedData, plainData []byte
+
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	// Call with typed-object format (old way)
+	mock.TriggerConstantContractFunc = func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+		typedData = ct.Data
+		return &api.TransactionExtention{
+			Result:         &api.Return{Result: true, Code: api.Return_SUCCESS},
+			ConstantResult: [][]byte{{}},
+		}, nil
+	}
+	_, err := c.TriggerConstantContract(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"transfer(address,uint256)",
+		`[{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"}, {"uint256": "1000000"}]`,
+	)
+	require.NoError(t, err)
+
+	// Call with plain-value format (new way)
+	mock.TriggerConstantContractFunc = func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+		plainData = ct.Data
+		return &api.TransactionExtention{
+			Result:         &api.Return{Result: true, Code: api.Return_SUCCESS},
+			ConstantResult: [][]byte{{}},
+		}, nil
+	}
+	_, err = c.TriggerConstantContract(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"transfer(address,uint256)",
+		`["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "1000000"]`,
+	)
+	require.NoError(t, err)
+
+	assert.Equal(t, typedData, plainData,
+		"plain-value and typed-object formats must produce identical ABI-encoded data")
+}

@@ -152,7 +152,7 @@ func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contr
 		return nil, err
 	}
 
-	param, err := abi.LoadFromJSON(jsonString)
+	param, err := abi.LoadFromJSONWithMethod(method, jsonString)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (g *GrpcClient) TriggerContractCtx(ctx context.Context, from, contractAddre
 		return nil, err
 	}
 
-	param, err := abi.LoadFromJSON(jsonString)
+	param, err := abi.LoadFromJSONWithMethod(method, jsonString)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +352,7 @@ func (g *GrpcClient) EstimateEnergyCtx(ctx context.Context, from, contractAddres
 		return nil, err
 	}
 
-	param, err := abi.LoadFromJSON(jsonString)
+	param, err := abi.LoadFromJSONWithMethod(method, jsonString)
 	if err != nil {
 		return nil, err
 	}

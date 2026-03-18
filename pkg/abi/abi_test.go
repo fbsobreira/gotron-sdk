@@ -831,6 +831,229 @@ func mustNewType(typeName string) eABI.Type {
 	return ty
 }
 
+func TestParseMethodTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		method    string
+		wantTypes []string
+		wantErr   bool
+	}{
+		{
+			name:      "single param",
+			method:    "balanceOf(address)",
+			wantTypes: []string{"address"},
+		},
+		{
+			name:      "two params",
+			method:    "transfer(address,uint256)",
+			wantTypes: []string{"address", "uint256"},
+		},
+		{
+			name:      "three params",
+			method:    "transferFrom(address,address,uint256)",
+			wantTypes: []string{"address", "address", "uint256"},
+		},
+		{
+			name:      "no params",
+			method:    "totalSupply()",
+			wantTypes: nil,
+		},
+		{
+			name:      "array type",
+			method:    "batchTransfer(address[],uint256[])",
+			wantTypes: []string{"address[]", "uint256[]"},
+		},
+		{
+			name:    "no parentheses",
+			method:  "transfer",
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			types, err := parseMethodTypes(tc.method)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantTypes, types)
+		})
+	}
+}
+
+func TestLoadFromJSONWithMethod(t *testing.T) {
+	tests := []struct {
+		name       string
+		method     string
+		json       string
+		wantParams []Param
+		wantErr    bool
+		errContain string
+	}{
+		{
+			name:       "plain values - single address",
+			method:     "balanceOf(address)",
+			json:       `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"]`,
+			wantParams: []Param{{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"}},
+		},
+		{
+			name:   "plain values - transfer",
+			method: "transfer(address,uint256)",
+			json:   `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "1000000"]`,
+			wantParams: []Param{
+				{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"},
+				{"uint256": "1000000"},
+			},
+		},
+		{
+			name:   "plain values - transferFrom",
+			method: "transferFrom(address,address,uint256)",
+			json:   `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "TJDENsfBJs4RFETt1X1W8wMDc8M5XnS5f4", "100"]`,
+			wantParams: []Param{
+				{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"},
+				{"address": "TJDENsfBJs4RFETt1X1W8wMDc8M5XnS5f4"},
+				{"uint256": "100"},
+			},
+		},
+		{
+			name:   "typed objects - passthrough",
+			method: "transfer(address,uint256)",
+			json:   `[{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"}, {"uint256": "1000000"}]`,
+			wantParams: []Param{
+				{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"},
+				{"uint256": "1000000"},
+			},
+		},
+		{
+			name:       "empty string",
+			method:     "transfer(address,uint256)",
+			json:       "",
+			wantParams: nil,
+		},
+		{
+			name:       "empty array",
+			method:     "totalSupply()",
+			json:       "[]",
+			wantParams: nil,
+		},
+		{
+			name:       "param count mismatch",
+			method:     "transfer(address,uint256)",
+			json:       `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "1000", "extra"]`,
+			wantErr:    true,
+			errContain: "expects 2 params, got 3",
+		},
+		{
+			name:    "invalid JSON",
+			method:  "transfer(address,uint256)",
+			json:    `not json`,
+			wantErr: true,
+		},
+		{
+			name:   "raw numbers - transfer",
+			method: "transfer(address,uint256)",
+			json:   `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", 1000000]`,
+			wantParams: []Param{
+				{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"},
+				{"uint256": "1000000"},
+			},
+		},
+		{
+			name:       "empty array non-zero-args",
+			method:     "transfer(address,uint256)",
+			json:       `[]`,
+			wantErr:    true,
+			errContain: "expects 2 params, got 0",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params, err := LoadFromJSONWithMethod(tc.method, tc.json)
+			if tc.wantErr {
+				require.Error(t, err)
+				if tc.errContain != "" {
+					assert.Contains(t, err.Error(), tc.errContain)
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.wantParams, params)
+		})
+	}
+}
+
+func TestLoadFromJSONWithMethod_EndToEnd(t *testing.T) {
+	// Verify that plain-value params produce identical ABI encoding
+	// as the typed-object format.
+	method := "transfer(address,uint256)"
+
+	typedJSON := `[{"address": "TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R"}, {"uint256": "100"}]`
+	plainJSON := `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "100"]`
+
+	typedParams, err := LoadFromJSONWithMethod(method, typedJSON)
+	require.NoError(t, err)
+
+	plainParams, err := LoadFromJSONWithMethod(method, plainJSON)
+	require.NoError(t, err)
+
+	typedBytes, err := Pack(method, typedParams)
+	require.NoError(t, err)
+
+	plainBytes, err := Pack(method, plainParams)
+	require.NoError(t, err)
+
+	assert.Equal(t, hex.EncodeToString(typedBytes), hex.EncodeToString(plainBytes),
+		"plain-value and typed-object formats must produce identical ABI encoding")
+}
+
+func TestLoadFromJSONWithMethod_RawNumberEndToEnd(t *testing.T) {
+	// Verify that unquoted numeric JSON values produce identical ABI encoding
+	// as quoted string values.
+	method := "transfer(address,uint256)"
+
+	quotedJSON := `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", "1000000"]`
+	rawJSON := `["TEvHMZWyfjCAdDJEKYxYVL8rRpigddLC1R", 1000000]`
+
+	quotedParams, err := LoadFromJSONWithMethod(method, quotedJSON)
+	require.NoError(t, err)
+
+	rawParams, err := LoadFromJSONWithMethod(method, rawJSON)
+	require.NoError(t, err)
+
+	quotedBytes, err := Pack(method, quotedParams)
+	require.NoError(t, err)
+
+	rawBytes, err := Pack(method, rawParams)
+	require.NoError(t, err)
+
+	assert.Equal(t, hex.EncodeToString(quotedBytes), hex.EncodeToString(rawBytes),
+		"raw numeric and quoted string values must produce identical ABI encoding")
+}
+
+func TestLoadFromJSONWithMethod_LargeIntegerPrecision(t *testing.T) {
+	// Verify that large integers (> 2^53) don't lose precision via float64.
+	method := "deposit(uint256)"
+	largeNum := "100000000000000000000" // 1e20, exceeds float64 integer precision
+
+	params, err := LoadFromJSONWithMethod(method, `["`+largeNum+`"]`)
+	require.NoError(t, err)
+
+	val, ok := params[0]["uint256"].(string)
+	require.True(t, ok)
+	assert.Equal(t, largeNum, val, "large integer must preserve full precision")
+
+	// Also verify with raw (unquoted) number
+	params, err = LoadFromJSONWithMethod(method, `[`+largeNum+`]`)
+	require.NoError(t, err)
+
+	val, ok = params[0]["uint256"].(string)
+	require.True(t, ok)
+	assert.Equal(t, largeNum, val, "raw large integer must preserve full precision")
+}
+
 func TestEntrySignature_UsesRawTypes(t *testing.T) {
 	// The Solidity compiler always emits canonical types (uint256, not uint).
 	// entrySignature uses the raw type strings from ABI entries directly,

@@ -2,6 +2,7 @@
 package abi
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -32,6 +33,162 @@ func LoadFromJSON(jString string) ([]Param, error) {
 		return nil, err
 	}
 	return data, nil
+}
+
+// parseMethodTypes extracts the ordered parameter type strings from a method
+// signature like "transfer(address,uint256)" → ["address", "uint256"].
+// Returns nil for signatures with no parameters, e.g. "totalSupply()".
+func parseMethodTypes(method string) ([]string, error) {
+	openParen := strings.Index(method, "(")
+	if openParen < 0 {
+		return nil, fmt.Errorf("method %q has no parameter list (missing parentheses)", method)
+	}
+	closeParen := strings.LastIndex(method, ")")
+	if closeParen < 0 || closeParen <= openParen {
+		return nil, fmt.Errorf("method %q has malformed parameter list", method)
+	}
+	inner := method[openParen+1 : closeParen]
+	if len(strings.TrimSpace(inner)) == 0 {
+		return nil, nil
+	}
+	// Split respecting parenthesized tuple types like (uint256,bool)
+	types := splitTypes(inner)
+	return types, nil
+}
+
+// splitTypes splits a comma-separated type list while respecting nested
+// parentheses for tuple types (e.g. "(uint256,bool),address").
+func splitTypes(s string) []string {
+	var types []string
+	depth := 0
+	start := 0
+	for i, c := range s {
+		switch c {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				types = append(types, strings.TrimSpace(s[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	types = append(types, strings.TrimSpace(s[start:]))
+	return types
+}
+
+// LoadFromJSONWithMethod parses a JSON parameter string, automatically
+// inferring parameter types from the method signature when the JSON contains
+// plain values (strings/numbers) instead of typed objects.
+//
+// Plain-value format (new):
+//
+//	method: "transfer(address,uint256)"
+//	json:   `["TJDENsfBJs4RFETt1X1W8wMDc8M5XnS5f4", "1000000"]`
+//
+// Typed-object format (existing, still supported):
+//
+//	json:   `[{"address": "TJDENsfBJs4RFETt1X1W8wMDc8M5XnS5f4"}, {"uint256": "1000000"}]`
+//
+// Detection: if the first JSON array element is a string or number, the
+// plain-value format is assumed and types are inferred from the method
+// signature. If the first element is an object, the typed-object format
+// is used (passthrough to LoadFromJSON).
+func LoadFromJSONWithMethod(method, jString string) ([]Param, error) {
+	if len(jString) == 0 {
+		return nil, nil
+	}
+
+	// Peek at the JSON to detect format.
+	var raw []json.RawMessage
+	if err := json.Unmarshal([]byte(jString), &raw); err != nil {
+		return nil, err
+	}
+
+	if len(raw) == 0 {
+		types, err := parseMethodTypes(method)
+		if err != nil {
+			return nil, err
+		}
+		if len(types) != 0 {
+			return nil, fmt.Errorf("method %s expects %d params, got 0", method, len(types))
+		}
+		return nil, nil
+	}
+
+	// Detect format by inspecting the first element.
+	firstByte := firstNonSpace(raw[0])
+	if firstByte == '{' {
+		// Typed-object format — delegate to existing parser.
+		return LoadFromJSON(jString)
+	}
+
+	// Plain-value format — infer types from method signature.
+	types, err := parseMethodTypes(method)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(types) != len(raw) {
+		return nil, fmt.Errorf("method %s expects %d params, got %d", method, len(types), len(raw))
+	}
+
+	params := make([]Param, len(raw))
+	for i, r := range raw {
+		val, err := decodeJSONValue(r)
+		if err != nil {
+			return nil, fmt.Errorf("param %d: %w", i, err)
+		}
+		params[i] = Param{types[i]: val}
+	}
+
+	return params, nil
+}
+
+// decodeJSONValue decodes a JSON value using UseNumber() to preserve numeric
+// precision, then normalizes json.Number to string so GetPaddedParam can parse
+// it correctly (it expects string values for int/uint types).
+func decodeJSONValue(raw json.RawMessage) (interface{}, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var val interface{}
+	if err := dec.Decode(&val); err != nil {
+		return nil, err
+	}
+	return normalizeJSONNumbers(val), nil
+}
+
+// normalizeJSONNumbers recursively converts json.Number values to strings
+// and walks slices/maps to normalize nested values.
+func normalizeJSONNumbers(v interface{}) interface{} {
+	switch val := v.(type) {
+	case json.Number:
+		return val.String()
+	case []interface{}:
+		for i, elem := range val {
+			val[i] = normalizeJSONNumbers(elem)
+		}
+		return val
+	case map[string]interface{}:
+		for k, elem := range val {
+			val[k] = normalizeJSONNumbers(elem)
+		}
+		return val
+	default:
+		return v
+	}
+}
+
+// firstNonSpace returns the first non-whitespace byte in b, or 0 if empty.
+func firstNonSpace(b []byte) byte {
+	for _, c := range b {
+		if c != ' ' && c != '\t' && c != '\n' && c != '\r' {
+			return c
+		}
+	}
+	return 0
 }
 
 // Signature of a method
