@@ -29,17 +29,23 @@ func WithCallValue(value int64) ConstantCallOption {
 }
 
 // WithTokenValue sets the TRC10 token ID and amount on a constant contract call.
-func WithTokenValue(tokenID string, amount int64) ConstantCallOption {
-	return func(ct *core.TriggerSmartContract) {
-		if id, err := strconv.ParseInt(tokenID, 10, 64); err == nil {
-			ct.TokenId = id
-			ct.CallTokenValue = amount
-		}
+// It returns an error if tokenID is not a valid integer.
+func WithTokenValue(tokenID string, amount int64) (ConstantCallOption, error) {
+	id, err := strconv.ParseInt(tokenID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token ID %q: %w", tokenID, err)
 	}
+	return func(ct *core.TriggerSmartContract) {
+		ct.TokenId = id
+		ct.CallTokenValue = amount
+	}, nil
 }
 
 func applyConstantCallOptions(ct *core.TriggerSmartContract, opts []ConstantCallOption) {
 	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
 		opt(ct)
 	}
 }

@@ -391,17 +391,26 @@ func TestTriggerConstantContract_WithTokenValue(t *testing.T) {
 
 	c := newMockClient(t, mock)
 
+	opt, err := client.WithTokenValue("1000001", 2_000_000)
+	require.NoError(t, err)
+
 	tx, err := c.TriggerConstantContract(
 		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
 		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
 		"deposit(uint256)",
 		`[{"uint256": "500"}]`,
-		client.WithTokenValue("1000001", 2_000_000),
+		opt,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
 	assert.Equal(t, int64(1000001), capturedContract.TokenId)
 	assert.Equal(t, int64(2_000_000), capturedContract.CallTokenValue)
+}
+
+func TestWithTokenValue_InvalidTokenID(t *testing.T) {
+	_, err := client.WithTokenValue("not-a-number", 1000)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid token ID")
 }
 
 func TestTriggerConstantContract_WithMultipleOptions(t *testing.T) {
@@ -421,13 +430,16 @@ func TestTriggerConstantContract_WithMultipleOptions(t *testing.T) {
 
 	c := newMockClient(t, mock)
 
+	tokenOpt, err := client.WithTokenValue("1000001", 3_000_000)
+	require.NoError(t, err)
+
 	tx, err := c.TriggerConstantContract(
 		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
 		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
 		"swap(uint256)",
 		`[{"uint256": "1000"}]`,
 		client.WithCallValue(5_000_000),
-		client.WithTokenValue("1000001", 3_000_000),
+		tokenOpt,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
