@@ -93,6 +93,9 @@ func (g *GrpcClient) newContext() (context.Context, context.CancelFunc) {
 // withAPIKey injects the API key as gRPC outgoing metadata if configured.
 // It uses Set (not Append) so that chained Ctx calls don't produce duplicate headers.
 func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if len(g.apiKey) == 0 {
 		return ctx
 	}
