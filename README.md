@@ -6,6 +6,10 @@
 
 GoTRON SDK is a comprehensive Go SDK and CLI tool for interacting with the TRON blockchain. It provides both a command-line interface (`tronctl`) and Go libraries for TRON blockchain operations.
 
+<p align="center">
+  <img src=".github/demo.gif" alt="tronctl demo" width="800">
+</p>
+
 ## Built For
 
 - **Exchanges** — deposit/withdrawal engines, hot wallet management
@@ -46,6 +50,18 @@ GoTRON SDK is built for **backend and infrastructure** teams that need performan
 
 ### Installation
 
+#### Install with Go
+```bash
+go install gotron.sh/cmd/tronctl@latest
+# or
+go install github.com/fbsobreira/gotron-sdk/cmd/tronctl@latest
+```
+
+#### Install with Homebrew
+```bash
+brew install fbsobreira/tap/tronctl
+```
+
 #### Install from source
 ```bash
 git clone https://github.com/fbsobreira/gotron-sdk.git
@@ -53,7 +69,7 @@ cd gotron-sdk
 make install
 ```
 
-#### Install with go get
+#### Use as a Go library
 ```bash
 go get -u github.com/fbsobreira/gotron-sdk
 ```
