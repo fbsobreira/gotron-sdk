@@ -25,6 +25,9 @@ type trc20Config struct {
 func applyTRC20Options(opts []TRC20Option) trc20Config {
 	var cfg trc20Config
 	for _, o := range opts {
+		if o == nil {
+			continue
+		}
 		o(&cfg)
 	}
 	return cfg
