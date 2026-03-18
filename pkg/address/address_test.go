@@ -651,14 +651,6 @@ func TestBytesToAddress(t *testing.T) {
 				assert.Equal(t, Address([]byte{0x01, 0x02}), addr)
 			},
 		},
-		{
-			name:  "input does not share underlying array",
-			input: []byte{0x41, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13},
-			check: func(t *testing.T, addr Address) {
-				// Modify original should not affect the address
-				assert.Len(t, addr, AddressLength)
-			},
-		},
 	}
 
 	for _, tt := range tests {
@@ -667,6 +659,17 @@ func TestBytesToAddress(t *testing.T) {
 			tt.check(t, addr)
 		})
 	}
+
+	t.Run("21-byte input is copied", func(t *testing.T) {
+		original, err := Base58ToAddress(testBase58Addr1)
+		require.NoError(t, err)
+
+		input := append([]byte(nil), original.Bytes()...)
+		addr := BytesToAddress(input)
+		input[0] ^= 0xff
+
+		assert.Equal(t, original.Bytes(), addr.Bytes())
+	})
 }
 
 func TestEthAddressToAddress(t *testing.T) {

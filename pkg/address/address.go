@@ -116,8 +116,8 @@ func BTCECPrivkeyToAddress(p *btcec.PrivateKey) Address {
 
 // BytesToAddress converts raw bytes to a TRON Address.
 // For 20-byte input, the TRON mainnet prefix (0x41) is prepended.
-// For 21-byte input, the bytes are used as-is.
-// For any other length, the bytes are returned as-is without modification.
+// For 21-byte input, the bytes are copied as-is.
+// For any other length, a copy of the input bytes is returned without validation.
 func BytesToAddress(b []byte) Address {
 	switch len(b) {
 	case AddressLength - 1:
