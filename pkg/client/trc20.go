@@ -14,6 +14,31 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
 
+// TRC20Option configures optional behaviour on TRC20 write methods
+// (TRC20Send, TRC20Approve, TRC20TransferFrom).
+type TRC20Option func(*trc20Config)
+
+type trc20Config struct {
+	estimate bool
+}
+
+func applyTRC20Options(opts []TRC20Option) trc20Config {
+	var cfg trc20Config
+	for _, o := range opts {
+		o(&cfg)
+	}
+	return cfg
+}
+
+// WithEstimate makes the TRC20 method perform a dry-run simulation via
+// TriggerConstantContract instead of building a real transaction.
+// The returned TransactionExtention contains estimated energy usage.
+func WithEstimate() TRC20Option {
+	return func(c *trc20Config) {
+		c.estimate = true
+	}
+}
+
 const (
 	trc20TransferMethodSignature     = "0xa9059cbb"
 	trc20ApproveMethodSignature      = "0x095ea7b3"
@@ -214,16 +239,17 @@ func (g *GrpcClient) TRC20ContractBalanceCtx(ctx context.Context, addr, contract
 }
 
 // TRC20Send send token to address
-func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.TRC20SendCtx(ctx, from, to, contract, amount, feeLimit)
+	return g.TRC20SendCtx(ctx, from, to, contract, amount, feeLimit, opts...)
 }
 
 // TRC20SendCtx is the context-aware version of TRC20Send.
-func (g *GrpcClient) TRC20SendCtx(ctx context.Context, from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20SendCtx(ctx context.Context, from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
+	cfg := applyTRC20Options(opts)
 	addrB, err := address.Base58ToAddress(to)
 	if err != nil {
 		return nil, err
@@ -231,20 +257,21 @@ func (g *GrpcClient) TRC20SendCtx(ctx context.Context, from, to, contract string
 	ab := common.LeftPadBytes(amount.Bytes(), 32)
 	req := trc20TransferMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
-	return g.TRC20CallCtx(ctx, from, contract, req, false, feeLimit)
+	return g.TRC20CallCtx(ctx, from, contract, req, cfg.estimate, feeLimit)
 }
 
 // TRC20TransferFrom transfers tokens on behalf of another address (owner signs the tx).
-func (g *GrpcClient) TRC20TransferFrom(owner, from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20TransferFrom(owner, from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.TRC20TransferFromCtx(ctx, owner, from, to, contract, amount, feeLimit)
+	return g.TRC20TransferFromCtx(ctx, owner, from, to, contract, amount, feeLimit, opts...)
 }
 
 // TRC20TransferFromCtx is the context-aware version of TRC20TransferFrom.
-func (g *GrpcClient) TRC20TransferFromCtx(ctx context.Context, owner, from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20TransferFromCtx(ctx context.Context, owner, from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
+	cfg := applyTRC20Options(opts)
 	if _, err := address.Base58ToAddress(owner); err != nil {
 		return nil, fmt.Errorf("invalid owner address: %w", err)
 	}
@@ -261,20 +288,21 @@ func (g *GrpcClient) TRC20TransferFromCtx(ctx context.Context, owner, from, to, 
 		"0000000000000000000000000000000000000000000000000000000000000000"[len(addrA.Hex())-4:] + addrA.Hex()[4:] +
 		"0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
-	return g.TRC20CallCtx(ctx, owner, contract, req, false, feeLimit)
+	return g.TRC20CallCtx(ctx, owner, contract, req, cfg.estimate, feeLimit)
 }
 
 // TRC20Approve approve token to address
-func (g *GrpcClient) TRC20Approve(from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20Approve(from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.TRC20ApproveCtx(ctx, from, to, contract, amount, feeLimit)
+	return g.TRC20ApproveCtx(ctx, from, to, contract, amount, feeLimit, opts...)
 }
 
 // TRC20ApproveCtx is the context-aware version of TRC20Approve.
-func (g *GrpcClient) TRC20ApproveCtx(ctx context.Context, from, to, contract string, amount *big.Int, feeLimit int64) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TRC20ApproveCtx(ctx context.Context, from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
+	cfg := applyTRC20Options(opts)
 	addrB, err := address.Base58ToAddress(to)
 	if err != nil {
 		return nil, err
@@ -282,5 +310,5 @@ func (g *GrpcClient) TRC20ApproveCtx(ctx context.Context, from, to, contract str
 	ab := common.LeftPadBytes(amount.Bytes(), 32)
 	req := trc20ApproveMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
-	return g.TRC20CallCtx(ctx, from, contract, req, false, feeLimit)
+	return g.TRC20CallCtx(ctx, from, contract, req, cfg.estimate, feeLimit)
 }
