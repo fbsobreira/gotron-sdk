@@ -43,5 +43,17 @@ changelog:
       - "^ci:"
       - "^Merge "
 
+brews:
+  - repository:
+      owner: fbsobreira
+      name: homebrew-tap
+    homepage: https://github.com/fbsobreira/gotron-sdk
+    description: CLI tool for interacting with the TRON network
+    license: Apache-2.0
+    install: |
+      bin.install "tronctl"
+    test: |
+      system "#{bin}/tronctl", "version"
+
 release:
   prerelease: auto
