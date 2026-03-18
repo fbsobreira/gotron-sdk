@@ -1,8 +1,8 @@
 package client
 
 import (
+	"context"
 	"fmt"
-	"math/big"
 	"strconv"
 	"time"
 
@@ -14,6 +14,14 @@ import (
 
 // GetAssetIssueByAccount list asset issued by account
 func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetAssetIssueByAccountCtx(ctx, address)
+}
+
+// GetAssetIssueByAccountCtx is the context-aware version of GetAssetIssueByAccount.
+func (g *GrpcClient) GetAssetIssueByAccountCtx(ctx context.Context, address string) (*api.AssetIssueList, error) {
+	ctx = g.withAPIKey(ctx)
 	account := new(core.Account)
 	var err error
 
@@ -22,34 +30,45 @@ func (g *GrpcClient) GetAssetIssueByAccount(address string) (*api.AssetIssueList
 		return nil, err
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	return g.Client.GetAssetIssueByAccount(ctx, account)
 }
 
 // GetAssetIssueByName list asset issued by name
 func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetAssetIssueByNameCtx(ctx, name)
+}
 
+// GetAssetIssueByNameCtx is the context-aware version of GetAssetIssueByName.
+func (g *GrpcClient) GetAssetIssueByNameCtx(ctx context.Context, name string) (*core.AssetIssueContract, error) {
+	ctx = g.withAPIKey(ctx)
 	return g.Client.GetAssetIssueByName(ctx, GetMessageBytes([]byte(name)))
 }
 
 // GetAssetIssueByID list asset issued by ID
 func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract, error) {
-	bn := new(big.Int).SetBytes([]byte(tokenID))
-
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetAssetIssueByIDCtx(ctx, tokenID)
+}
 
-	return g.Client.GetAssetIssueById(ctx, GetMessageBytes(bn.Bytes()))
+// GetAssetIssueByIDCtx is the context-aware version of GetAssetIssueByID.
+func (g *GrpcClient) GetAssetIssueByIDCtx(ctx context.Context, tokenID string) (*core.AssetIssueContract, error) {
+	ctx = g.withAPIKey(ctx)
+	return g.Client.GetAssetIssueById(ctx, GetMessageBytes([]byte(tokenID)))
 }
 
 // GetAssetIssueList list all TRC10
 func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssueList, error) {
-	ctx, cancel := g.getContext()
+	ctx, cancel := g.newContext()
 	defer cancel()
+	return g.GetAssetIssueListCtx(ctx, page, limit...)
+}
+
+// GetAssetIssueListCtx is the context-aware version of GetAssetIssueList.
+func (g *GrpcClient) GetAssetIssueListCtx(ctx context.Context, page int64, limit ...int) (*api.AssetIssueList, error) {
+	ctx = g.withAPIKey(ctx)
 
 	if page == -1 {
 		return g.Client.GetAssetIssueList(ctx, new(api.EmptyMessage))
@@ -66,6 +85,18 @@ func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssu
 func (g *GrpcClient) AssetIssue(from, name, description, abbr, urlStr string,
 	precision int32, totalSupply, startTime, endTime, FreeAssetNetLimit, PublicFreeAssetNetLimit int64,
 	trxNum, icoNum, voteScore int32, frozenSupply map[string]string) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.AssetIssueCtx(ctx, from, name, description, abbr, urlStr,
+		precision, totalSupply, startTime, endTime, FreeAssetNetLimit, PublicFreeAssetNetLimit,
+		trxNum, icoNum, voteScore, frozenSupply)
+}
+
+// AssetIssueCtx is the context-aware version of AssetIssue.
+func (g *GrpcClient) AssetIssueCtx(ctx context.Context, from, name, description, abbr, urlStr string,
+	precision int32, totalSupply, startTime, endTime, FreeAssetNetLimit, PublicFreeAssetNetLimit int64,
+	trxNum, icoNum, voteScore int32, frozenSupply map[string]string) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 
 	contract := &core.AssetIssueContract{}
@@ -135,9 +166,6 @@ func (g *GrpcClient) AssetIssue(from, name, description, abbr, urlStr string,
 			FrozenSupply, assetIssueContractFrozenSupply)
 	}
 
-	ctx, cancel := g.getContext()
-	defer cancel()
-
 	tx, err := g.Client.CreateAssetIssue2(ctx, contract)
 	if err != nil {
 		return nil, err
@@ -154,6 +182,15 @@ func (g *GrpcClient) AssetIssue(from, name, description, abbr, urlStr string,
 // UpdateAssetIssue information
 func (g *GrpcClient) UpdateAssetIssue(from, description, urlStr string,
 	newLimit, newPublicLimit int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.UpdateAssetIssueCtx(ctx, from, description, urlStr, newLimit, newPublicLimit)
+}
+
+// UpdateAssetIssueCtx is the context-aware version of UpdateAssetIssue.
+func (g *GrpcClient) UpdateAssetIssueCtx(ctx context.Context, from, description, urlStr string,
+	newLimit, newPublicLimit int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 
 	contract := &core.UpdateAssetContract{}
@@ -165,9 +202,6 @@ func (g *GrpcClient) UpdateAssetIssue(from, description, urlStr string,
 	contract.Url = []byte(urlStr)
 	contract.NewLimit = newLimit
 	contract.NewPublicLimit = newPublicLimit
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.UpdateAsset2(ctx, contract)
 	if err != nil {
@@ -185,6 +219,15 @@ func (g *GrpcClient) UpdateAssetIssue(from, description, urlStr string,
 // TransferAsset from to  base58 address
 func (g *GrpcClient) TransferAsset(from, toAddress,
 	assetName string, amount int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TransferAssetCtx(ctx, from, toAddress, assetName, amount)
+}
+
+// TransferAssetCtx is the context-aware version of TransferAsset.
+func (g *GrpcClient) TransferAssetCtx(ctx context.Context, from, toAddress,
+	assetName string, amount int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 	contract := &core.TransferAssetContract{}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
@@ -196,9 +239,6 @@ func (g *GrpcClient) TransferAsset(from, toAddress,
 
 	contract.AssetName = []byte(assetName)
 	contract.Amount = amount
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.TransferAsset2(ctx, contract)
 	if err != nil {
@@ -216,6 +256,15 @@ func (g *GrpcClient) TransferAsset(from, toAddress,
 // ParticipateAssetIssue TRC10 ICO
 func (g *GrpcClient) ParticipateAssetIssue(from, issuerAddress,
 	tokenID string, amount int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.ParticipateAssetIssueCtx(ctx, from, issuerAddress, tokenID, amount)
+}
+
+// ParticipateAssetIssueCtx is the context-aware version of ParticipateAssetIssue.
+func (g *GrpcClient) ParticipateAssetIssueCtx(ctx context.Context, from, issuerAddress,
+	tokenID string, amount int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 	contract := &core.ParticipateAssetIssueContract{}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
@@ -227,9 +276,6 @@ func (g *GrpcClient) ParticipateAssetIssue(from, issuerAddress,
 
 	contract.AssetName = []byte(tokenID)
 	contract.Amount = amount
-
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.ParticipateAssetIssue2(ctx, contract)
 	if err != nil {
@@ -246,14 +292,20 @@ func (g *GrpcClient) ParticipateAssetIssue(from, issuerAddress,
 
 // UnfreezeAsset from owner
 func (g *GrpcClient) UnfreezeAsset(from string) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.UnfreezeAssetCtx(ctx, from)
+}
+
+// UnfreezeAssetCtx is the context-aware version of UnfreezeAsset.
+func (g *GrpcClient) UnfreezeAssetCtx(ctx context.Context, from string) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
 	var err error
 
 	contract := &core.UnfreezeAssetContract{}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
 	}
-	ctx, cancel := g.getContext()
-	defer cancel()
 
 	tx, err := g.Client.UnfreezeAsset2(ctx, contract)
 	if err != nil {

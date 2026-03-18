@@ -80,16 +80,29 @@ func (g *GrpcClient) SetContext(ctx context.Context) error {
 	return nil
 }
 
-func (g *GrpcClient) getContext() (context.Context, context.CancelFunc) {
+// newContext creates a derived context with the client's configured timeout.
+// It does not inject API key metadata — use withAPIKey for that.
+func (g *GrpcClient) newContext() (context.Context, context.CancelFunc) {
 	base := g.baseCtx
 	if base == nil {
 		base = context.Background()
 	}
-	ctx, cancel := context.WithTimeout(base, g.grpcTimeout)
-	if len(g.apiKey) > 0 {
-		ctx = metadata.AppendToOutgoingContext(ctx, "TRON-PRO-API-KEY", g.apiKey)
+	return context.WithTimeout(base, g.grpcTimeout)
+}
+
+// withAPIKey injects the API key as gRPC outgoing metadata if configured.
+// It uses Set (not Append) so that chained Ctx calls don't produce duplicate headers.
+func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
 	}
-	return ctx, cancel
+	if len(g.apiKey) == 0 {
+		return ctx
+	}
+	md, _ := metadata.FromOutgoingContext(ctx)
+	md = md.Copy()
+	md.Set("TRON-PRO-API-KEY", g.apiKey)
+	return metadata.NewOutgoingContext(ctx, md)
 }
 
 // Stop GRPC Connection

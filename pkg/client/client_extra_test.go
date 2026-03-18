@@ -310,6 +310,141 @@ func TestSetContext_NilReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "nil context")
 }
 
+// --- Ctx variant tests ---
+
+func TestGetNowBlockCtx(t *testing.T) {
+	mock := &mockWalletServer{
+		GetNowBlock2Func: func(_ context.Context, _ *api.EmptyMessage) (*api.BlockExtention, error) {
+			return &api.BlockExtention{
+				BlockHeader: &core.BlockHeader{
+					RawData: &core.BlockHeaderRaw{Number: 100},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	block, err := c.GetNowBlockCtx(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, int64(100), block.BlockHeader.RawData.Number)
+}
+
+func TestGetBlockByNumCtx(t *testing.T) {
+	mock := &mockWalletServer{
+		GetBlockByNum2Func: func(_ context.Context, in *api.NumberMessage) (*api.BlockExtention, error) {
+			return &api.BlockExtention{
+				BlockHeader: &core.BlockHeader{
+					RawData: &core.BlockHeaderRaw{Number: in.Num},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	block, err := c.GetBlockByNumCtx(context.Background(), 555)
+	require.NoError(t, err)
+	assert.Equal(t, int64(555), block.BlockHeader.RawData.Number)
+}
+
+func TestGetNextMaintenanceTimeCtx_Cancellation(t *testing.T) {
+	mock := &mockWalletServer{
+		GetNextMaintenanceTimeFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NumberMessage, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // pre-cancel
+
+	_, err := c.GetNextMaintenanceTimeCtx(ctx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "Canceled")
+}
+
+func TestGetNextMaintenanceTimeCtx_Deadline(t *testing.T) {
+	mock := &mockWalletServer{
+		GetNextMaintenanceTimeFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NumberMessage, error) {
+			<-ctx.Done()
+			return nil, ctx.Err()
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	start := time.Now()
+	_, err := c.GetNextMaintenanceTimeCtx(ctx)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "DeadlineExceeded")
+	assert.Less(t, elapsed, 1*time.Second)
+}
+
+func TestBroadcastCtx(t *testing.T) {
+	mock := &mockWalletServer{
+		BroadcastTransactionFunc: func(_ context.Context, _ *core.Transaction) (*api.Return, error) {
+			return &api.Return{Result: true, Code: api.Return_SUCCESS}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	result, err := c.BroadcastCtx(context.Background(), &core.Transaction{})
+	require.NoError(t, err)
+	assert.True(t, result.GetResult())
+}
+
+func TestListNodesCtx_APIKeyPropagated(t *testing.T) {
+	var capturedKey string
+	mock := &mockWalletServer{
+		ListNodesFunc: func(ctx context.Context, _ *api.EmptyMessage) (*api.NodeList, error) {
+			md, ok := metadata.FromIncomingContext(ctx)
+			if ok {
+				vals := md.Get("TRON-PRO-API-KEY")
+				if len(vals) > 0 {
+					capturedKey = vals[0]
+				}
+			}
+			return &api.NodeList{}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_ = c.SetAPIKey("ctx-test-key")
+
+	_, err := c.ListNodesCtx(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ctx-test-key", capturedKey)
+}
+
+func TestGetAccountResourceCtx(t *testing.T) {
+	mock := &mockWalletServer{
+		GetAccountResourceFunc: func(_ context.Context, _ *core.Account) (*api.AccountResourceMessage, error) {
+			return &api.AccountResourceMessage{
+				FreeNetLimit: 5000,
+				EnergyLimit:  50000,
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+	res, err := c.GetAccountResourceCtx(context.Background(), "TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b")
+	require.NoError(t, err)
+	assert.Equal(t, int64(5000), res.FreeNetLimit)
+	assert.Equal(t, int64(50000), res.EnergyLimit)
+}
+
+func TestGetAccountResourceCtx_InvalidAddress(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+	_, err := c.GetAccountResourceCtx(context.Background(), "invalid")
+	require.Error(t, err)
+}
+
 func TestGetAccountResource(t *testing.T) {
 	mock := &mockWalletServer{
 		GetAccountResourceFunc: func(_ context.Context, _ *core.Account) (*api.AccountResourceMessage, error) {
