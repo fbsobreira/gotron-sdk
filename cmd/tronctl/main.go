@@ -47,7 +47,11 @@ func main() {
 	// notes one line 66,67 of https://golang.org/src/net/net.go that say can make the decision at
 	// build time.
 	_ = os.Setenv("GODEBUG", "netdns=go")
-	cmd.VersionWrapDump = version + "-" + commit
+	if commit != "" {
+		cmd.VersionWrapDump = version + "-" + commit
+	} else {
+		cmd.VersionWrapDump = version
+	}
 	cmd.RootCmd.AddCommand(&cobra.Command{
 		Use:   "version",
 		Short: "Show version",
