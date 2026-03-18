@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -110,6 +111,7 @@ func runInstallScript(version string) error {
 		return fmt.Errorf("failed to start download: %w", err)
 	}
 	if err := sh.Start(); err != nil {
+		_ = curl.Process.Kill()
 		_ = curl.Wait()
 		return fmt.Errorf("failed to start installer: %w", err)
 	}
@@ -142,10 +144,12 @@ func detectManagedInstall() (string, bool) {
 		return "this binary was installed via Homebrew; upgrade with:\n  brew upgrade tronctl", true
 	}
 
-	// go install: check build info for a real module version
+	// go install: check build info for a real module version.
+	// goreleaser sets VersionWrapDump via ldflags with a "v" prefix (e.g. "v0.25.1-abc1234"),
+	// while go install builds leave it empty — so an absent or non-v-prefixed value means
+	// the binary was installed via go install.
 	info, ok := debug.ReadBuildInfo()
 	if ok && info.Main.Version != "" && info.Main.Version != "(devel)" {
-		// goreleaser builds set VersionWrapDump via ldflags with a v-prefix
 		if VersionWrapDump == "" || !strings.HasPrefix(strings.Split(VersionWrapDump, "-")[0], "v") {
 			return "this binary was installed via `go install`; upgrade with:\n  go install github.com/fbsobreira/gotron-sdk/cmd/tronctl@latest", true
 		}
@@ -174,13 +178,12 @@ func fetchRelease(version string) (*GitHubRelease, error) {
 		url = versionLink
 	}
 
-	resp, err := http.Get(url) //nolint:gosec // URL is constructed from constants
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(url) //nolint:gosec // URL is constructed from constants
 	if err != nil {
 		return nil, err
 	}
-	if resp != nil {
-		defer func() { _ = resp.Body.Close() }()
-	}
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		if version != "" {
