@@ -51,7 +51,7 @@ brews:
     name: tronctl
     homepage: https://gotron.sh
     description: Go SDK & CLI for TRON blockchain
-    license: LGPL-3.0
+    license: LGPL-3.0-or-later
     install: |
       bin.install "tronctl"
     test: |
