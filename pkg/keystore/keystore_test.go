@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -299,6 +300,111 @@ func TestSignHashWithPassphrase(t *testing.T) {
 
 		_, err = ks.SignHashWithPassphrase(acc, "pass", make([]byte, 33))
 		require.Error(t, err)
+	})
+}
+
+// ---------- SignTx ----------
+
+// dummyTx returns a minimal Transaction suitable for signing tests.
+func dummyTx(t *testing.T) *core.Transaction {
+	t.Helper()
+	return &core.Transaction{
+		RawData: &core.TransactionRaw{
+			RefBlockBytes: []byte{0x00, 0x01},
+			RefBlockHash:  make([]byte, 8),
+			Expiration:    1_000_000,
+		},
+	}
+}
+
+func TestSignTx(t *testing.T) {
+	t.Run("sign two transactions sequentially with same unlocked account", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+		require.NoError(t, ks.Unlock(acc, "pass"))
+
+		tx1 := dummyTx(t)
+		signed1, err := ks.SignTx(acc, tx1)
+		require.NoError(t, err)
+		require.Len(t, signed1.Signature, 1, "first sign must produce a signature")
+
+		tx2 := dummyTx(t)
+		signed2, err := ks.SignTx(acc, tx2)
+		require.NoError(t, err)
+		require.Len(t, signed2.Signature, 1, "second sign must also succeed")
+	})
+
+	t.Run("sign then lock then sign returns ErrLocked", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+		require.NoError(t, ks.Unlock(acc, "pass"))
+
+		tx1 := dummyTx(t)
+		_, err = ks.SignTx(acc, tx1)
+		require.NoError(t, err)
+
+		require.NoError(t, ks.Lock(acc.Address))
+
+		tx2 := dummyTx(t)
+		_, err = ks.SignTx(acc, tx2)
+		assert.ErrorIs(t, err, keystore.ErrLocked, "signing after lock must fail")
+	})
+
+	t.Run("sign fails after TimedUnlock expiry", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+		require.NoError(t, ks.TimedUnlock(acc, "pass", 60*time.Millisecond))
+
+		tx1 := dummyTx(t)
+		_, err = ks.SignTx(acc, tx1)
+		require.NoError(t, err, "sign should succeed while timed unlock is active")
+
+		// Wait for expiry.
+		time.Sleep(200 * time.Millisecond)
+
+		tx2 := dummyTx(t)
+		_, err = ks.SignTx(acc, tx2)
+		assert.ErrorIs(t, err, keystore.ErrLocked, "signing after timed unlock expiry must fail")
+	})
+
+	t.Run("sign when locked returns ErrLocked", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+
+		tx := dummyTx(t)
+		_, err = ks.SignTx(acc, tx)
+		assert.ErrorIs(t, err, keystore.ErrLocked)
+	})
+}
+
+// ---------- SignTxWithPassphrase ----------
+
+func TestSignTxWithPassphrase(t *testing.T) {
+	t.Run("sign multiple transactions with passphrase", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+
+		for i := 0; i < 3; i++ {
+			tx := dummyTx(t)
+			signed, err := ks.SignTxWithPassphrase(acc, "pass", tx)
+			require.NoError(t, err, "SignTxWithPassphrase call %d must succeed", i+1)
+			require.Len(t, signed.Signature, 1)
+		}
+	})
+
+	t.Run("sign with wrong passphrase fails", func(t *testing.T) {
+		ks := newTestKeyStore(t)
+		acc, err := ks.NewAccount("correct")
+		require.NoError(t, err)
+
+		tx := dummyTx(t)
+		_, err = ks.SignTxWithPassphrase(acc, "wrong", tx)
+		assert.Error(t, err)
 	})
 }
 

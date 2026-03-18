@@ -301,8 +301,6 @@ func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, 
 	if !found {
 		return nil, ErrLocked
 	}
-	defer zeroKey(unlockedKey.PrivateKey)
-
 	rawData, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, err
@@ -316,7 +314,6 @@ func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, 
 		return nil, err
 	}
 	tx.Signature = append(tx.Signature, signature)
-	_ = unlockedKey
 	return tx, nil
 }
 
