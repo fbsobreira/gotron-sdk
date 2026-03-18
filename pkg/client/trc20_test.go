@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"testing"
 
+	client "github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
@@ -312,4 +313,77 @@ func TestParseTRC20StringProperty(t *testing.T) {
 		_, err := c.ParseTRC20StringProperty("")
 		require.Error(t, err)
 	})
+}
+
+// estimateMock returns a mock that only handles TriggerConstantContract,
+// verifying WithEstimate() routes to the dry-run path.
+func estimateMock(t *testing.T, wantSigPrefix string) *mockWalletServer {
+	t.Helper()
+	return &mockWalletServer{
+		TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			t.Fatal("unexpected TriggerContract call: WithEstimate() must use TriggerConstantContract")
+			return nil, nil
+		},
+		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			dataHex := hex.EncodeToString(in.Data)
+			assert.True(t, len(dataHex) >= 8, "data too short")
+			assert.Equal(t, wantSigPrefix, dataHex[:8])
+			return &api.TransactionExtention{
+				Result:         &api.Return{Result: true, Code: api.Return_SUCCESS},
+				ConstantResult: [][]byte{{0x01}},
+			}, nil
+		},
+	}
+}
+
+func TestTRC20Send_WithEstimate(t *testing.T) {
+	// a9059cbb = transfer(address,uint256)
+	c := newMockClient(t, estimateMock(t, "a9059cbb"))
+
+	tx, err := c.TRC20Send(
+		"TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b",
+		"TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH",
+		"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+		big.NewInt(1_000_000),
+		100_000_000,
+		client.WithEstimate(),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	assert.NotEmpty(t, tx.GetConstantResult())
+}
+
+func TestTRC20Approve_WithEstimate(t *testing.T) {
+	// 095ea7b3 = approve(address,uint256)
+	c := newMockClient(t, estimateMock(t, "095ea7b3"))
+
+	tx, err := c.TRC20Approve(
+		"TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b",
+		"TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH",
+		"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+		big.NewInt(999_999_999),
+		100_000_000,
+		client.WithEstimate(),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	assert.NotEmpty(t, tx.GetConstantResult())
+}
+
+func TestTRC20TransferFrom_WithEstimate(t *testing.T) {
+	// 23b872dd = transferFrom(address,address,uint256)
+	c := newMockClient(t, estimateMock(t, "23b872dd"))
+
+	tx, err := c.TRC20TransferFrom(
+		"TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b", // owner
+		"TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH", // from
+		"TUoHaVjx7n5xz8LwPRDckgFrDWhMhuSuJM", // to
+		"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", // contract
+		big.NewInt(500_000),
+		100_000_000,
+		client.WithEstimate(),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, tx)
+	assert.NotEmpty(t, tx.GetConstantResult())
 }
