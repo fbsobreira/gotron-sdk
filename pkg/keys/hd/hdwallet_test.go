@@ -212,6 +212,24 @@ func TestNewParamsFromPath_Valid(t *testing.T) {
 			wantChange:   false,
 			wantAddrIdx:  0,
 		},
+		{
+			name:         "TRON standard path with m/ prefix",
+			path:         "m/44'/195'/0'/0/0",
+			wantPurpose:  44,
+			wantCoinType: tronCoinType,
+			wantAccount:  0,
+			wantChange:   false,
+			wantAddrIdx:  0,
+		},
+		{
+			name:         "Ethereum with m/ prefix",
+			path:         "m/44'/60'/0'/0/0",
+			wantPurpose:  44,
+			wantCoinType: 60,
+			wantAccount:  0,
+			wantChange:   false,
+			wantAddrIdx:  0,
+		},
 	}
 
 	for _, tt := range tests {

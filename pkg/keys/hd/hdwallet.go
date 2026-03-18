@@ -53,6 +53,7 @@ func NewParams(purpose, coinType, account uint32, change bool, addressIdx uint32
 
 // NewParamsFromPath parses the BIP44 path and unmarshals into the struct.
 func NewParamsFromPath(path string) (*BIP44Params, error) {
+	path = strings.TrimPrefix(path, "m/")
 	spl := strings.Split(path, "/")
 	if len(spl) != 5 {
 		return nil, fmt.Errorf("path length is wrong. Expected 5, got %d", len(spl))
@@ -172,6 +173,7 @@ func ComputeMastersFromSeed(seed []byte, masterSecret []byte) (secret [32]byte, 
 // using the given chainCode.
 func DerivePrivateKeyForPath(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32]byte, path string) ([32]byte, error) {
 	data := privKeyBytes
+	path = strings.TrimPrefix(path, "m/")
 	parts := strings.Split(path, "/")
 	for _, part := range parts {
 		if part == "" {
