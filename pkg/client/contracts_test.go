@@ -345,6 +345,143 @@ func TestTriggerContractWithData_InvalidAddress(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestTriggerConstantContract_WithCallValue(t *testing.T) {
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerConstantContract(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"swap(uint256)",
+		`[{"uint256": "1000"}]`,
+		client.WithCallValue(1_000_000),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, int64(1_000_000), capturedContract.CallValue)
+}
+
+func TestTriggerConstantContract_WithTokenValue(t *testing.T) {
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	opt, err := client.WithTokenValue("1000001", 2_000_000)
+	require.NoError(t, err)
+
+	tx, err := c.TriggerConstantContract(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"deposit(uint256)",
+		`[{"uint256": "500"}]`,
+		opt,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, int64(1000001), capturedContract.TokenId)
+	assert.Equal(t, int64(2_000_000), capturedContract.CallTokenValue)
+}
+
+func TestWithTokenValue_InvalidTokenID(t *testing.T) {
+	_, err := client.WithTokenValue("not-a-number", 1000)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid token ID")
+}
+
+func TestTriggerConstantContract_WithMultipleOptions(t *testing.T) {
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tokenOpt, err := client.WithTokenValue("1000001", 3_000_000)
+	require.NoError(t, err)
+
+	tx, err := c.TriggerConstantContract(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		"swap(uint256)",
+		`[{"uint256": "1000"}]`,
+		client.WithCallValue(5_000_000),
+		tokenOpt,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, int64(5_000_000), capturedContract.CallValue)
+	assert.Equal(t, int64(1000001), capturedContract.TokenId)
+	assert.Equal(t, int64(3_000_000), capturedContract.CallTokenValue)
+}
+
+func TestTriggerConstantContractWithData_WithCallValue(t *testing.T) {
+	packedData, _ := hex.DecodeString(
+		"70a08231" +
+			"0000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d",
+	)
+
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerConstantContractWithData(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		packedData,
+		client.WithCallValue(1_000_000),
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, packedData, capturedContract.Data)
+	assert.Equal(t, int64(1_000_000), capturedContract.CallValue)
+}
+
 func TestGetAccountMigrationContract(t *testing.T) {
 	// frozenAmount returns a single uint256
 	frozenResult, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000005f5e100") // 100000000

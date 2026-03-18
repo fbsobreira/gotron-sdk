@@ -15,6 +15,41 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// ConstantCallOption configures optional fields on a TriggerSmartContract
+// used by constant (read-only) contract calls. This allows callers to set
+// values like CallValue or TokenValue without breaking backward compatibility.
+type ConstantCallOption func(*core.TriggerSmartContract)
+
+// WithCallValue sets the TRX call value (in sun) on a constant contract call.
+// This is required to accurately simulate payable functions that depend on msg.value.
+func WithCallValue(value int64) ConstantCallOption {
+	return func(ct *core.TriggerSmartContract) {
+		ct.CallValue = value
+	}
+}
+
+// WithTokenValue sets the TRC10 token ID and amount on a constant contract call.
+// It returns an error if tokenID is not a valid integer.
+func WithTokenValue(tokenID string, amount int64) (ConstantCallOption, error) {
+	id, err := strconv.ParseInt(tokenID, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token ID %q: %w", tokenID, err)
+	}
+	return func(ct *core.TriggerSmartContract) {
+		ct.TokenId = id
+		ct.CallTokenValue = amount
+	}, nil
+}
+
+func applyConstantCallOptions(ct *core.TriggerSmartContract, opts []ConstantCallOption) {
+	for _, opt := range opts {
+		if opt == nil {
+			continue
+		}
+		opt(ct)
+	}
+}
+
 // UpdateEnergyLimitContract update contract enery limit
 func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
@@ -94,14 +129,14 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 }
 
 // TriggerConstantContract and return tx result
-func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string, opts ...ConstantCallOption) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.TriggerConstantContractCtx(ctx, from, contractAddress, method, jsonString)
+	return g.TriggerConstantContractCtx(ctx, from, contractAddress, method, jsonString, opts...)
 }
 
 // TriggerConstantContractCtx is the context-aware version of TriggerConstantContract.
-func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contractAddress, method, jsonString string) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contractAddress, method, jsonString string, opts ...ConstantCallOption) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
 	var err error
@@ -132,6 +167,7 @@ func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contr
 		ContractAddress: contractDesc.Bytes(),
 		Data:            dataBytes,
 	}
+	applyConstantCallOptions(ct, opts)
 
 	return g.triggerConstantContract(ctx, ct)
 }
@@ -215,14 +251,14 @@ func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartC
 // pre-packed ABI data, bypassing the JSON string → parse → pack pipeline.
 // This is useful when callers already have packed data from go-ethereum's
 // abi.Pack() or similar tooling.
-func (g *GrpcClient) TriggerConstantContractWithData(from, contractAddress string, data []byte) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TriggerConstantContractWithData(from, contractAddress string, data []byte, opts ...ConstantCallOption) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.TriggerConstantContractWithDataCtx(ctx, from, contractAddress, data)
+	return g.TriggerConstantContractWithDataCtx(ctx, from, contractAddress, data, opts...)
 }
 
 // TriggerConstantContractWithDataCtx is the context-aware version of TriggerConstantContractWithData.
-func (g *GrpcClient) TriggerConstantContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte) (*api.TransactionExtention, error) {
+func (g *GrpcClient) TriggerConstantContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte, opts ...ConstantCallOption) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
 	var err error
@@ -243,6 +279,7 @@ func (g *GrpcClient) TriggerConstantContractWithDataCtx(ctx context.Context, fro
 		ContractAddress: contractDesc.Bytes(),
 		Data:            data,
 	}
+	applyConstantCallOptions(ct, opts)
 
 	return g.triggerConstantContract(ctx, ct)
 }
