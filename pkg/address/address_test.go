@@ -592,6 +592,195 @@ func TestAddress_Scan(t *testing.T) {
 	}
 }
 
+func TestBytesToAddress(t *testing.T) {
+	tests := []struct {
+		name  string
+		input []byte
+		check func(t *testing.T, addr Address)
+	}{
+		{
+			name:  "20-byte input gets TRON prefix prepended",
+			input: make([]byte, 20),
+			check: func(t *testing.T, addr Address) {
+				assert.Len(t, addr, AddressLength)
+				assert.Equal(t, TronBytePrefix, addr[0])
+			},
+		},
+		{
+			name: "20-byte Ethereum address becomes valid TRON address",
+			input: func() []byte {
+				privKey, _ := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
+				ethAddr := crypto.PubkeyToAddress(privKey.PublicKey)
+				return ethAddr.Bytes()
+			}(),
+			check: func(t *testing.T, addr Address) {
+				assert.Len(t, addr, AddressLength)
+				assert.Equal(t, TronBytePrefix, addr[0])
+				assert.True(t, addr.IsValid())
+			},
+		},
+		{
+			name: "21-byte input is used as-is",
+			input: func() []byte {
+				addr, _ := Base58ToAddress(testBase58Addr1)
+				return addr.Bytes()
+			}(),
+			check: func(t *testing.T, addr Address) {
+				expected, _ := Base58ToAddress(testBase58Addr1)
+				assert.Equal(t, expected.Bytes(), addr.Bytes())
+			},
+		},
+		{
+			name:  "empty input returns empty address",
+			input: []byte{},
+			check: func(t *testing.T, addr Address) {
+				assert.Empty(t, addr)
+			},
+		},
+		{
+			name:  "nil input returns empty address",
+			input: nil,
+			check: func(t *testing.T, addr Address) {
+				assert.Empty(t, addr)
+			},
+		},
+		{
+			name:  "short input returned as-is",
+			input: []byte{0x01, 0x02},
+			check: func(t *testing.T, addr Address) {
+				assert.Equal(t, Address([]byte{0x01, 0x02}), addr)
+			},
+		},
+		{
+			name:  "input does not share underlying array",
+			input: []byte{0x41, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13},
+			check: func(t *testing.T, addr Address) {
+				// Modify original should not affect the address
+				assert.Len(t, addr, AddressLength)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr := BytesToAddress(tt.input)
+			tt.check(t, addr)
+		})
+	}
+}
+
+func TestEthAddressToAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		wantErr bool
+		check   func(t *testing.T, addr Address)
+	}{
+		{
+			name: "valid 20-byte Ethereum address",
+			input: func() []byte {
+				privKey, _ := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
+				ethAddr := crypto.PubkeyToAddress(privKey.PublicKey)
+				return ethAddr.Bytes()
+			}(),
+			wantErr: false,
+			check: func(t *testing.T, addr Address) {
+				assert.Len(t, addr, AddressLength)
+				assert.Equal(t, TronBytePrefix, addr[0])
+				assert.True(t, addr.IsValid())
+
+				// Should match PubkeyToAddress result
+				privKey, _ := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
+				expected := PubkeyToAddress(privKey.PublicKey)
+				assert.Equal(t, expected.Bytes(), addr.Bytes())
+			},
+		},
+		{
+			name:    "nil input returns error",
+			input:   nil,
+			wantErr: true,
+		},
+		{
+			name:    "empty input returns error",
+			input:   []byte{},
+			wantErr: true,
+		},
+		{
+			name:    "19-byte input returns error",
+			input:   make([]byte, 19),
+			wantErr: true,
+		},
+		{
+			name:    "21-byte input returns error",
+			input:   make([]byte, 21),
+			wantErr: true,
+		},
+		{
+			name:  "all-zero 20-byte input",
+			input: make([]byte, 20),
+			check: func(t *testing.T, addr Address) {
+				assert.Len(t, addr, AddressLength)
+				assert.Equal(t, TronBytePrefix, addr[0])
+				for i := 1; i < AddressLength; i++ {
+					assert.Equal(t, byte(0x00), addr[i])
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			addr, err := EthAddressToAddress(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, addr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.check != nil {
+				tt.check(t, addr)
+			}
+		})
+	}
+}
+
+func TestBytesToAddress_RoundTrip(t *testing.T) {
+	t.Run("20-byte eth address round-trips through BytesToAddress", func(t *testing.T) {
+		privKey, err := crypto.HexToECDSA("fad9c8855b740a0b7ed4c221dbad0f33a83a49cad6b3fe8d5817ac83d38b6a19")
+		require.NoError(t, err)
+
+		ethAddr := crypto.PubkeyToAddress(privKey.PublicKey)
+		tronAddr := BytesToAddress(ethAddr.Bytes())
+
+		// Should produce same result as PubkeyToAddress
+		expected := PubkeyToAddress(privKey.PublicKey)
+		assert.Equal(t, expected.Bytes(), tronAddr.Bytes())
+		assert.Equal(t, expected.String(), tronAddr.String())
+	})
+
+	t.Run("21-byte TRON address round-trips through BytesToAddress", func(t *testing.T) {
+		original, err := Base58ToAddress(testBase58Addr1)
+		require.NoError(t, err)
+
+		recovered := BytesToAddress(original.Bytes())
+		assert.Equal(t, original.Bytes(), recovered.Bytes())
+		assert.Equal(t, original.String(), recovered.String())
+	})
+
+	t.Run("EthAddressToAddress matches BytesToAddress for 20-byte input", func(t *testing.T) {
+		ethBytes := make([]byte, 20)
+		for i := range ethBytes {
+			ethBytes[i] = byte(i + 1)
+		}
+
+		fromBytes := BytesToAddress(ethBytes)
+		fromEth, err := EthAddressToAddress(ethBytes)
+		require.NoError(t, err)
+
+		assert.Equal(t, fromBytes.Bytes(), fromEth.Bytes())
+	})
+}
+
 func TestAddress_IsValid(t *testing.T) {
 	tests := []struct {
 		name    string
