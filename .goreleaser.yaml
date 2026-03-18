@@ -47,9 +47,11 @@ brews:
   - repository:
       owner: fbsobreira
       name: homebrew-tap
-    homepage: https://github.com/fbsobreira/gotron-sdk
-    description: CLI tool for interacting with the TRON network
-    license: Apache-2.0
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    name: tronctl
+    homepage: https://gotron.sh
+    description: Go SDK & CLI for TRON blockchain
+    license: LGPL-3.0-or-later
     install: |
       bin.install "tronctl"
     test: |
