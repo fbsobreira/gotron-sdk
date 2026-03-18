@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"runtime/debug"
 
 	cmd "github.com/fbsobreira/gotron-sdk/cmd/subcommands"
 	// Need this side effect
@@ -17,6 +18,29 @@ var (
 	builtAt string
 	builtBy string
 )
+
+func init() {
+	if version != "" {
+		return
+	}
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return
+	}
+	version = info.Main.Version
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			if len(s.Value) > 7 {
+				commit = s.Value[:7]
+			} else {
+				commit = s.Value
+			}
+		case "vcs.time":
+			builtAt = s.Value
+		}
+	}
+}
 
 func main() {
 	// HACK Force usage of go implementation rather than the C based one. Do the right way, see the
