@@ -59,6 +59,11 @@ type mockWalletServer struct {
 	DelegateResourceFunc   func(context.Context, *core.DelegateResourceContract) (*api.TransactionExtention, error)
 	UnDelegateResourceFunc func(context.Context, *core.UnDelegateResourceContract) (*api.TransactionExtention, error)
 
+	// Pending pool
+	GetTransactionFromPendingFunc     func(context.Context, *api.BytesMessage) (*core.Transaction, error)
+	GetTransactionListFromPendingFunc func(context.Context, *api.EmptyMessage) (*api.TransactionIdList, error)
+	GetPendingSizeFunc                func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
+
 	// Network
 	ListNodesFunc                  func(context.Context, *api.EmptyMessage) (*api.NodeList, error)
 	GetNextMaintenanceTimeFunc     func(context.Context, *api.EmptyMessage) (*api.NumberMessage, error)
@@ -304,6 +309,27 @@ func (m *mockWalletServer) UnDelegateResource(ctx context.Context, in *core.UnDe
 		return m.UnDelegateResourceFunc(ctx, in)
 	}
 	return m.UnimplementedWalletServer.UnDelegateResource(ctx, in)
+}
+
+func (m *mockWalletServer) GetTransactionFromPending(ctx context.Context, in *api.BytesMessage) (*core.Transaction, error) {
+	if m.GetTransactionFromPendingFunc != nil {
+		return m.GetTransactionFromPendingFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetTransactionFromPending(ctx, in)
+}
+
+func (m *mockWalletServer) GetTransactionListFromPending(ctx context.Context, in *api.EmptyMessage) (*api.TransactionIdList, error) {
+	if m.GetTransactionListFromPendingFunc != nil {
+		return m.GetTransactionListFromPendingFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetTransactionListFromPending(ctx, in)
+}
+
+func (m *mockWalletServer) GetPendingSize(ctx context.Context, in *api.EmptyMessage) (*api.NumberMessage, error) {
+	if m.GetPendingSizeFunc != nil {
+		return m.GetPendingSizeFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetPendingSize(ctx, in)
 }
 
 func (m *mockWalletServer) ListNodes(ctx context.Context, in *api.EmptyMessage) (*api.NodeList, error) {
