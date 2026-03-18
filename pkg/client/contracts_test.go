@@ -182,6 +182,169 @@ func TestGetAccount(t *testing.T) {
 	assert.Equal(t, big.NewInt(1), result["frozen"])
 }
 
+func TestTriggerConstantContractWithData(t *testing.T) {
+	// Pre-packed ABI data for "balanceOf(address)" with a known address
+	packedData, _ := hex.DecodeString(
+		"70a08231" + // function selector: balanceOf(address)
+			"0000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d",
+	)
+	expectedResult, _ := hex.DecodeString(
+		"0000000000000000000000000000000000000000000000000000000005f5e100", // 100000000
+	)
+
+	var capturedData []byte
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedData = ct.Data
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{expectedResult},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerConstantContractWithData(
+		"",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		packedData,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, packedData, capturedData)
+	assert.Equal(t, expectedResult, tx.ConstantResult[0])
+}
+
+func TestTriggerConstantContractWithData_WithFrom(t *testing.T) {
+	packedData, _ := hex.DecodeString("70a08231" +
+		"0000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d")
+
+	mock := &mockWalletServer{
+		TriggerConstantContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			// Verify owner address is set (not zero address)
+			assert.NotEmpty(t, ct.OwnerAddress)
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				ConstantResult: [][]byte{{}},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerConstantContractWithData(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		packedData,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+}
+
+func TestTriggerContractWithData(t *testing.T) {
+	// Pre-packed ABI data for "transfer(address,uint256)"
+	packedData, _ := hex.DecodeString(
+		"a9059cbb" + // function selector: transfer(address,uint256)
+			"0000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d" +
+			"00000000000000000000000000000000000000000000000000000000000f4240",
+	)
+
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				Transaction: &core.Transaction{
+					RawData: &core.TransactionRaw{},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerContractWithData(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		packedData,
+		100000000, // feeLimit
+		0, "", 0,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, packedData, capturedContract.Data)
+	assert.Equal(t, int64(0), capturedContract.CallValue)
+}
+
+func TestTriggerContractWithData_WithCallValue(t *testing.T) {
+	packedData, _ := hex.DecodeString("a9059cbb" +
+		"0000000000000000000000009df085719e7e0bd5bf4fd1b2a6aed6afd2b8416d" +
+		"00000000000000000000000000000000000000000000000000000000000f4240")
+
+	var capturedContract *core.TriggerSmartContract
+	mock := &mockWalletServer{
+		TriggerContractFunc: func(_ context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+			capturedContract = ct
+			return &api.TransactionExtention{
+				Result: &api.Return{
+					Result: true,
+					Code:   api.Return_SUCCESS,
+				},
+				Transaction: &core.Transaction{
+					RawData: &core.TransactionRaw{},
+				},
+			}, nil
+		},
+	}
+
+	c := newMockClient(t, mock)
+
+	tx, err := c.TriggerContractWithData(
+		"TTGhREx2pDSxFX555NWz1YwGpiBVPvQA7e",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		packedData,
+		100000000,
+		5000000,   // callValue
+		"1000001", // tokenID
+		2000000,   // tokenAmount
+	)
+	require.NoError(t, err)
+	assert.Equal(t, api.Return_SUCCESS, tx.Result.Code)
+	assert.Equal(t, int64(5000000), capturedContract.CallValue)
+	assert.Equal(t, int64(2000000), capturedContract.CallTokenValue)
+	assert.Equal(t, int64(1000001), capturedContract.TokenId)
+}
+
+func TestTriggerContractWithData_InvalidAddress(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+
+	_, err := c.TriggerContractWithData(
+		"invalid-address",
+		"TVSvjZdyDSNocHm7dP3jvCmMNsCnMTPa5W",
+		[]byte{0x01},
+		0, 0, "", 0,
+	)
+	require.Error(t, err)
+
+	_, err = c.TriggerConstantContractWithData(
+		"",
+		"invalid-address",
+		[]byte{0x01},
+	)
+	require.Error(t, err)
+}
+
 func TestGetAccountMigrationContract(t *testing.T) {
 	// frozenAmount returns a single uint256
 	frozenResult, _ := hex.DecodeString("0000000000000000000000000000000000000000000000000000000005f5e100") // 100000000
