@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -11,6 +12,9 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
+
+// ErrPendingTxNotFound is returned when a transaction is not found in the pending pool.
+var ErrPendingTxNotFound = errors.New("transaction not found in pending pool")
 
 // GetTransactionFromPending returns a transaction from the pending pool by ID.
 func (g *GrpcClient) GetTransactionFromPending(id string) (*core.Transaction, error) {
@@ -27,7 +31,7 @@ func (g *GrpcClient) GetTransactionFromPendingCtx(ctx context.Context, id string
 
 	msg.Value, err = common.FromHex(id)
 	if err != nil {
-		return nil, fmt.Errorf("get transaction from pending error: %v", err)
+		return nil, fmt.Errorf("get transaction from pending error: %w", err)
 	}
 
 	tx, err := g.Client.GetTransactionFromPending(ctx, msg)
@@ -37,7 +41,7 @@ func (g *GrpcClient) GetTransactionFromPendingCtx(ctx context.Context, id string
 	if size := proto.Size(tx); size > 0 {
 		return tx, nil
 	}
-	return nil, fmt.Errorf("transaction not found in pending pool")
+	return nil, ErrPendingTxNotFound
 }
 
 // GetTransactionListFromPending returns the list of transaction IDs in the pending pool.
@@ -77,7 +81,10 @@ func (g *GrpcClient) IsTransactionPending(id string) (bool, error) {
 func (g *GrpcClient) IsTransactionPendingCtx(ctx context.Context, id string) (bool, error) {
 	tx, err := g.GetTransactionFromPendingCtx(ctx, id)
 	if err != nil {
-		return false, nil //nolint:nilerr // not-found is expected
+		if errors.Is(err, ErrPendingTxNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
 	return tx != nil, nil
 }
@@ -107,7 +114,10 @@ func (g *GrpcClient) GetPendingTransactionsByAddressCtx(ctx context.Context, add
 	for _, txID := range list.GetTxId() {
 		tx, err := g.GetTransactionFromPendingCtx(ctx, txID)
 		if err != nil {
-			continue // tx may have been confirmed between list and fetch
+			if errors.Is(err, ErrPendingTxNotFound) {
+				continue // tx may have been confirmed between list and fetch
+			}
+			return nil, err
 		}
 		if ownerAddr := extractOwnerAddress(tx); ownerAddr != nil && bytes.Equal(ownerAddr, addrBytes) {
 			result = append(result, tx)

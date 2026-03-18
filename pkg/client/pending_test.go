@@ -3,9 +3,11 @@ package client_test
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
@@ -43,7 +45,7 @@ func TestGetTransactionFromPending_NotFound(t *testing.T) {
 	c := newMockClient(t, mock)
 	_, err := c.GetTransactionFromPending("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not found")
+	assert.True(t, errors.Is(err, client.ErrPendingTxNotFound))
 }
 
 func TestGetTransactionFromPending_InvalidHex(t *testing.T) {
@@ -179,6 +181,19 @@ func TestIsTransactionPending_NotFound(t *testing.T) {
 	assert.False(t, pending)
 }
 
+func TestIsTransactionPending_RPCError(t *testing.T) {
+	mock := &mockWalletServer{
+		GetTransactionFromPendingFunc: func(_ context.Context, _ *api.BytesMessage) (*core.Transaction, error) {
+			return nil, fmt.Errorf("connection refused")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.IsTransactionPending("abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connection refused")
+}
+
 // makePendingTx builds a minimal Transaction with a TransferContract for the given owner address.
 func makePendingTx(t *testing.T, ownerAddr string) *core.Transaction {
 	t.Helper()
@@ -263,4 +278,20 @@ func TestGetPendingTransactionsByAddress_ListError(t *testing.T) {
 	c := newMockClient(t, mock)
 	_, err := c.GetPendingTransactionsByAddress("TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b")
 	require.Error(t, err)
+}
+
+func TestGetPendingTransactionsByAddress_FetchRPCError(t *testing.T) {
+	mock := &mockWalletServer{
+		GetTransactionListFromPendingFunc: func(_ context.Context, _ *api.EmptyMessage) (*api.TransactionIdList, error) {
+			return &api.TransactionIdList{TxId: []string{"aa"}}, nil
+		},
+		GetTransactionFromPendingFunc: func(_ context.Context, _ *api.BytesMessage) (*core.Transaction, error) {
+			return nil, fmt.Errorf("connection reset")
+		},
+	}
+
+	c := newMockClient(t, mock)
+	_, err := c.GetPendingTransactionsByAddress("TPpw7soPWEDQWXPCGUMagYPryaWrYR5b3b")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "connection reset")
 }
