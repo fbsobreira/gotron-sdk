@@ -8,13 +8,14 @@ INSTALL_DIR="/usr/local/bin"
 # Parse arguments
 VERSION=""
 DRY_RUN=0
+shift_next=0
 for arg in "$@"; do
   case "$arg" in
     --version=*) VERSION="${arg#--version=}" ;;
     --version)   shift_next=1 ;;
     --dry-run)   DRY_RUN=1 ;;
     *)
-      if [ "${shift_next:-}" = "1" ]; then
+      if [ "$shift_next" = "1" ]; then
         VERSION="$arg"
         shift_next=0
       fi
@@ -88,7 +89,7 @@ curl -fsSL "$BASE_URL/$ARCHIVE" -o "$TMP/$ARCHIVE"
 
 # Verify checksum if available
 if curl -fsSL "$BASE_URL/$CHECKSUMS" -o "$TMP/$CHECKSUMS" 2>/dev/null; then
-  EXPECTED=$(grep "$ARCHIVE" "$TMP/$CHECKSUMS" | awk '{print $1}')
+  EXPECTED=$(grep " $ARCHIVE\$" "$TMP/$CHECKSUMS" | awk '{print $1}')
   if [ -n "$EXPECTED" ]; then
     if command -v sha256sum >/dev/null 2>&1; then
       ACTUAL=$(sha256sum "$TMP/$ARCHIVE" | awk '{print $1}')
@@ -114,8 +115,14 @@ fi
 
 tar xzf "$TMP/$ARCHIVE" -C "$TMP"
 
+if [ ! -f "$TMP/$BINARY" ]; then
+  echo "Error: $BINARY not found in archive"
+  exit 1
+fi
+
 if [ -w "$INSTALL_DIR" ]; then
   mv "$TMP/$BINARY" "$INSTALL_DIR/$BINARY"
+  chmod +x "$INSTALL_DIR/$BINARY"
 elif command -v sudo >/dev/null 2>&1; then
   echo "Need sudo to install to $INSTALL_DIR"
   sudo mv "$TMP/$BINARY" "$INSTALL_DIR/$BINARY"
@@ -124,9 +131,8 @@ else
   INSTALL_DIR="$HOME/.local/bin"
   mkdir -p "$INSTALL_DIR"
   mv "$TMP/$BINARY" "$INSTALL_DIR/$BINARY"
+  chmod +x "$INSTALL_DIR/$BINARY"
   echo "Installed to $INSTALL_DIR (no sudo available)"
   echo "Make sure $INSTALL_DIR is in your PATH"
 fi
-
-chmod +x "$INSTALL_DIR/$BINARY"
 echo "$BINARY $VERSION installed to $INSTALL_DIR/$BINARY"
