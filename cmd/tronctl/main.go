@@ -56,9 +56,15 @@ func main() {
 		Use:   "version",
 		Short: "Show version",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintf(os.Stderr,
-				"TronCTL. %v version %v-%v (%v %v)\n",
-				path.Base(os.Args[0]), version, commit, builtBy, builtAt)
+			ver := version
+			if commit != "" {
+				ver += "-" + commit
+			}
+			if builtBy != "" || builtAt != "" {
+				ver += fmt.Sprintf(" (%v %v)", builtBy, builtAt)
+			}
+			fmt.Fprintf(os.Stderr, "TronCTL. %v version %v\n",
+				path.Base(os.Args[0]), ver)
 			os.Exit(0)
 			return nil
 		},
