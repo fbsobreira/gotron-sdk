@@ -204,10 +204,17 @@ func decodeUnDelegateResourceContract(data []byte) (*ContractData, error) {
 
 // sunToTRX converts a SUN amount (int64) to a TRX string with 6 decimal places.
 func sunToTRX(sun int64) string {
+	negative := sun < 0
 	whole := sun / sunPerTRX
 	frac := sun % sunPerTRX
+	if whole < 0 {
+		whole = -whole
+	}
 	if frac < 0 {
 		frac = -frac
+	}
+	if negative {
+		return fmt.Sprintf("-%d.%06d", whole, frac)
 	}
 	return fmt.Sprintf("%d.%06d", whole, frac)
 }
