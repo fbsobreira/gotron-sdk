@@ -211,6 +211,87 @@ func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartC
 	return tx, err
 }
 
+// TriggerConstantContractWithData calls a constant contract method using
+// pre-packed ABI data, bypassing the JSON string → parse → pack pipeline.
+// This is useful when callers already have packed data from go-ethereum's
+// abi.Pack() or similar tooling.
+func (g *GrpcClient) TriggerConstantContractWithData(from, contractAddress string, data []byte) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TriggerConstantContractWithDataCtx(ctx, from, contractAddress, data)
+}
+
+// TriggerConstantContractWithDataCtx is the context-aware version of TriggerConstantContractWithData.
+func (g *GrpcClient) TriggerConstantContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
+	var err error
+	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
+	if len(from) > 0 {
+		fromDesc, err = address.Base58ToAddress(from)
+		if err != nil {
+			return nil, err
+		}
+	}
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            data,
+	}
+
+	return g.triggerConstantContract(ctx, ct)
+}
+
+// TriggerContractWithData triggers a contract method using pre-packed ABI
+// data, bypassing the JSON string → parse → pack pipeline. This is useful
+// when callers already have packed data from go-ethereum's abi.Pack() or
+// similar tooling.
+func (g *GrpcClient) TriggerContractWithData(from, contractAddress string, data []byte,
+	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.TriggerContractWithDataCtx(ctx, from, contractAddress, data, feeLimit, tAmount, tTokenID, tTokenAmount)
+}
+
+// TriggerContractWithDataCtx is the context-aware version of TriggerContractWithData.
+func (g *GrpcClient) TriggerContractWithDataCtx(ctx context.Context, from, contractAddress string, data []byte,
+	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
+	ctx = g.withAPIKey(ctx)
+
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            data,
+	}
+	if tAmount > 0 {
+		ct.CallValue = tAmount
+	}
+	if len(tTokenID) > 0 && tTokenAmount > 0 {
+		ct.CallTokenValue = tTokenAmount
+		ct.TokenId, err = strconv.ParseInt(tTokenID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return g.triggerContract(ctx, ct, feeLimit)
+}
+
 // EstimateEnergy returns enery required
 func (g *GrpcClient) EstimateEnergy(from, contractAddress, method, jsonString string,
 	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
