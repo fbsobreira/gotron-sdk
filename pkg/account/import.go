@@ -19,9 +19,17 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 	privateKey = strings.TrimPrefix(privateKey, "0x")
 
 	if name == "" {
-		name = generateName() + "-imported"
+		base, err := generateName()
+		if err != nil {
+			return "", fmt.Errorf("generate account name: %w", err)
+		}
+		name = base + "-imported"
 		for store.DoesNamedAccountExist(name) {
-			name = generateName() + "-imported"
+			base, err = generateName()
+			if err != nil {
+				return "", fmt.Errorf("generate account name: %w", err)
+			}
+			name = base + "-imported"
 		}
 	} else if store.DoesNamedAccountExist(name) {
 		return "", fmt.Errorf("account %s already exists", name)
@@ -39,8 +47,12 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 	return name, err
 }
 
-func generateName() string {
-	words := strings.Split(mnemonic.Generate(), " ")
+func generateName() (string, error) {
+	m, err := mnemonic.Generate()
+	if err != nil {
+		return "", err
+	}
+	words := strings.Split(m, " ")
 	existingAccounts := mapset.NewSet()
 	for a := range store.LocalAccounts() {
 		existingAccounts.Add(a)
@@ -49,12 +61,16 @@ func generateName() string {
 	i := 0
 	for {
 		if i >= len(words) {
-			words = strings.Split(mnemonic.Generate(), " ")
+			m, err = mnemonic.Generate()
+			if err != nil {
+				return "", err
+			}
+			words = strings.Split(m, " ")
 			i = 0
 		}
 		candidate := words[i]
 		if !existingAccounts.Contains(candidate) {
-			return candidate
+			return candidate, nil
 		}
 		i++
 	}
@@ -103,9 +119,17 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 		return "", readError
 	}
 	if name == "" {
-		name = generateName() + "-imported"
+		base, err := generateName()
+		if err != nil {
+			return "", fmt.Errorf("generate account name: %w", err)
+		}
+		name = base + "-imported"
 		for store.DoesNamedAccountExist(name) {
-			name = generateName() + "-imported"
+			base, err = generateName()
+			if err != nil {
+				return "", fmt.Errorf("generate account name: %w", err)
+			}
+			name = base + "-imported"
 		}
 	} else if store.DoesNamedAccountExist(name) {
 		return "", fmt.Errorf("account %s already exists", name)

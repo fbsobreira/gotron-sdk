@@ -103,7 +103,11 @@ func keysSub() []*cobra.Command {
 		Use:   "mnemonic",
 		Short: "Compute the bip39 mnemonic for some input entropy",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println(mnemonic.Generate())
+			m, err := mnemonic.Generate()
+			if err != nil {
+				return err
+			}
+			fmt.Println(m)
 			return nil
 		},
 	}
