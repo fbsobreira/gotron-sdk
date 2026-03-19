@@ -22,7 +22,8 @@ func New() string {
 	return "New Account"
 }
 
-// IsValidPassphrase reports whether the passphrase meets strength requirements.
+// IsValidPassphrase is a placeholder that currently always returns true.
+// TODO: implement actual strength validation.
 func IsValidPassphrase(pass string) bool {
 	// TODO: force strong password
 	return true

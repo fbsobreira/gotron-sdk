@@ -36,7 +36,8 @@ func Decode(input string) ([]byte, error) {
 	return base58.Decode(input, base58.BitcoinAlphabet)
 }
 
-// DecodeCheck decodes a Base58Check string and validates the checksum and TRON prefix (0x41).
+// DecodeCheck decodes a Base58Check string, validates the checksum and TRON prefix (0x41),
+// and returns the decoded bytes (prefix + 20-byte address payload) without the checksum.
 func DecodeCheck(input string) ([]byte, error) {
 	decodeCheck, err := Decode(input)
 	if err != nil {
