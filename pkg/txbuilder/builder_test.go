@@ -10,6 +10,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
@@ -871,6 +872,97 @@ func TestWithdrawExpireUnfreeze_WithOption(t *testing.T) {
 		Build(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, []byte("via option"), ext.Transaction.RawData.Data)
+}
+
+// --- Equivalence: fluent vs functional options produce identical transactions ---
+
+func TestTransfer_FluentEqualsOption(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+
+	// Build with functional options
+	extOpt, err := b.Transfer("TFrom", "TTo", 100, WithMemo("hello"), WithPermissionID(2)).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	// Build with fluent methods
+	extFluent, err := b.Transfer("TFrom", "TTo", 100).
+		WithMemo("hello").
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	// RawData must be byte-identical
+	rawOpt, err := proto.Marshal(extOpt.Transaction.RawData)
+	require.NoError(t, err)
+	rawFluent, err := proto.Marshal(extFluent.Transaction.RawData)
+	require.NoError(t, err)
+	assert.Equal(t, rawOpt, rawFluent,
+		"fluent and option APIs must produce identical raw transaction data")
+}
+
+func TestDelegateResource_FluentEqualsOption(t *testing.T) {
+	mc := &mockClient{
+		delegateResourceFn: func(_ context.Context, _, _ string, _ core.ResourceCode, _ int64, _ bool, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+
+	extOpt, err := b.DelegateResource("TOwner", "TRecv", core.ResourceCode_ENERGY, 1000000,
+		WithMemo("delegate"), WithPermissionID(3)).
+		Lock(86400).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	extFluent, err := b.DelegateResource("TOwner", "TRecv", core.ResourceCode_ENERGY, 1000000).
+		Lock(86400).
+		WithMemo("delegate").
+		WithPermissionID(3).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	rawOpt, err := proto.Marshal(extOpt.Transaction.RawData)
+	require.NoError(t, err)
+	rawFluent, err := proto.Marshal(extFluent.Transaction.RawData)
+	require.NoError(t, err)
+	assert.Equal(t, rawOpt, rawFluent,
+		"fluent and option APIs must produce identical raw transaction data for DelegateTx")
+}
+
+func TestVoteWitness_FluentEqualsOption(t *testing.T) {
+	mc := &mockClient{
+		voteWitnessAccountFn: func(_ context.Context, _ string, _ map[string]int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+
+	extOpt, err := b.VoteWitness("TVoter", WithMemo("votes"), WithPermissionID(2)).
+		Vote("TW1", 100).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	extFluent, err := b.VoteWitness("TVoter").
+		Vote("TW1", 100).
+		WithMemo("votes").
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	rawOpt, err := proto.Marshal(extOpt.Transaction.RawData)
+	require.NoError(t, err)
+	rawFluent, err := proto.Marshal(extFluent.Transaction.RawData)
+	require.NoError(t, err)
+	assert.Equal(t, rawOpt, rawFluent,
+		"fluent and option APIs must produce identical raw transaction data for VoteTx")
 }
 
 func TestBuilder_DefaultsDoNotMutate(t *testing.T) {
