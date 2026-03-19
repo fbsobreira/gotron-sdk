@@ -19,8 +19,8 @@ var (
 	expectedAmount float64
 )
 
-func exchangeSub() []*cobra.Command {
-	cmdCreate := &cobra.Command{
+func exchangeCreateCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "create <TOKEN1> <AMOUNT1> <TOKEN2> <AMOUNT2>",
 		Short: "Create bancor exchange for a token pair",
 		Args:  cobra.ExactArgs(4),
@@ -120,8 +120,10 @@ func exchangeSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdInject := &cobra.Command{
+func exchangeInjectCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "inject <EXCHANGE_ID> <TOKEN_ID> <AMOUNT>",
 		Short: "inject tokens into bancor exchange",
 		Args:  cobra.ExactArgs(3),
@@ -206,8 +208,10 @@ func exchangeSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdWithdraw := &cobra.Command{
+func exchangeWithdrawCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "withdraw <EXCHANGE_ID> <TOKEN_ID> <AMOUNT>",
 		Short: "withdraw tokens from bancor exchange",
 		Args:  cobra.ExactArgs(3),
@@ -292,8 +296,10 @@ func exchangeSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdList := &cobra.Command{
+func exchangeListCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "list",
 		Short: "List TRC10 bancor exchange",
 		Args:  cobra.ExactArgs(0),
@@ -330,8 +336,10 @@ func exchangeSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdTrade := &cobra.Command{
+func exchangeTradeCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "trade <EXCHANGE_ID> <TOKEN_ID> <AMOUNT>",
 		Short: "Trade token using TRC10 bancor exchange",
 		Args:  cobra.ExactArgs(3),
@@ -393,7 +401,7 @@ func exchangeSub() []*cobra.Command {
 					}
 					ratio = (float64(e.SecondTokenBalance) + tokenValue1) / float64(e.FirstTokenBalance)
 				default:
-					return fmt.Errorf("Token ID provided does not match excahnge %s/%s", T1, T2)
+					return fmt.Errorf("Token ID provided does not match exchange %s/%s", T1, T2)
 				}
 				if expectedAmount != 0 {
 					expectedAmount = expectedAmount * math.Pow10(tokenDecimal)
@@ -401,7 +409,7 @@ func exchangeSub() []*cobra.Command {
 					expectedAmount = math.Floor(tokenValue1/ratio + 0.5)
 				}
 			} else {
-				return fmt.Errorf("Cannot fetch echange info: %+v", err)
+				return fmt.Errorf("Cannot fetch exchange info: %+v", err)
 			}
 
 			tx, err := conn.ExchangeTrade(
@@ -453,9 +461,18 @@ func exchangeSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdTrade.Flags().Float64VarP(&expectedAmount, "expected", "x", 0, "especify expected amount in return")
+	cmd.Flags().Float64VarP(&expectedAmount, "expected", "x", 0, "specify expected amount in return")
+	return cmd
+}
 
-	return []*cobra.Command{cmdCreate, cmdInject, cmdWithdraw, cmdList, cmdTrade}
+func exchangeSub() []*cobra.Command {
+	return []*cobra.Command{
+		exchangeCreateCmd(),
+		exchangeInjectCmd(),
+		exchangeWithdrawCmd(),
+		exchangeListCmd(),
+		exchangeTradeCmd(),
+	}
 }
 
 func init() {

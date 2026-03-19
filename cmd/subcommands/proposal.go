@@ -20,8 +20,8 @@ var (
 	proposalList     []string
 )
 
-func proposalSub() []*cobra.Command {
-	cmdProposalList := &cobra.Command{
+func proposalListCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List network proposals",
 		Args:  cobra.NoArgs,
@@ -72,9 +72,12 @@ func proposalSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdProposalList.Flags().BoolVar(&newOnlyProposals, "new", false, "Show only new proposals")
+	cmd.Flags().BoolVar(&newOnlyProposals, "new", false, "Show only new proposals")
+	return cmd
+}
 
-	cmdProposalApprove := &cobra.Command{
+func proposalApproveCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "approve",
 		Short: "Approve network proposal",
 		Args:  cobra.ExactArgs(2),
@@ -132,8 +135,10 @@ func proposalSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdProposalWithdraw := &cobra.Command{
+func proposalWithdrawCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "withdraw",
 		Short: "Withdraw network proposal",
 		Args:  cobra.ExactArgs(1),
@@ -187,8 +192,10 @@ func proposalSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdProposalCreate := &cobra.Command{
+func proposalCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Approve network proposal",
 		Args:  cobra.NoArgs,
@@ -209,7 +216,7 @@ func proposalSub() []*cobra.Command {
 				}
 
 				if proposals[paramID] > 0 {
-					return fmt.Errorf("proposal colision %d:%d -> %s", paramID, proposals[paramID], proposal)
+					return fmt.Errorf("proposal collision %d:%d -> %s", paramID, proposals[paramID], proposal)
 				}
 				// check proposal value
 				proposalValue, err := strconv.ParseInt(proposalKeyValue[1], 10, 64)
@@ -260,10 +267,17 @@ func proposalSub() []*cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringSliceVar(&proposalList, "params", []string{}, "ID:VALUE,ID:VALUE")
+	return cmd
+}
 
-	cmdProposalCreate.Flags().StringSliceVar(&proposalList, "params", []string{}, "ID:VALUE,ID:VALUE")
-
-	return []*cobra.Command{cmdProposalList, cmdProposalApprove, cmdProposalWithdraw, cmdProposalCreate}
+func proposalSub() []*cobra.Command {
+	return []*cobra.Command{
+		proposalListCmd(),
+		proposalApproveCmd(),
+		proposalWithdrawCmd(),
+		proposalCreateCmd(),
+	}
 }
 
 func init() {

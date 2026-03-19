@@ -25,8 +25,8 @@ var (
 	issueDecimals  int32
 )
 
-func trc10Sub() []*cobra.Command {
-	cmdIssue := &cobra.Command{
+func trc10IssueCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "issue <NAME> <DESCRIPTION> <SYMBOL> <URL> <TOTAL_SUPPLY> <RATIO>",
 		Short: "Check account balance",
 		Long:  "Query for the latest account balance given Address",
@@ -81,7 +81,7 @@ func trc10Sub() []*cobra.Command {
 					return fmt.Errorf("invalid frozen supply %s", frozenSupplyKeyValue)
 				}
 				if len(frozenSupply[frozenSupplyKeyValue[0]]) > 0 {
-					return fmt.Errorf("frozen supply date colision %s:%s -> %s", frozenSupplyKeyValue[0], frozenSupply[frozenSupplyKeyValue[0]], value)
+					return fmt.Errorf("frozen supply date collision %s:%s -> %s", frozenSupplyKeyValue[0], frozenSupply[frozenSupplyKeyValue[0]], value)
 				}
 				// update frozen supply with decimals
 				fSupply := ""
@@ -155,12 +155,15 @@ func trc10Sub() []*cobra.Command {
 		},
 	}
 	// Asset issue extras
-	cmdIssue.Flags().StringVar(&issueStartDate, "start", time.Now().Add(10*time.Minute).String(), "start time")
-	cmdIssue.Flags().Uint32VarP(&issueDuration, "duration", "d", 30, "ico duration in days")
-	cmdIssue.Flags().StringSliceVarP(&issueFrozen, "frozen", "0", []string{}, "frozen supply day1:amount1,day2:amount2")
-	cmdIssue.Flags().Int32VarP(&issueDecimals, "decimals", "p", 0, "decimals precision (max 6)")
+	cmd.Flags().StringVar(&issueStartDate, "start", time.Now().Add(10*time.Minute).String(), "start time")
+	cmd.Flags().Uint32VarP(&issueDuration, "duration", "d", 30, "ico duration in days")
+	cmd.Flags().StringSliceVarP(&issueFrozen, "frozen", "0", []string{}, "frozen supply day1:amount1,day2:amount2")
+	cmd.Flags().Int32VarP(&issueDecimals, "decimals", "p", 0, "decimals precision (max 6)")
+	return cmd
+}
 
-	cmdSend := &cobra.Command{
+func trc10SendCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:     "send <ADDRESS_TO> <AMOUNT> <TOKEN_ID or TOKEN_NAME> ",
 		Short:   "send TOKEN to an address",
 		Args:    cobra.ExactArgs(3),
@@ -244,8 +247,10 @@ func trc10Sub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdICO := &cobra.Command{
+func trc10ICOCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "ico <TOKEN_ID or TOKEN_NAME> <AMOUNT>",
 		Short: "participate TOKEN ICO",
 		Args:  cobra.ExactArgs(2),
@@ -338,8 +343,10 @@ func trc10Sub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdList := &cobra.Command{
+func trc10ListCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "list",
 		Short: "list TRC10 tokens",
 		Args:  cobra.ExactArgs(0),
@@ -378,8 +385,10 @@ func trc10Sub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdInfo := &cobra.Command{
+func trc10InfoCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "info <TOKEN_ID or ISSUER_ADDRESS or TOKEN_NAME> ",
 		Short: "get information about TRC10",
 		Args:  cobra.ExactArgs(1),
@@ -441,8 +450,16 @@ func trc10Sub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	return []*cobra.Command{cmdIssue, cmdSend, cmdICO, cmdList, cmdInfo}
+func trc10Sub() []*cobra.Command {
+	return []*cobra.Command{
+		trc10IssueCmd(),
+		trc10SendCmd(),
+		trc10ICOCmd(),
+		trc10ListCmd(),
+		trc10InfoCmd(),
+	}
 }
 
 func init() {

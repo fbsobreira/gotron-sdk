@@ -34,8 +34,8 @@ var (
 	)
 )
 
-func keysSub() []*cobra.Command {
-	cmdList := &cobra.Command{
+func keysListCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List all the local accounts",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -47,8 +47,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdLocation := &cobra.Command{
+func keysLocationCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "location",
 		Short: "Show where `tronctl` keeps accounts & their keys",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -56,8 +59,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdAdd := &cobra.Command{
+func keysAddCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "add <ACCOUNT_NAME>",
 		Short: "Create a new keystore key",
 		Args:  cobra.ExactArgs(1),
@@ -86,8 +92,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdRemove := &cobra.Command{
+func keysRemoveCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "remove <ACCOUNT_NAME>",
 		Short: "Remove a key from the keystore",
 		Args:  cobra.ExactArgs(1),
@@ -98,8 +107,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdMnemonic := &cobra.Command{
+func keysMnemonicCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "mnemonic",
 		Short: "Compute the bip39 mnemonic for some input entropy",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -111,8 +123,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdRecoverMnemonic := &cobra.Command{
+func keysRecoverMnemonicCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "recover-from-mnemonic [ACCOUNT_NAME]",
 		Short: "Recover account from mnemonic",
 		Args:  cobra.ExactArgs(1),
@@ -152,8 +167,11 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdImportKS := &cobra.Command{
+func keysImportKSCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "import-ks <KEYSTORE_FILE_PATH> [ACCOUNT_NAME]",
 		Args:  cobra.RangeArgs(1, 2),
 		Short: "Import an existing keystore key",
@@ -175,9 +193,12 @@ func keysSub() []*cobra.Command {
 			return err
 		},
 	}
-	cmdImportKS.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
+	cmd.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
+	return cmd
+}
 
-	cmdImportPK := &cobra.Command{
+func keysImportPKCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "import-private-key <secp256k1_PRIVATE_KEY> [ACCOUNT_NAME]",
 		Short: "Import an existing keystore key (only accept secp256k1 private keys)",
 		Args:  cobra.RangeArgs(1, 2),
@@ -199,9 +220,12 @@ func keysSub() []*cobra.Command {
 			return err
 		},
 	}
-	cmdImportPK.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
+	cmd.Flags().BoolVar(&quietImport, "quiet", false, "do not print out imported account name")
+	return cmd
+}
 
-	cmdExportPK := &cobra.Command{
+func keysExportPKCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "export-private-key <ACCOUNT_ADDRESS>",
 		Short:   "Export the secp256k1 private key",
 		Args:    cobra.ExactArgs(1),
@@ -214,8 +238,11 @@ func keysSub() []*cobra.Command {
 			return account.ExportPrivateKey(addr.address, passphrase)
 		},
 	}
+	return cmd
+}
 
-	cmdExportKS := &cobra.Command{
+func keysExportKSCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "export-ks <ACCOUNT_ADDRESS> <OUTPUT_DIRECTORY>",
 		Short:   "Export the keystore file contents",
 		Args:    cobra.ExactArgs(2),
@@ -232,8 +259,11 @@ func keysSub() []*cobra.Command {
 			return e
 		},
 	}
+	return cmd
+}
 
-	randomPrivateKey := &cobra.Command{
+func keysRandomPKCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "random-pk",
 		Short: "export a random private key",
 		Args:  cobra.NoArgs,
@@ -246,13 +276,16 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	addressFromPrivateKey := &cobra.Command{
+func keysAddressPKCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "address-pk",
 		Short: "export address from private key",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Enter privete key hex format:")
+			fmt.Println("Enter private key hex format:")
 			data, err := term.ReadPassword(int(os.Stdin.Fd()))
 			if err != nil {
 				return err
@@ -276,9 +309,24 @@ func keysSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	return []*cobra.Command{cmdList, cmdLocation, cmdAdd, cmdRemove, cmdMnemonic, cmdRecoverMnemonic, cmdImportKS, cmdImportPK,
-		cmdExportKS, cmdExportPK, randomPrivateKey, addressFromPrivateKey}
+func keysSub() []*cobra.Command {
+	return []*cobra.Command{
+		keysListCmd(),
+		keysLocationCmd(),
+		keysAddCmd(),
+		keysRemoveCmd(),
+		keysMnemonicCmd(),
+		keysRecoverMnemonicCmd(),
+		keysImportKSCmd(),
+		keysImportPKCmd(),
+		keysExportKSCmd(),
+		keysExportPKCmd(),
+		keysRandomPKCmd(),
+		keysAddressPKCmd(),
+	}
 }
 
 func init() {

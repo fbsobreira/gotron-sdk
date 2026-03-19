@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func trc20Sub() []*cobra.Command {
-	cmdSend := &cobra.Command{
+func trc20SendCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "send <ADDRESS_TO> <AMOUNT> <CONTRACT_ADDRESS> ",
 		Short:   "send TRC20 tokens to an address",
 		Args:    cobra.ExactArgs(3),
@@ -91,8 +91,11 @@ func trc20Sub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdBalance := &cobra.Command{
+func trc20BalanceCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "balance <ADDRESS_TO> <CONTRACT_ADDRESS> ",
 		Short:   "get TRC20 balance from contract",
 		Args:    cobra.ExactArgs(2),
@@ -136,8 +139,14 @@ func trc20Sub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	return []*cobra.Command{cmdSend, cmdBalance}
+func trc20Sub() []*cobra.Command {
+	return []*cobra.Command{
+		trc20SendCmd(),
+		trc20BalanceCmd(),
+	}
 }
 
 func init() {

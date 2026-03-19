@@ -18,8 +18,8 @@ var (
 	brokerage   bool
 )
 
-func srSub() []*cobra.Command {
-	cmdList := &cobra.Command{
+func srListCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List network witnesses",
 		Args:  cobra.NoArgs,
@@ -79,10 +79,13 @@ func srSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdList.Flags().BoolVar(&electedOnly, "elected", false, "if true return elected only")
-	cmdList.Flags().BoolVar(&brokerage, "brokerage", false, "add brokerage result")
+	cmd.Flags().BoolVar(&electedOnly, "elected", false, "if true return elected only")
+	cmd.Flags().BoolVar(&brokerage, "brokerage", false, "add brokerage result")
+	return cmd
+}
 
-	cmdCreate := &cobra.Command{
+func srCreateCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "create <URL>",
 		Short: "create new SR",
 		Args:  cobra.ExactArgs(1),
@@ -131,10 +134,13 @@ func srSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdUpdateBrokerage := &cobra.Command{
-		Use:   "brokerage <new_comission>",
-		Short: "up SR brokerage comission",
+func srUpdateBrokerageCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "brokerage <new_commission>",
+		Short: "up SR brokerage commission",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if signerAddress.String() == "" {
@@ -145,7 +151,7 @@ func srSub() []*cobra.Command {
 				return err
 			}
 			if value < 0 || value > 100 {
-				return fmt.Errorf("Invalud Brokerage rande 0 > X < 100")
+				return fmt.Errorf("invalid brokerage range 0 > X < 100")
 			}
 			tx, err := conn.UpdateBrokerage(signerAddress.String(), int32(value))
 			if err != nil {
@@ -188,8 +194,15 @@ func srSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	return []*cobra.Command{cmdList, cmdCreate, cmdUpdateBrokerage}
+func srSub() []*cobra.Command {
+	return []*cobra.Command{
+		srListCmd(),
+		srCreateCmd(),
+		srUpdateBrokerageCmd(),
+	}
 }
 
 func init() {

@@ -175,21 +175,21 @@ func (g *GrpcClient) GetWitnessBrokerageCtx(ctx context.Context, witness string)
 	return float64(result.Num), nil
 }
 
-// UpdateBrokerage change SR comission fees
-func (g *GrpcClient) UpdateBrokerage(from string, comission int32) (*api.TransactionExtention, error) {
+// UpdateBrokerage change SR commission fees
+func (g *GrpcClient) UpdateBrokerage(from string, commission int32) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
-	return g.UpdateBrokerageCtx(ctx, from, comission)
+	return g.UpdateBrokerageCtx(ctx, from, commission)
 }
 
 // UpdateBrokerageCtx is the context-aware version of UpdateBrokerage.
-func (g *GrpcClient) UpdateBrokerageCtx(ctx context.Context, from string, comission int32) (*api.TransactionExtention, error) {
+func (g *GrpcClient) UpdateBrokerageCtx(ctx context.Context, from string, commission int32) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 
 	var err error
 
 	contract := &core.UpdateBrokerageContract{
-		Brokerage: comission,
+		Brokerage: commission,
 	}
 	if contract.OwnerAddress, err = common.DecodeCheck(from); err != nil {
 		return nil, err
