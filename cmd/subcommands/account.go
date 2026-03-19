@@ -24,10 +24,12 @@ var (
 	resourcesDelegate string
 	voteList          []string
 	permissionList    []string
+	useFixedLength    bool
+	hashMessage       bool
 )
 
-func accountSub() []*cobra.Command {
-	cmdBalance := &cobra.Command{
+func accountBalanceCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "balance <ACCOUNT_NAME>",
 		Short:   "Check account balance",
 		Long:    "Query for the latest account balance given Address",
@@ -61,9 +63,12 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdBalance.Flags().BoolVar(&balanceDetails, "details", false, "")
+	cmd.Flags().BoolVar(&balanceDetails, "details", false, "show detailed balance information")
+	return cmd
+}
 
-	cmdActivate := &cobra.Command{
+func accountActivateCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:     "activate <ADDRESS_TO_ACTIVATE>",
 		Short:   "activate an address",
 		Args:    cobra.ExactArgs(1),
@@ -112,8 +117,10 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdSend := &cobra.Command{
+func accountSendCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:     "send <ADDRESS_TO> <AMOUNT>",
 		Short:   "send TRX to an address",
 		Args:    cobra.ExactArgs(2),
@@ -171,10 +178,12 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdAddress := &cobra.Command{
+func accountAddressCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "address [ACC_NAME]",
-		Short: "retrive address of account by name",
+		Short: "retrieve address of account by name",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			address := ""
@@ -203,8 +212,10 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdInfo := &cobra.Command{
+func accountInfoCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:     "info <ACCOUNT_NAME>",
 		Short:   "Check account resources",
 		Args:    cobra.ExactArgs(1),
@@ -225,8 +236,10 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdWithdraw := &cobra.Command{
+func accountWithdrawCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "withdraw",
 		Short: "claim rewards",
 		Args:  cobra.NoArgs,
@@ -261,9 +274,8 @@ func accountSub() []*cobra.Command {
 			}
 
 			result := make(map[string]interface{})
-			result["address"] = addr.String()
+			result["address"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["amount"] = addr.String()
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
 			result["amount"] = float64(ctrlr.Receipt.WithdrawAmount) / 1000000
@@ -277,11 +289,13 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdFreeze := &cobra.Command{
+func accountFreezeCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "freeze <AMOUNT>",
 		Short: "Freeze TRX to gain resources",
-		Long:  "Freeze TRX to gain BW(default)/Energy. User can also delegate to another acccount ",
+		Long:  "Freeze TRX to gain BW(default)/Energy. User can also delegate to another account",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if signerAddress.String() == "" {
@@ -359,10 +373,13 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdFreeze.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
-	cmdFreeze.Flags().StringVar(&resourcesDelegate, "delegate", "", "Delegate to address")
+	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
+	cmd.Flags().StringVar(&resourcesDelegate, "delegate", "", "Delegate to address")
+	return cmd
+}
 
-	cmdVote := &cobra.Command{
+func accountVoteCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "vote",
 		Short: "vote for witnesses",
 		Args:  cobra.NoArgs,
@@ -377,13 +394,13 @@ func accountSub() []*cobra.Command {
 				if len(voteKeyValue) != 2 {
 					return fmt.Errorf("invalid vote %s", voteKeyValue)
 				}
-				if votes[voteKeyValue[0]] > 0 {
-					return fmt.Errorf("vote colision %s:%d -> %s", voteKeyValue[0], votes[voteKeyValue[0]], vote)
-				}
-				// check addres fromat
+				// check address format
 				wAddress, err := address.Base58ToAddress(voteKeyValue[0])
 				if err != nil {
 					return fmt.Errorf("invalid address %s. %+v", voteKeyValue[0], err)
+				}
+				if existing, ok := votes[wAddress.String()]; ok {
+					return fmt.Errorf("vote collision %s:%d -> %s", voteKeyValue[0], existing, vote)
 				}
 				// check vote count
 				voteCount, err := strconv.ParseInt(voteKeyValue[1], 10, 64)
@@ -435,9 +452,12 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdVote.Flags().StringSliceVar(&voteList, "wv", []string{}, "witness1:vote1,witness2:vote2")
+	cmd.Flags().StringSliceVar(&voteList, "wv", []string{}, "witness1:vote1,witness2:vote2")
+	return cmd
+}
 
-	cmdPermission := &cobra.Command{
+func accountPermissionCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "permission",
 		Short: "Update account permission",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -608,12 +628,12 @@ func accountSub() []*cobra.Command {
 		},
 	}
 
-	cmdPermission.Flags().StringSliceVar(&permissionList, "allow", []string{}, "TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT")
+	cmd.Flags().StringSliceVar(&permissionList, "allow", []string{}, "TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT")
+	return cmd
+}
 
-	var useFixedLength bool
-	var hashMessage bool
-
-	cmdSign := &cobra.Command{
+func accountSignCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "sign",
 		Short: "sign message",
 		Args:  cobra.ExactArgs(1),
@@ -651,10 +671,13 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdSign.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
-	cmdSign.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for signing")
+	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "hash the message with Keccak256 before signing")
+	return cmd
+}
 
-	cmdVerify := &cobra.Command{
+func accountVerifyCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "verify",
 		Short: "verify message signature",
 		Args:  cobra.ExactArgs(2),
@@ -688,10 +711,25 @@ func accountSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdVerify.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
-	cmdVerify.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for verification")
+	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "hash the message with Keccak256 before verification")
+	return cmd
+}
 
-	return []*cobra.Command{cmdBalance, cmdActivate, cmdSend, cmdAddress, cmdInfo, cmdWithdraw, cmdFreeze, cmdVote, cmdPermission, cmdSign, cmdVerify}
+func accountSub() []*cobra.Command {
+	return []*cobra.Command{
+		accountBalanceCmd(),
+		accountActivateCmd(),
+		accountSendCmd(),
+		accountAddressCmd(),
+		accountInfoCmd(),
+		accountWithdrawCmd(),
+		accountFreezeCmd(),
+		accountVoteCmd(),
+		accountPermissionCmd(),
+		accountSignCmd(),
+		accountVerifyCmd(),
+	}
 }
 
 func init() {

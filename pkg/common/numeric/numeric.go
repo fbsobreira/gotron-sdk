@@ -663,7 +663,7 @@ func NewDecFromString(i string) (Dec, error) {
 }
 
 // NewDecFromHex Assumes Hex string input
-// Split into 2 64 bit integers to guarentee 128 bit precision
+// Split into 2 64 bit integers to guarantee 128 bit precision
 func NewDecFromHex(str string) Dec {
 	str = strings.TrimPrefix(str, "0x")
 	half := len(str) / 2

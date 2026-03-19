@@ -14,10 +14,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var ()
-
-func bcSub() []*cobra.Command {
-	cmdNode := &cobra.Command{
+func bcNodeCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "node",
 		Short: "get node metrics",
 		Args:  cobra.NoArgs,
@@ -37,10 +35,12 @@ func bcSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdMT := &cobra.Command{
+func bcMTCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "mt",
-		Short: "get network next maintainance time",
+		Short: "get network next maintenance time",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			info, err := conn.GetNextMaintenanceTime()
@@ -63,8 +63,10 @@ func bcSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	cmdTX := &cobra.Command{
+func bcTXCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "tx <HASH>",
 		Short: "get tx info by hash",
 		Args:  cobra.ExactArgs(1),
@@ -202,8 +204,14 @@ func bcSub() []*cobra.Command {
 			return nil
 		},
 	}
+}
 
-	return []*cobra.Command{cmdNode, cmdMT, cmdTX}
+func bcSub() []*cobra.Command {
+	return []*cobra.Command{
+		bcNodeCmd(),
+		bcMTCmd(),
+		bcTXCmd(),
+	}
 }
 
 func parseContractHumanReadable(ck map[string]interface{}) map[string]interface{} {

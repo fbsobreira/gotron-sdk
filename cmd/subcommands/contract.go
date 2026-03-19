@@ -30,8 +30,8 @@ var (
 	estimate     bool
 )
 
-func contractSub() []*cobra.Command {
-	cmdDeploy := &cobra.Command{
+func contractDeployCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:   "deploy <CONTRACT_NAME>",
 		Short: "deploy smart contract",
 		Args:  cobra.ExactArgs(1),
@@ -123,15 +123,19 @@ func contractSub() []*cobra.Command {
 		},
 	}
 
-	cmdDeploy.Flags().StringVar(&abiSTR, "abi", "", "abi JSON string")
-	cmdDeploy.Flags().StringVar(&abiFile, "abiFile", "", "abi file location")
-	cmdDeploy.Flags().StringVar(&bcSTR, "bc", "", "bytecode HEX string")
-	cmdDeploy.Flags().StringVar(&bcFile, "bcFile", "", "bytecode file location")
-	cmdDeploy.Flags().Int64Var(&feeLimit, "feeLimit", 1000000000, "fee limit")
-	cmdDeploy.Flags().Int64Var(&curPercent, "curPercent", 100, "consome user resource percentage")
-	cmdDeploy.Flags().Int64Var(&oeLimit, "oeLimit", 1000000, "origin energy limit")
+	cmd.Flags().StringVar(&abiSTR, "abi", "", "abi JSON string")
+	cmd.Flags().StringVar(&abiFile, "abiFile", "", "abi file location")
+	cmd.Flags().StringVar(&bcSTR, "bc", "", "bytecode HEX string")
+	cmd.Flags().StringVar(&bcFile, "bcFile", "", "bytecode file location")
+	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 1000000000, "fee limit")
+	cmd.Flags().Int64Var(&curPercent, "curPercent", 100, "consume user resource percentage")
+	cmd.Flags().Int64Var(&oeLimit, "oeLimit", 1000000, "origin energy limit")
 
-	cmdConstant := &cobra.Command{
+	return cmd
+}
+
+func contractConstantCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "constant <CONTRACT_ADDRESS> <METHOD> [PARAMETER]",
 		Short:   "constantTrigger contract",
 		Args:    cobra.RangeArgs(2, 3),
@@ -173,8 +177,11 @@ func contractSub() []*cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
 
-	cmdTrigger := &cobra.Command{
+func contractTriggerCmd() *cobra.Command {
+	cmd := &cobra.Command{
 		Use:     "trigger <CONTRACT_ADDRESS> <METHOD> [PARAMETER]",
 		Short:   "trigger smartcontract",
 		Args:    cobra.RangeArgs(2, 3),
@@ -294,13 +301,20 @@ func contractSub() []*cobra.Command {
 			return nil
 		},
 	}
-	cmdTrigger.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
-	cmdTrigger.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
-	cmdTrigger.Flags().StringVar(&tTokenID, "token", "", "token id")
-	cmdTrigger.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
-	cmdTrigger.Flags().BoolVar(&estimate, "estiamte", false, "estimate energy required")
+	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
+	cmd.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
+	cmd.Flags().StringVar(&tTokenID, "token", "", "token id")
+	cmd.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
+	cmd.Flags().BoolVar(&estimate, "estimate", false, "estimate energy required")
+	return cmd
+}
 
-	return []*cobra.Command{cmdDeploy, cmdConstant, cmdTrigger}
+func contractSub() []*cobra.Command {
+	return []*cobra.Command{
+		contractDeployCmd(),
+		contractConstantCmd(),
+		contractTriggerCmd(),
+	}
 }
 
 func init() {
