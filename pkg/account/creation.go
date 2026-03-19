@@ -2,6 +2,8 @@
 package account
 
 import (
+	"fmt"
+
 	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/mnemonic"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
@@ -34,7 +36,11 @@ func CreateNewLocalAccount(candidate *Creation) error {
 	ks := store.FromAccountName(candidate.Name)
 	defer ks.Close()
 	if candidate.Mnemonic == "" {
-		candidate.Mnemonic = mnemonic.Generate()
+		m, err := mnemonic.Generate()
+		if err != nil {
+			return fmt.Errorf("generate mnemonic: %w", err)
+		}
+		candidate.Mnemonic = m
 	}
 	// Hardcoded index of 0 for brandnew account.
 	private, _ := keys.FromMnemonicSeedAndPassphrase(candidate.Mnemonic, candidate.MnemonicPassphrase, 0)
