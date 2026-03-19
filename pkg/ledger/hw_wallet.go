@@ -78,13 +78,8 @@ func SignTx(tx []byte) ([]byte, error) {
 
 	if len(pubkey) == 0 || pubkey[0] != 4 {
 		log.Println("invalid public key")
-		return nil, err
+		return nil, fmt.Errorf("invalid public key")
 	}
 
-	//pubBytes := crypto.Keccak256(pubkey[1:65])[12:]
-	//signerAddr, _ := address.PubkeyToAddress(pubBytes)
-
-	// TODO:
-	//return sig, nil
-	return nil, nil
+	return sig[:], nil
 }
