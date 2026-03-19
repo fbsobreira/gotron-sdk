@@ -15,16 +15,15 @@ import (
 	"google.golang.org/protobuf/types/known/anypb"
 )
 
-// newDummyTxExt returns a minimal TransactionExtention for testing.
-func newDummyTxExt() *api.TransactionExtention {
+// newTestTxExt returns a minimal TransactionExtention for testing.
+func newTestTxExt() *api.TransactionExtention {
 	return &api.TransactionExtention{
 		Transaction: &core.Transaction{
 			RawData: &core.TransactionRaw{
 				Contract: []*core.Transaction_Contract{
 					{
-						Type:         core.Transaction_Contract_TriggerSmartContract,
-						Parameter:    &anypb.Any{Value: []byte("test")},
-						PermissionId: 0,
+						Type:      core.Transaction_Contract_TriggerSmartContract,
+						Parameter: &anypb.Any{Value: []byte("test")},
 					},
 				},
 			},
@@ -375,24 +374,6 @@ func (s *mockSigner) Sign(tx *core.Transaction) (*core.Transaction, error) {
 
 func (s *mockSigner) Address() address.Address { return nil }
 
-// newTestTxExt returns a minimal TransactionExtention for Send/SendAndConfirm tests.
-func newTestTxExt() *api.TransactionExtention {
-	return &api.TransactionExtention{
-		Transaction: &core.Transaction{
-			RawData: &core.TransactionRaw{
-				Contract: []*core.Transaction_Contract{
-					{
-						Type:      core.Transaction_Contract_TriggerSmartContract,
-						Parameter: &anypb.Any{Value: []byte("test")},
-					},
-				},
-			},
-		},
-		Txid:   []byte("dummytxid"),
-		Result: &api.Return{Result: true},
-	}
-}
-
 func TestSend(t *testing.T) {
 	broadcastCalled := false
 	mc := &mockClient{
@@ -536,7 +517,7 @@ func TestSendAndConfirm_ContextCancelled(t *testing.T) {
 func TestFluentWithPermissionID(t *testing.T) {
 	mc := &mockClient{
 		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -555,7 +536,7 @@ func TestFluentWithFeeLimit(t *testing.T) {
 	mc := &mockClient{
 		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, feeLimit, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
 			assert.Equal(t, int64(100_000_000), feeLimit)
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -572,7 +553,7 @@ func TestFluentWithCallValue(t *testing.T) {
 	mc := &mockClient{
 		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, callValue int64, _ string, _ int64) (*api.TransactionExtention, error) {
 			assert.Equal(t, int64(1_000_000), callValue)
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -590,7 +571,7 @@ func TestFluentWithTokenValue(t *testing.T) {
 		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, tokenID string, tokenAmount int64) (*api.TransactionExtention, error) {
 			assert.Equal(t, "1000001", tokenID)
 			assert.Equal(t, int64(500), tokenAmount)
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -610,7 +591,7 @@ func TestFluentChainAll(t *testing.T) {
 			assert.Equal(t, int64(1_000_000), callValue)
 			assert.Equal(t, "1000001", tokenID)
 			assert.Equal(t, int64(100), tokenAmount)
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -631,7 +612,7 @@ func TestFluentChainAll(t *testing.T) {
 func TestFluentEqualsOption(t *testing.T) {
 	mc := &mockClient{
 		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 
@@ -666,7 +647,7 @@ func TestFluentWithData_PermissionAndFeeLimit(t *testing.T) {
 		triggerContractWithDataCtxFunc: func(_ context.Context, _, _ string, data []byte, feeLimit, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
 			assert.Equal(t, []byte{0xa9, 0x05, 0x9c, 0xbb}, data[:4]) // transfer selector
 			assert.Equal(t, int64(100_000_000), feeLimit)
-			return newDummyTxExt(), nil
+			return newTestTxExt(), nil
 		},
 	}
 

@@ -125,30 +125,28 @@ func (c *ContractCall) Apply(opts ...Option) *ContractCall {
 // WithPermissionID sets the permission ID for multi-signature transactions.
 // Returns itself for chaining.
 func (c *ContractCall) WithPermissionID(id int32) *ContractCall {
-	c.cfg.permissionID = &id
-	return c
+	return c.Apply(WithPermissionID(id))
 }
 
 // WithFeeLimit sets the maximum TRX (in SUN) the caller is willing to spend
 // on energy for a state-changing contract call. Returns itself for chaining.
 func (c *ContractCall) WithFeeLimit(limit int64) *ContractCall {
-	c.cfg.feeLimit = limit
-	return c
+	return c.Apply(WithFeeLimit(limit))
 }
 
 // WithCallValue sets the TRX amount (in SUN) sent along with the call.
+// Used by both read-only Call and state-changing Build/Send.
 // Returns itself for chaining.
 func (c *ContractCall) WithCallValue(value int64) *ContractCall {
-	c.cfg.callValue = value
-	return c
+	return c.Apply(WithCallValue(value))
 }
 
 // WithTokenValue sets the TRC10 token ID and amount sent with the call.
+// Only affects state-changing operations (Build, Send, SendAndConfirm) and
+// EstimateEnergy; read-only Call does not forward token parameters.
 // Returns itself for chaining.
 func (c *ContractCall) WithTokenValue(tokenID string, amount int64) *ContractCall {
-	c.cfg.tokenID = tokenID
-	c.cfg.tokenAmount = amount
-	return c
+	return c.Apply(WithTokenValue(tokenID, amount))
 }
 
 // fromOrZero returns the configured from address, falling back to the zero
