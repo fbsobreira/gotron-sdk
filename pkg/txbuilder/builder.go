@@ -64,6 +64,10 @@ func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
 		return nil, err
 	}
 
+	if tx.Transaction == nil || tx.Transaction.RawData == nil {
+		return nil, fmt.Errorf("invalid transaction: missing raw data")
+	}
+
 	if t.cfg.permissionID != nil {
 		for _, c := range tx.Transaction.RawData.Contract {
 			c.PermissionId = *t.cfg.permissionID //nolint:staticcheck // proto generated field name
