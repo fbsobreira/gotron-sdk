@@ -386,8 +386,8 @@ func TestUnlockedKeystore_WithRealKey(t *testing.T) {
 	addrStr := acct.Address.String()
 	ks.Close()
 
-	// Allow goroutines from the initial keystore to settle
-	time.Sleep(50 * time.Millisecond)
+	// Yield to let the keystore's watcher goroutine finish after Close().
+	runtime.Gosched()
 
 	t.Run("wrong passphrase returns ErrNoUnlockBadPassphrase", func(t *testing.T) {
 		resultKs, resultAcct, err := store.UnlockedKeystore(addrStr, "wrong-pass")

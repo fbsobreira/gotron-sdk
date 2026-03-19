@@ -124,7 +124,11 @@ func (m *mockClient) GetTransactionInfoByIDCtx(_ context.Context, _ string) (*co
 }
 
 // abiEncodeString encodes a string the way Solidity does (offset + length + data).
+// Only supports strings up to 32 bytes (single ABI word).
 func abiEncodeString(s string) []byte {
+	if len(s) > 32 {
+		panic("abiEncodeString: test helper only supports strings <= 32 bytes")
+	}
 	buf := make([]byte, 96)
 	// offset = 32
 	buf[31] = 0x20
@@ -1115,11 +1119,7 @@ func TestDecodeStringTruncatedABI(t *testing.T) {
 	// ABI length check fails (64+100 > 80), so it falls back to fixed 32-byte parse.
 	// The first 32 bytes are mostly zeros with 0x20 at byte 31.
 	// After null-termination at byte 0, the result is empty, which triggers an error.
-	result, err := decodeString([][]byte{buf})
-	if err != nil {
-		assert.Contains(t, err.Error(), "cannot decode string")
-	} else {
-		// If it somehow decodes, the result should be a single space (0x20)
-		assert.NotEmpty(t, result)
-	}
+	_, err := decodeString([][]byte{buf})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot decode string")
 }

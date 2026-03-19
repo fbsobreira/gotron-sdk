@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec/v2"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
@@ -575,11 +576,28 @@ func TestExecuteTransaction_BroadcastErrorPropagated(t *testing.T) {
 func TestExecuteTransaction_WithPermissionIDApplied(t *testing.T) {
 	mock := &mockWalletServer{
 		BroadcastTransactionFunc: func(_ context.Context, in *core.Transaction) (*api.Return, error) {
-			// Verify permission ID was applied before signing/broadcast.
+			// Verify permission ID was applied before signing.
 			pid := in.GetRawData().GetContract()[0].GetPermissionId()
 			if pid != 2 {
 				return nil, fmt.Errorf("expected PermissionId=2, got %d", pid)
 			}
+
+			// Verify the signature covers the final raw data (with PermissionId set).
+			// Re-hash the raw data and recover the public key from the signature
+			// to prove the tx was signed AFTER PermissionId was applied.
+			rawData, err := proto.Marshal(in.GetRawData())
+			if err != nil {
+				return nil, fmt.Errorf("marshal raw data: %w", err)
+			}
+			h := sha256.Sum256(rawData)
+			if len(in.GetSignature()) == 0 {
+				return nil, fmt.Errorf("expected at least 1 signature")
+			}
+			_, err = crypto.Ecrecover(h[:], in.GetSignature()[0])
+			if err != nil {
+				return nil, fmt.Errorf("signature does not match raw data (PermissionId may have been set after signing): %w", err)
+			}
+
 			return &api.Return{Result: true, Code: api.Return_SUCCESS}, nil
 		},
 	}
@@ -594,7 +612,6 @@ func TestExecuteTransaction_WithPermissionIDApplied(t *testing.T) {
 	err := ctrl.ExecuteTransaction()
 	require.NoError(t, err, "ExecuteTransaction")
 
-	// Also verify locally that PermissionId was set.
 	assert.Equal(t, int32(2), ctrl.tx.GetRawData().GetContract()[0].GetPermissionId(),
 		"PermissionId not applied to transaction")
 }
@@ -647,6 +664,9 @@ func TestTxConfirmation_SuccessfulConfirmation(t *testing.T) {
 
 	mock := &mockWalletServer{
 		GetTransactionInfoByIdFunc: func(_ context.Context, in *api.BytesMessage) (*core.TransactionInfo, error) {
+			if !bytes.Equal(in.GetValue(), txIDBytes) {
+				return nil, fmt.Errorf("expected tx id %x, got %x", txIDBytes, in.GetValue())
+			}
 			return &core.TransactionInfo{
 				Id:      txIDBytes,
 				Result:  0,
@@ -675,6 +695,9 @@ func TestTxConfirmation_FailedResultSetsResultError(t *testing.T) {
 
 	mock := &mockWalletServer{
 		GetTransactionInfoByIdFunc: func(_ context.Context, in *api.BytesMessage) (*core.TransactionInfo, error) {
+			if !bytes.Equal(in.GetValue(), txIDBytes) {
+				return nil, fmt.Errorf("expected tx id %x, got %x", txIDBytes, in.GetValue())
+			}
 			return &core.TransactionInfo{
 				Id:         txIDBytes,
 				Result:     core.TransactionInfo_FAILED,

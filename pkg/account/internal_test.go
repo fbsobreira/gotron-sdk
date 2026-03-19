@@ -3,6 +3,7 @@ package account
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -67,6 +68,9 @@ func TestWriteToFile_OverwritesExistingFile(t *testing.T) {
 }
 
 func TestWriteToFile_InvalidPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test uses Unix-specific path")
+	}
 	// /dev/null is a file, not a directory, so creating a file "under" it should fail.
 	err := writeToFile("/dev/null/impossible/file.txt", "data")
 	require.Error(t, err)
