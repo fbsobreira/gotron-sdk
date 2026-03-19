@@ -36,6 +36,22 @@ func accountBalanceCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if balanceDetails {
+				acc, err := conn.GetAccountDetailed(addr.String())
+				if err != nil {
+					return err
+				}
+
+				if noPrettyOutput {
+					fmt.Println(acc)
+					return nil
+				}
+
+				asJSON, _ := json.Marshal(acc)
+				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+				return nil
+			}
+
 			acc, err := conn.GetAccount(addr.String())
 			if err != nil {
 				return err
@@ -63,7 +79,7 @@ func accountBalanceCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&balanceDetails, "details", false, "show detailed balance information")
+	cmd.Flags().BoolVar(&balanceDetails, "details", false, "show detailed account information")
 	return cmd
 }
 
