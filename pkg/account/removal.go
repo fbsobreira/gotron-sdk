@@ -8,7 +8,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
-// RemoveAccount - removes an account from the keystore
+// RemoveAccount deletes the named account and its keystore files from the local store.
 func RemoveAccount(name string) error {
 	accountExists := store.DoesNamedAccountExist(name)
 

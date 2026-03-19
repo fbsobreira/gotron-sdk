@@ -10,6 +10,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
 
+// DerivationPath represents an HD wallet derivation path as a sequence of child indices.
 type DerivationPath []uint32
 
 // Account represents an Ethereum account located at a specific location defined
@@ -121,7 +122,7 @@ const (
 	// of starting any background processes such as automatic key derivation.
 	WalletOpened
 
-	// WalletDropped ...
+	// WalletDropped is fired when a wallet is no longer detected.
 	WalletDropped
 )
 
@@ -138,7 +139,7 @@ type WalletEventType int
 // TextHash is a helper function that calculates a hash for the given message that can be
 // safely used to calculate a signature from.
 //
-// The hash is calulcated as:
+// The hash is calculated as:
 // keccak256("\x19TRON Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
@@ -150,7 +151,7 @@ func TextHash(data []byte, useFixedLength ...bool) []byte {
 // TextAndHash is a helper function that calculates a hash for the given message that can be
 // safely used to calculate a signature from.
 //
-// The hash is calulcated as:
+// The hash is calculated as:
 // keccak256("\x19TRON Signed Message:\n"${message length}${message}).
 //
 // This gives context to the signed message and prevents signing of transactions.
@@ -164,6 +165,7 @@ func TextAndHash(data []byte, useFixedLength ...bool) ([]byte, string) {
 	return common.Keccak256([]byte(msg)), msg
 }
 
+// UnmarshalPublic parses an uncompressed 65-byte ECDSA public key.
 func UnmarshalPublic(pbk []byte) (*ecdsa.PublicKey, error) {
 	return crypto.UnmarshalPubkey(pbk)
 }

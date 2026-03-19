@@ -26,6 +26,7 @@ func configAccountsDir() string {
 	return filepath.Join(configRoot(), c.DefaultConfigAccountAliasesDirName)
 }
 
+// InitConfigDir creates the account keystore directory if it does not exist.
 func InitConfigDir() {
 	tronCTLDir := configAccountsDir()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
@@ -36,7 +37,7 @@ func InitConfigDir() {
 	}
 }
 
-// LocalAccounts returns a slice of local account alias names
+// LocalAccounts returns the alias names of all locally stored accounts.
 func LocalAccounts() []string {
 	files, _ := os.ReadDir(configAccountsDir())
 	accounts := []string{}
@@ -51,11 +52,11 @@ func LocalAccounts() []string {
 
 var (
 	describe = fmt.Sprintf("%-24s\t\t%23s\n", "NAME", "ADDRESS")
-	// ErrNoUnlockBadPassphrase for bad password
+	// ErrNoUnlockBadPassphrase is returned when an account cannot be unlocked with the given passphrase.
 	ErrNoUnlockBadPassphrase = fmt.Errorf("could not unlock account with passphrase, perhaps need different phrase")
 )
 
-// DescribeLocalAccounts will display all the account alias name and their corresponding one address
+// DescribeLocalAccounts prints all account alias names and their addresses to stdout.
 func DescribeLocalAccounts() {
 	fmt.Println(describe)
 	for _, name := range LocalAccounts() {
@@ -68,8 +69,7 @@ func DescribeLocalAccounts() {
 	}
 }
 
-// DoesNamedAccountExist return true if the given string name is an alias account already define,
-// and return false otherwise
+// DoesNamedAccountExist reports whether an account alias with the given name exists locally.
 func DoesNamedAccountExist(name string) bool {
 	for _, account := range LocalAccounts() {
 		if account == name {
@@ -79,7 +79,7 @@ func DoesNamedAccountExist(name string) bool {
 	return false
 }
 
-// AddressFromAccountName Returns address for account name if exists
+// AddressFromAccountName returns the Base58 address for the named account, or an error if not found.
 func AddressFromAccountName(name string) (string, error) {
 	ks := FromAccountName(name)
 	defer ks.Close()
@@ -125,7 +125,7 @@ func SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
 	newKeyStore = fn
 }
 
-// FromAccountName get account from name
+// FromAccountName returns a KeyStore loaded from the named account's directory.
 func FromAccountName(name string) *keystore.KeyStore {
 	p := filepath.Join(configAccountsDir(), name)
 	keystoreMu.Lock()
@@ -147,12 +147,12 @@ func CloseAll() {
 	newKeyStore = keystore.ForPath
 }
 
-// DefaultLocation get deafault location
+// DefaultLocation returns the current default keystore directory path.
 func DefaultLocation() string {
 	return configAccountsDir()
 }
 
-// SetDefaultLocation set deafault location
+// SetDefaultLocation updates the default keystore directory and creates it if needed.
 func SetDefaultLocation(directory string) {
 	c.DefaultConfigDirName = directory
 	tronCTLDir := configAccountsDir()
@@ -164,7 +164,7 @@ func SetDefaultLocation(directory string) {
 	}
 }
 
-// UnlockedKeystore return keystore unlocked
+// UnlockedKeystore finds, unlocks, and returns the keystore and account for the given Base58 address.
 func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Account, error) {
 	sender, err := address.Base58ToAddress(from)
 	if err != nil {

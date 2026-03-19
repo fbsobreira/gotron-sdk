@@ -11,6 +11,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 )
 
+// RecoverPubkey recovers the TRON address from a message hash and its ECDSA signature.
 func RecoverPubkey(hash []byte, signature []byte) (address.Address, error) {
 	if len(signature) != 65 {
 		return nil, fmt.Errorf("invalid signature length: %d/65", len(signature))

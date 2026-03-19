@@ -19,10 +19,11 @@ import (
 	"golang.org/x/crypto/sha3"
 )
 
-// Param list
+// Param represents a single ABI parameter as a type→value mapping (e.g. {"address": "T..."}).
 type Param map[string]interface{}
 
-// LoadFromJSON string into ABI data
+// LoadFromJSON parses a JSON array of typed-object parameters into a Param slice.
+// Each JSON element must be an object with a single key (the ABI type) and value.
 func LoadFromJSON(jString string) ([]Param, error) {
 	if len(jString) == 0 {
 		return nil, nil
@@ -191,7 +192,7 @@ func firstNonSpace(b []byte) byte {
 	return 0
 }
 
-// Signature of a method
+// Signature returns the 4-byte Keccak-256 function selector for the given method signature.
 func Signature(method string) []byte {
 	// hash method
 	hasher := sha3.NewLegacyKeccak256()
@@ -262,7 +263,7 @@ func convertToInt(ty eABI.Type, v interface{}) (interface{}, error) {
 	return v, nil
 }
 
-// GetPaddedParam from struct
+// GetPaddedParam ABI-encodes a slice of Param into padded bytes suitable for contract calls.
 func GetPaddedParam(param []Param) ([]byte, error) {
 	values := make([]interface{}, 0)
 	arguments := eABI.Arguments{}
@@ -532,7 +533,7 @@ func convertToBytes(ty eABI.Type, v interface{}) (interface{}, error) {
 	return v, nil
 }
 
-// Pack data into bytes
+// Pack encodes a method call by prepending the 4-byte function selector to the ABI-encoded parameters.
 func Pack(method string, param []Param) ([]byte, error) {
 	signature := Signature(method)
 	pBytes, err := GetPaddedParam(param)
@@ -565,7 +566,7 @@ func matchEntry(entry *core.SmartContract_ABI_Entry, method string) bool {
 	return entry.Name == method
 }
 
-// GetParser return output method parser arguments from ABI
+// GetParser returns the output argument definitions for the given method, used to decode return data.
 func GetParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}
 	for _, entry := range ABI.Entrys {
@@ -940,7 +941,7 @@ func formatParams(params []*core.SmartContract_ABI_Entry_Param) []map[string]any
 	return out
 }
 
-// GetInputsParser returns input method parser arguments from ABI
+// GetInputsParser returns the input argument definitions for the given method, used to decode call data.
 func GetInputsParser(ABI *core.SmartContract_ABI, method string) (eABI.Arguments, error) {
 	arguments := eABI.Arguments{}
 	for _, entry := range ABI.Entrys {

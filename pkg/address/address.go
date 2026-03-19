@@ -28,12 +28,12 @@ const (
 // Address represents the 21 byte address of an Tron account.
 type Address []byte
 
-// Bytes get bytes from address
+// Bytes returns the raw byte representation of the address.
 func (a Address) Bytes() []byte {
 	return a[:]
 }
 
-// Hex get bytes from address in string
+// Hex returns the address encoded as a hex string (e.g. "41..." for mainnet).
 func (a Address) Hex() string {
 	return common.BytesToHexString(a[:])
 }
@@ -86,7 +86,7 @@ func (a Address) String() string {
 	return common.EncodeCheck(a.Bytes())
 }
 
-// PubkeyToAddress returns address from ecdsa public key
+// PubkeyToAddress derives a TRON address from an ECDSA public key.
 func PubkeyToAddress(p ecdsa.PublicKey) Address {
 	address := crypto.PubkeyToAddress(p)
 
@@ -96,7 +96,7 @@ func PubkeyToAddress(p ecdsa.PublicKey) Address {
 	return addressTron
 }
 
-// BTCECPubkeyToAddress returns address from btcec public key
+// BTCECPubkeyToAddress derives a TRON address from a btcec public key.
 func BTCECPubkeyToAddress(p *btcec.PublicKey) Address {
 	if p == nil {
 		return nil
@@ -105,7 +105,7 @@ func BTCECPubkeyToAddress(p *btcec.PublicKey) Address {
 	return PubkeyToAddress(*pubKey)
 }
 
-// BTCECPrivkeyToAddress returns address from btcec private key
+// BTCECPrivkeyToAddress derives a TRON address from a btcec private key.
 func BTCECPrivkeyToAddress(p *btcec.PrivateKey) Address {
 	if p == nil {
 		return nil
@@ -145,7 +145,7 @@ func EthAddressToAddress(ethAddr []byte) (Address, error) {
 	return addr, nil
 }
 
-// Scan implements Scanner for database/sql.
+// Scan implements the [database/sql.Scanner] interface for reading addresses from database columns.
 func (a *Address) Scan(src interface{}) error {
 	srcB, ok := src.([]byte)
 	if !ok {
@@ -158,7 +158,7 @@ func (a *Address) Scan(src interface{}) error {
 	return nil
 }
 
-// Value implements valuer for database/sql.
+// Value implements the [database/sql/driver.Valuer] interface for storing addresses in database columns.
 func (a Address) Value() (driver.Value, error) {
 	return []byte(a), nil
 }

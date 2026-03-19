@@ -2,17 +2,15 @@
 package mnemonic
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/fbsobreira/go-bip39"
 )
 
-var (
-	// ErrInvalidMnemonic error
-	ErrInvalidMnemonic = fmt.Errorf("invalid mnemonic given")
-)
+// ErrInvalidMnemonic is returned when a mnemonic phrase is not valid BIP39.
+var ErrInvalidMnemonic = errors.New("invalid mnemonic given")
 
-// Generate with 24 words deafult
+// Generate returns a new random 24-word BIP39 mnemonic phrase.
 func Generate() string {
 	entropy, _ := bip39.NewEntropy(256)
 	mnemonic, _ := bip39.NewMnemonic(entropy)

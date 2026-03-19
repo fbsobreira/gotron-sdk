@@ -5,9 +5,8 @@ import (
 	"strings"
 )
 
-var (
-	EmptyString = &hexError{"empty hex string"}
-)
+// EmptyString is the error returned when decoding an empty hex string.
+var EmptyString = &hexError{"empty hex string"}
 
 type hexError struct {
 	msg string
@@ -24,7 +23,7 @@ func BytesToHexString(bytes []byte) string {
 	return "0x" + string(encode)
 }
 
-// HexStringToBytes hex string as bytes
+// HexStringToBytes decodes a hex string (with or without "0x" prefix) into bytes.
 func HexStringToBytes(input string) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, EmptyString
@@ -45,7 +44,7 @@ func ToHex(b []byte) string {
 	return "0x" + hex
 }
 
-// ToHexArray creates a array of hex-string based on []byte
+// ToHexArray converts each byte slice in b to a "0x"-prefixed hex string.
 func ToHexArray(b [][]byte) []string {
 	r := make([]string, len(b))
 	for i := range b {
@@ -148,7 +147,7 @@ func LeftPadBytes(slice []byte, l int) []byte {
 	return padded
 }
 
-// TrimLeftZeroes returns a subslice of s without leading zeroes
+// TrimLeftZeroes returns a subslice of s without leading zero bytes.
 func TrimLeftZeroes(s []byte) []byte {
 	idx := 0
 	for ; idx < len(s); idx++ {

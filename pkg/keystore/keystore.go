@@ -40,10 +40,12 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ErrLocked ...
 var (
-	ErrLocked  = NewAuthNeededError("password or unlock")
+	// ErrLocked is returned when an operation requires an unlocked account.
+	ErrLocked = NewAuthNeededError("password or unlock")
+	// ErrNoMatch is returned when no key matches the given address or file.
 	ErrNoMatch = errors.New("no key for given address or file")
+	// ErrDecrypt is returned when a key cannot be decrypted with the given passphrase.
 	ErrDecrypt = errors.New("could not decrypt key with given passphrase")
 
 	// ErrAccountAlreadyExists is returned if an account attempted to import is

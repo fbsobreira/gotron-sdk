@@ -30,7 +30,7 @@ func getLedger() *NanoS {
 	return nanos
 }
 
-// GetAddress ProcessAddressCommand list the address associated with Ledger Nano S
+// GetAddress returns the TRON address from the connected Ledger device.
 func GetAddress() string {
 	n := getLedger()
 	addr, err := n.GetAddress()
@@ -42,7 +42,7 @@ func GetAddress() string {
 	return addr
 }
 
-// ProcessAddressCommand list the address associated with Ledger Nano S
+// ProcessAddressCommand prints the Ledger device address to stdout.
 func ProcessAddressCommand() {
 	n := getLedger()
 	addr, err := n.GetAddress()

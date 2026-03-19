@@ -50,7 +50,7 @@ func applyConstantCallOptions(ct *core.TriggerSmartContract, opts []ConstantCall
 	}
 }
 
-// UpdateEnergyLimitContract update contract enery limit
+// UpdateEnergyLimitContract updates the energy limit of a deployed smart contract.
 func (g *GrpcClient) UpdateEnergyLimitContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -89,7 +89,7 @@ func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, con
 	return tx, err
 }
 
-// UpdateSettingContract change contract owner consumption ratio
+// UpdateSettingContract changes the user resource consumption ratio of a deployed contract.
 func (g *GrpcClient) UpdateSettingContract(from, contractAddress string, value int64) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -128,7 +128,7 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 	return tx, err
 }
 
-// TriggerConstantContract and return tx result
+// TriggerConstantContract executes a read-only smart contract call and returns the result.
 func (g *GrpcClient) TriggerConstantContract(from, contractAddress, method, jsonString string, opts ...ConstantCallOption) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -177,7 +177,7 @@ func (g *GrpcClient) triggerConstantContract(ctx context.Context, ct *core.Trigg
 	return g.Client.TriggerConstantContract(ctx, ct)
 }
 
-// TriggerContract and return tx result
+// TriggerContract executes a state-changing smart contract call and returns the unsigned transaction.
 func (g *GrpcClient) TriggerContract(from, contractAddress, method, jsonString string,
 	feeLimit, tAmount int64, tTokenID string, tTokenAmount int64) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
@@ -329,7 +329,7 @@ func (g *GrpcClient) TriggerContractWithDataCtx(ctx context.Context, from, contr
 	return g.triggerContract(ctx, ct, feeLimit)
 }
 
-// EstimateEnergy returns enery required
+// EstimateEnergy returns the estimated energy required for a contract call.
 func (g *GrpcClient) EstimateEnergy(from, contractAddress, method, jsonString string,
 	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
 	ctx, cancel := g.newContext()
@@ -441,7 +441,7 @@ func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartCo
 	return tx, err
 }
 
-// DeployContract and return tx result
+// DeployContract deploys a new smart contract and returns the unsigned transaction.
 func (g *GrpcClient) DeployContract(from, contractName string,
 	abi *core.SmartContract_ABI, codeStr string,
 	feeLimit, curPercent, oeLimit int64,
@@ -501,12 +501,12 @@ func (g *GrpcClient) DeployContractCtx(ctx context.Context, from, contractName s
 	return tx, err
 }
 
-// UpdateHash after local changes
+// UpdateHash recalculates the transaction hash after local modifications (e.g. setting fee limit).
 func (g *GrpcClient) UpdateHash(tx *api.TransactionExtention) error {
 	return tx.UpdateHash()
 }
 
-// GetContractABI return smartContract
+// GetContractABI returns the ABI of a deployed smart contract.
 func (g *GrpcClient) GetContractABI(contractAddress string) (*core.SmartContract_ABI, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()

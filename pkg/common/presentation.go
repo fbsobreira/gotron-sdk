@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 )
 
+// JSONPrettyFormat returns the JSON string indented for readability.
 func JSONPrettyFormat(in string) string {
 	var out bytes.Buffer
 	err := json.Indent(&out, []byte(in), "", "  ")
@@ -14,7 +15,7 @@ func JSONPrettyFormat(in string) string {
 	return out.String()
 }
 
-// ToJSONUnsafe returns "{}" on failure case.
+// ToJSONUnsafe marshals payload to JSON, returning "{}" on failure.
 func ToJSONUnsafe(payload interface{}, pretty bool) string {
 	j, err := json.Marshal(payload)
 	if err != nil {

@@ -8,7 +8,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
-// ExportPrivateKey from account
+// ExportPrivateKey prints the hex-encoded private key for the given address to stdout.
 func ExportPrivateKey(address, passphrase string) error {
 	ks := store.FromAddress(address)
 	if ks == nil {
@@ -29,7 +29,7 @@ func ExportPrivateKey(address, passphrase string) error {
 	return nil
 }
 
-// ExportKeystore to file
+// ExportKeystore writes the encrypted keystore JSON for the given address to a file at path.
 func ExportKeystore(address, path, passphrase string) (string, error) {
 	ks := store.FromAddress(address)
 	if ks == nil {
