@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// GrpcClient controller structure
+// GrpcClient provides access to the TRON network via gRPC.
 type GrpcClient struct {
 	Address     string
 	Conn        *grpc.ClientConn
@@ -21,7 +21,7 @@ type GrpcClient struct {
 	baseCtx     context.Context
 }
 
-// NewGrpcClient create grpc controller
+// NewGrpcClient creates a new GrpcClient with a default timeout of 5 seconds.
 func NewGrpcClient(address string) *GrpcClient {
 	client := &GrpcClient{
 		Address:     address,
@@ -30,7 +30,7 @@ func NewGrpcClient(address string) *GrpcClient {
 	return client
 }
 
-// NewGrpcClientWithTimeout create grpc controller
+// NewGrpcClientWithTimeout creates a new GrpcClient with the specified timeout.
 func NewGrpcClientWithTimeout(address string, timeout time.Duration) *GrpcClient {
 	client := &GrpcClient{
 		Address:     address,
@@ -39,12 +39,13 @@ func NewGrpcClientWithTimeout(address string, timeout time.Duration) *GrpcClient
 	return client
 }
 
-// SetTimeout for Client connections
+// SetTimeout updates the timeout used for all subsequent RPC calls.
 func (g *GrpcClient) SetTimeout(timeout time.Duration) {
 	g.grpcTimeout = timeout
 }
 
-// Start initiate grpc  connection
+// Start establishes the gRPC connection. If no address was provided, it
+// defaults to grpc.trongrid.io:50051.
 func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	var err error
 	if len(g.Address) == 0 {
@@ -59,7 +60,7 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 	return nil
 }
 
-// SetAPIKey enable API on connection
+// SetAPIKey configures a TRON-PRO-API-KEY that is sent as gRPC metadata with every request.
 func (g *GrpcClient) SetAPIKey(apiKey string) error {
 	g.apiKey = apiKey
 	return nil
@@ -105,14 +106,15 @@ func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// Stop GRPC Connection
+// Stop closes the underlying gRPC connection.
 func (g *GrpcClient) Stop() {
 	if g.Conn != nil {
 		_ = g.Conn.Close()
 	}
 }
 
-// Reconnect GRPC
+// Reconnect closes the current connection and re-establishes it.
+// If url is non-empty, the client address is updated before reconnecting.
 func (g *GrpcClient) Reconnect(url string) error {
 	g.Stop()
 	if len(url) > 0 {
@@ -121,21 +123,21 @@ func (g *GrpcClient) Reconnect(url string) error {
 	return g.Start(g.opts...)
 }
 
-// GetMessageBytes return grpc message from bytes
+// GetMessageBytes wraps raw bytes into an api.BytesMessage for gRPC calls.
 func GetMessageBytes(m []byte) *api.BytesMessage {
 	message := new(api.BytesMessage)
 	message.Value = m
 	return message
 }
 
-// GetMessageNumber return grpc message number
+// GetMessageNumber wraps an int64 into an api.NumberMessage for gRPC calls.
 func GetMessageNumber(n int64) *api.NumberMessage {
 	message := new(api.NumberMessage)
 	message.Num = n
 	return message
 }
 
-// GetPaginatedMessage return grpc message number
+// GetPaginatedMessage creates an api.PaginatedMessage with the given offset and limit.
 func GetPaginatedMessage(offset int64, limit int64) *api.PaginatedMessage {
 	return &api.PaginatedMessage{
 		Offset: offset,

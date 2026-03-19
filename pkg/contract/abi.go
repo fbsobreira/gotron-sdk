@@ -7,7 +7,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
 
-// JSONABI data format
+// JSONABI represents a single ABI entry in the standard Ethereum JSON ABI format.
 type JSONABI struct {
 	Anonymous bool `json:"anonymous"`
 	Constant  bool `json:"constant"`
@@ -79,7 +79,7 @@ func resolveState(abi JSONABI, entryType core.SmartContract_ABI_Entry_EntryType)
 	}
 }
 
-// JSONtoABI converts json string to ABI entry
+// JSONtoABI parses a JSON array of ABI entries into a proto SmartContract_ABI.
 func JSONtoABI(jsonSTR string) (*core.SmartContract_ABI, error) {
 	jABI := []JSONABI{}
 	if err := json.Unmarshal([]byte(jsonSTR), &jABI); err != nil {

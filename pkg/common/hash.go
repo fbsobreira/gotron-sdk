@@ -68,6 +68,7 @@ func (h *Hash) SetBytes(b []byte) {
 	copy(h[HashLength-len(b):], b)
 }
 
+// Keccak256 returns the Keccak-256 hash of msg.
 func Keccak256(msg []byte) []byte {
 	hasher := sha3.NewLegacyKeccak256()
 	hasher.Write(msg)

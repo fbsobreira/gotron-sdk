@@ -11,10 +11,12 @@ import (
 const addressLength = 20
 const prefixMainnet = 0x41
 
+// Encode returns the Base58 encoding of input using the Bitcoin alphabet.
 func Encode(input []byte) string {
 	return base58.Encode(input, base58.BitcoinAlphabet)
 }
 
+// EncodeCheck returns the Base58Check encoding of input (Base58 with a 4-byte SHA-256d checksum).
 func EncodeCheck(input []byte) string {
 	h256h0 := sha256.New()
 	h256h0.Write(input)
@@ -29,10 +31,12 @@ func EncodeCheck(input []byte) string {
 	return Encode(inputCheck)
 }
 
+// Decode returns the bytes represented by the Base58 string input.
 func Decode(input string) ([]byte, error) {
 	return base58.Decode(input, base58.BitcoinAlphabet)
 }
 
+// DecodeCheck decodes a Base58Check string and validates the checksum and TRON prefix (0x41).
 func DecodeCheck(input string) ([]byte, error) {
 	decodeCheck, err := Decode(input)
 	if err != nil {

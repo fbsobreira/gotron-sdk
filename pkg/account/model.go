@@ -4,7 +4,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
 
-// FrozenResource by account
+// FrozenResource represents a frozen resource (bandwidth or energy) on a TRON account.
 type FrozenResource struct {
 	Type       core.ResourceCode
 	Amount     int64
@@ -12,14 +12,14 @@ type FrozenResource struct {
 	Expire     int64
 }
 
-// UnfrozenResource by account
+// UnfrozenResource represents a pending unfreeze operation on a TRON account.
 type UnfrozenResource struct {
 	Type   core.ResourceCode
 	Amount int64
 	Expire int64
 }
 
-// Account detailed view
+// Account holds a detailed view of a TRON account including balances, resources, and votes.
 type Account struct {
 	Address                 string             `json:"address"`
 	Type                    string             `json:"type"`

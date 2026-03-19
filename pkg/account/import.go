@@ -14,7 +14,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
-// ImportFromPrivateKey allows import of an ECDSA private key
+// ImportFromPrivateKey imports an ECDSA private key (hex string) into the local keystore under the given name.
 func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 	privateKey = strings.TrimPrefix(privateKey, "0x")
 
@@ -92,7 +92,7 @@ func writeToFile(path string, data string) error {
 	return file.Sync()
 }
 
-// ImportKeyStore imports a keystore along with a password
+// ImportKeyStore imports an encrypted keystore JSON file into the local account store.
 func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	keyPath, err := filepath.Abs(keyPath)
 	if err != nil {

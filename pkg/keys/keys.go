@@ -31,6 +31,7 @@ func checkAndMakeKeyDirIfNeeded() string {
 	return tronCTLDir
 }
 
+// ListKeys prints all accounts in the keystore directory to stdout.
 func ListKeys(keystoreDir string) {
 	tronCTLDir := checkAndMakeKeyDirIfNeeded()
 	scryptN := keystore.StandardScryptN
@@ -44,6 +45,7 @@ func ListKeys(keystoreDir string) {
 	}
 }
 
+// AddNewKey creates a new account in the default keystore directory.
 func AddNewKey(password string) {
 	tronCTLDir := checkAndMakeKeyDirIfNeeded()
 	scryptN := keystore.StandardScryptN
@@ -57,10 +59,12 @@ func AddNewKey(password string) {
 	fmt.Printf("URL: %s\n", account.URL)
 }
 
+// GenerateKey generates a new random secp256k1 private key.
 func GenerateKey() (*btcec.PrivateKey, error) {
 	return btcec.NewPrivateKey()
 }
 
+// GetPrivateKeyFromHex parses a hex-encoded private key string.
 func GetPrivateKeyFromHex(privateKeyHex string) (*btcec.PrivateKey, error) {
 	privateKeyBytes, err := hex.DecodeString(privateKeyHex)
 	if err != nil {
@@ -70,6 +74,7 @@ func GetPrivateKeyFromHex(privateKeyHex string) (*btcec.PrivateKey, error) {
 	return GetPrivateKeyFromBytes(privateKeyBytes)
 }
 
+// GetPrivateKeyFromBytes creates a private key from raw 32-byte key material.
 func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
 	if len(privateKeyBytes) != 32 {
 		return nil, fmt.Errorf("invalid private key length: %d", len(privateKeyBytes))

@@ -14,11 +14,16 @@ import (
 )
 
 var (
-	ErrEmptyRawData  = errors.New("raw data hex string is empty")
-	ErrInvalidHex    = errors.New("invalid hex string")
+	// ErrEmptyRawData is returned when a raw data hex string is empty.
+	ErrEmptyRawData = errors.New("raw data hex string is empty")
+	// ErrInvalidHex is returned when a hex string cannot be decoded.
+	ErrInvalidHex = errors.New("invalid hex string")
+	// ErrInvalidTxJSON is returned when transaction JSON cannot be parsed.
 	ErrInvalidTxJSON = errors.New("invalid transaction JSON")
-	ErrTxIDMismatch  = errors.New("txID does not match hash of raw_data")
-	ErrNilRawData    = errors.New("transaction raw_data is nil")
+	// ErrTxIDMismatch is returned when the txID does not match the hash of raw_data.
+	ErrTxIDMismatch = errors.New("txID does not match hash of raw_data")
+	// ErrNilRawData is returned when a transaction has nil raw_data.
+	ErrNilRawData = errors.New("transaction raw_data is nil")
 )
 
 // jsonTransaction represents the JSON envelope used by TRON HTTP APIs.

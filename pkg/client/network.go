@@ -15,7 +15,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// ListNodes provides list of network nodes
+// ListNodes returns the list of nodes connected to the network.
 func (g *GrpcClient) ListNodes() (*api.NodeList, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -28,7 +28,7 @@ func (g *GrpcClient) ListNodesCtx(ctx context.Context) (*api.NodeList, error) {
 	return g.Client.ListNodes(ctx, new(api.EmptyMessage))
 }
 
-// GetNextMaintenanceTime get next epoch timestamp
+// GetNextMaintenanceTime returns the timestamp of the next SR maintenance epoch.
 func (g *GrpcClient) GetNextMaintenanceTime() (*api.NumberMessage, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -42,7 +42,7 @@ func (g *GrpcClient) GetNextMaintenanceTimeCtx(ctx context.Context) (*api.Number
 		new(api.EmptyMessage))
 }
 
-// TotalTransaction return total transciton in network
+// TotalTransaction returns the total number of transactions on the network.
 func (g *GrpcClient) TotalTransaction() (*api.NumberMessage, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -112,7 +112,7 @@ func (g *GrpcClient) GetTransactionInfoByIDCtx(ctx context.Context, id string) (
 	return nil, fmt.Errorf("transaction info not found")
 }
 
-// Broadcast broadcast TX
+// Broadcast submits a signed transaction to the network.
 func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -135,7 +135,7 @@ func (g *GrpcClient) BroadcastCtx(ctx context.Context, tx *core.Transaction) (*a
 	return result, nil
 }
 
-// GetNodeInfo current connection
+// GetNodeInfo returns information about the connected TRON node.
 func (g *GrpcClient) GetNodeInfo() (*core.NodeInfo, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -187,6 +187,7 @@ func (g *GrpcClient) GetMemoFeeCtx(ctx context.Context) (*api.PricesResponseMess
 	return g.Client.GetMemoFee(ctx, new(api.EmptyMessage))
 }
 
+// GRPCInsecure returns a grpc.DialOption that disables transport security.
 func GRPCInsecure() grpc.DialOption {
 	return grpc.WithTransportCredentials(insecure.NewCredentials())
 }

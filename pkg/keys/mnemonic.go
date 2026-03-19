@@ -10,7 +10,8 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/keys/hd"
 )
 
-// FromMnemonicSeedAndPassphrase derive form mnemonic and passphrase at index
+// FromMnemonicSeedAndPassphrase derives a key pair from a BIP39 mnemonic and passphrase
+// at the given TRON HD path index (44'/195'/0'/0/{index}).
 func FromMnemonicSeedAndPassphrase(mnemonic, passphrase string, index int) (*btcec.PrivateKey, *btcec.PublicKey) {
 	if index < 0 || index > math.MaxUint32 {
 		return nil, nil

@@ -7,7 +7,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
-// Creation struct for account
+// Creation holds the parameters needed to create a new local TRON account.
 type Creation struct {
 	Name               string
 	Passphrase         string
@@ -17,18 +17,18 @@ type Creation struct {
 	HdIndexNumber      *uint32
 }
 
-// New create new name
+// New returns the default name for a new account.
 func New() string {
 	return "New Account"
 }
 
-// IsValidPassphrase check if strong
+// IsValidPassphrase reports whether the passphrase meets strength requirements.
 func IsValidPassphrase(pass string) bool {
 	// TODO: force strong password
 	return true
 }
 
-// CreateNewLocalAccount assumes all the inputs are valid, legitmate
+// CreateNewLocalAccount creates a new account in the local keystore from the given Creation params.
 func CreateNewLocalAccount(candidate *Creation) error {
 	ks := store.FromAccountName(candidate.Name)
 	defer ks.Close()

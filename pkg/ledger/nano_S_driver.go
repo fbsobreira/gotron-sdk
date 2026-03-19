@@ -16,6 +16,7 @@ const (
 	packetSize    int = 255
 )
 
+// DEBUG enables verbose HID frame logging when true.
 var DEBUG bool
 
 type hidFramer struct {
@@ -25,6 +26,7 @@ type hidFramer struct {
 	pos int
 }
 
+// APDU represents an Application Protocol Data Unit for Ledger communication.
 type APDU struct {
 	CLA     byte
 	INS     byte
@@ -37,10 +39,12 @@ type apduFramer struct {
 	buf [2]byte // to read APDU length prefix
 }
 
+// NanoS represents a connection to a Ledger Nano S hardware wallet.
 type NanoS struct {
 	device *apduFramer
 }
 
+// ErrCode represents a Ledger APDU error status code.
 type ErrCode uint16
 
 func (hf *hidFramer) Reset() {
@@ -145,6 +149,7 @@ const codeInvalidParam = 0x6b01
 var errUserRejected = errors.New("user denied request")
 var errInvalidParam = errors.New("invalid request parameters")
 
+// Exchange sends an APDU command to the Ledger and returns the response.
 func (n *NanoS) Exchange(cmd byte, p1, p2 byte, data []byte) (resp []byte, err error) {
 	resp, err = n.device.Exchange(APDU{
 		CLA:     0xe0,
@@ -188,7 +193,7 @@ const (
 	p2Finish         = 0x02
 )
 
-// GetVersion return  app version
+// GetVersion returns the TRON app version running on the Ledger device.
 func (n *NanoS) GetVersion() (version string, err error) {
 	resp, err := n.Exchange(cmdGetVersion, 0, 0, nil)
 	if err != nil {
@@ -199,7 +204,7 @@ func (n *NanoS) GetVersion() (version string, err error) {
 	return fmt.Sprintf("v%d.%d.%d", resp[0], resp[1], resp[2]), nil
 }
 
-// GetAddress return address from path
+// GetAddress returns the TRON address from the Ledger device.
 func (n *NanoS) GetAddress() (addr string, err error) {
 	resp, err := n.Exchange(cmdGetPublicKey, 0, p2DisplayAddress, []byte{})
 	if err != nil {
@@ -213,7 +218,7 @@ func (n *NanoS) GetAddress() (addr string, err error) {
 	return string(pubkey[:]), nil
 }
 
-// SignTxn sign a TX
+// SignTxn signs a raw transaction using the Ledger device and returns the 65-byte signature.
 func (n *NanoS) SignTxn(txn []byte) (sig [signatureSize]byte, err error) {
 	var resp []byte
 
@@ -231,7 +236,7 @@ func (n *NanoS) SignTxn(txn []byte) (sig [signatureSize]byte, err error) {
 	return
 }
 
-// OpenNanoS start process
+// OpenNanoS detects and opens a connection to a Ledger Nano S device.
 func OpenNanoS() (*NanoS, error) {
 	const (
 		ledgerVendorID = 0x2c97

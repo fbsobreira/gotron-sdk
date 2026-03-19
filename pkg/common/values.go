@@ -6,24 +6,29 @@ import (
 )
 
 const (
-	// DefaultConfigAccountAliasesDirName fro accounts
+	// DefaultConfigAccountAliasesDirName is the directory name for account key aliases.
 	DefaultConfigAccountAliasesDirName = "account-keys"
-	// DefaultPassphrase for accounts
+	// DefaultPassphrase is the default passphrase used when none is provided.
 	DefaultPassphrase = ""
-	// Secp256k1PrivateKeyBytesLength privete key
+	// Secp256k1PrivateKeyBytesLength is the required byte length of a secp256k1 private key.
 	Secp256k1PrivateKeyBytesLength = 32
-	// AmountDecimalPoint TRX decimal point
+	// AmountDecimalPoint is the number of decimal places in TRX (1 TRX = 10^6 SUN).
 	AmountDecimalPoint = 6
 )
 
 var (
-	// DefaultConfigDirName for wallets
+	// DefaultConfigDirName is the default directory name for tronctl configuration.
 	DefaultConfigDirName = ".tronctl"
-	DebugGRPC            = false
-	DebugTransaction     = false
-	ErrNotAbsPath        = errors.New("keypath is not absolute path")
-	ErrBadKeyLength      = errors.New("ivalid private key (wrong length)")
-	ErrFoundNoPass       = errors.New("found no passphrase file")
+	// DebugGRPC enables verbose gRPC request/response logging when true.
+	DebugGRPC = false
+	// DebugTransaction enables verbose transaction logging when true.
+	DebugTransaction = false
+	// ErrNotAbsPath is returned when a keypath is not an absolute path.
+	ErrNotAbsPath = errors.New("keypath is not absolute path")
+	// ErrBadKeyLength is returned when a private key has an invalid length.
+	ErrBadKeyLength = errors.New("ivalid private key (wrong length)")
+	// ErrFoundNoPass is returned when no passphrase file is found.
+	ErrFoundNoPass = errors.New("found no passphrase file")
 )
 
 func init() {
@@ -38,7 +43,7 @@ func init() {
 	}
 }
 
-// EnableAllVerbose sets debug vars to true
+// EnableAllVerbose enables all debug logging flags (gRPC and transaction).
 func EnableAllVerbose() {
 	DebugGRPC = true
 	DebugTransaction = true

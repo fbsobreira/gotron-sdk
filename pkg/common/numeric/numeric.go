@@ -13,8 +13,8 @@ import (
 	"strings"
 )
 
-// Dec represent a decimal. NOTE: never use new(Dec) or else we will panic unmarshalling into the
-// nil embedded big.Int
+// Dec represents a fixed-point decimal with 18 digits of precision.
+// NOTE: never use new(Dec) or else we will panic unmarshalling into the nil embedded big.Int.
 type Dec struct {
 	*big.Int `json:"int"`
 }
@@ -49,13 +49,13 @@ func precisionInt() *big.Int {
 	return new(big.Int).Set(precisionReuse)
 }
 
-// ZeroDec ...
+// ZeroDec returns a Dec representing zero.
 func ZeroDec() Dec { return Dec{new(big.Int).Set(zeroInt)} }
 
-// OneDec ...
+// OneDec returns a Dec representing one.
 func OneDec() Dec { return Dec{precisionInt()} }
 
-// SmallestDec ...
+// SmallestDec returns the smallest positive Dec (10^-18).
 func SmallestDec() Dec { return Dec{new(big.Int).Set(oneInt)} }
 
 // calculate the precision multiplier
@@ -194,28 +194,38 @@ func MustNewDecFromStr(s string) Dec {
 	return dec
 }
 
-// IsNil ...
-func (d Dec) IsNil() bool { return d.Int == nil } // is decimal nil
-// IsZero ...
-func (d Dec) IsZero() bool { return (d.Int).Sign() == 0 } // is equal to zero
-// IsNegative ...
-func (d Dec) IsNegative() bool { return (d.Int).Sign() == -1 } // is negative
-// IsPositive ...
-func (d Dec) IsPositive() bool { return (d.Int).Sign() == 1 } // is positive
-// Equal ...
-func (d Dec) Equal(d2 Dec) bool { return (d.Int).Cmp(d2.Int) == 0 } // equal decimals
-// GT ...
-func (d Dec) GT(d2 Dec) bool { return (d.Int).Cmp(d2.Int) > 0 } // greater than
-// GTE ...
-func (d Dec) GTE(d2 Dec) bool { return (d.Int).Cmp(d2.Int) >= 0 } // greater than or equal
-// LT ...
-func (d Dec) LT(d2 Dec) bool { return (d.Int).Cmp(d2.Int) < 0 } // less than
-// LTE ...
-func (d Dec) LTE(d2 Dec) bool { return (d.Int).Cmp(d2.Int) <= 0 } // less than or equal
-// Neg ...
-func (d Dec) Neg() Dec { return Dec{new(big.Int).Neg(d.Int)} } // reverse the decimal sign
-// Abs ...
-func (d Dec) Abs() Dec { return Dec{new(big.Int).Abs(d.Int)} } // absolute value
+// IsNil reports whether the underlying big.Int is nil.
+func (d Dec) IsNil() bool { return d.Int == nil }
+
+// IsZero reports whether d equals zero.
+func (d Dec) IsZero() bool { return (d.Int).Sign() == 0 }
+
+// IsNegative reports whether d is negative.
+func (d Dec) IsNegative() bool { return (d.Int).Sign() == -1 }
+
+// IsPositive reports whether d is positive.
+func (d Dec) IsPositive() bool { return (d.Int).Sign() == 1 }
+
+// Equal reports whether d and d2 represent the same value.
+func (d Dec) Equal(d2 Dec) bool { return (d.Int).Cmp(d2.Int) == 0 }
+
+// GT reports whether d is greater than d2.
+func (d Dec) GT(d2 Dec) bool { return (d.Int).Cmp(d2.Int) > 0 }
+
+// GTE reports whether d is greater than or equal to d2.
+func (d Dec) GTE(d2 Dec) bool { return (d.Int).Cmp(d2.Int) >= 0 }
+
+// LT reports whether d is less than d2.
+func (d Dec) LT(d2 Dec) bool { return (d.Int).Cmp(d2.Int) < 0 }
+
+// LTE reports whether d is less than or equal to d2.
+func (d Dec) LTE(d2 Dec) bool { return (d.Int).Cmp(d2.Int) <= 0 }
+
+// Neg returns the negation of d.
+func (d Dec) Neg() Dec { return Dec{new(big.Int).Neg(d.Int)} }
+
+// Abs returns the absolute value of d.
+func (d Dec) Abs() Dec { return Dec{new(big.Int).Abs(d.Int)} }
 
 // Add addition
 func (d Dec) Add(d2 Dec) Dec {
@@ -575,7 +585,7 @@ func (d *Dec) UnmarshalJSON(bz []byte) error {
 	return nil
 }
 
-// MarshalYAML returns Ythe AML representation.
+// MarshalYAML returns the YAML representation.
 func (d Dec) MarshalYAML() (interface{}, error) { return d.String(), nil }
 
 //___________________________________________________________________________________

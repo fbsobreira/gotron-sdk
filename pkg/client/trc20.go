@@ -53,7 +53,7 @@ const (
 	trc20TransferFromMethodSignature = "0x23b872dd"
 )
 
-// TRC20Call make cosntant calll
+// TRC20Call performs a low-level TRC20 contract call with pre-built hex data.
 func (g *GrpcClient) TRC20Call(from, contractAddress, data string, constant bool, feeLimit int64) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -101,7 +101,7 @@ func (g *GrpcClient) TRC20CallCtx(ctx context.Context, from, contractAddress, da
 
 }
 
-// TRC20GetName get token name
+// TRC20GetName returns the name of a TRC20 token contract.
 func (g *GrpcClient) TRC20GetName(contractAddress string) (string, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -120,7 +120,7 @@ func (g *GrpcClient) TRC20GetNameCtx(ctx context.Context, contractAddress string
 	return g.ParseTRC20StringProperty(data)
 }
 
-// TRC20GetSymbol get contract symbol
+// TRC20GetSymbol returns the symbol of a TRC20 token contract.
 func (g *GrpcClient) TRC20GetSymbol(contractAddress string) (string, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -139,7 +139,7 @@ func (g *GrpcClient) TRC20GetSymbolCtx(ctx context.Context, contractAddress stri
 	return g.ParseTRC20StringProperty(data)
 }
 
-// TRC20GetDecimals get contract decimals
+// TRC20GetDecimals returns the number of decimals for a TRC20 token contract.
 func (g *GrpcClient) TRC20GetDecimals(contractAddress string) (*big.Int, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -158,7 +158,7 @@ func (g *GrpcClient) TRC20GetDecimalsCtx(ctx context.Context, contractAddress st
 	return g.ParseTRC20NumericProperty(data)
 }
 
-// ParseTRC20NumericProperty get number from data
+// ParseTRC20NumericProperty parses a 64-character hex string into a *big.Int.
 func (g *GrpcClient) ParseTRC20NumericProperty(data string) (*big.Int, error) {
 	if common.Has0xPrefix(data) {
 		data = data[2:]
@@ -178,7 +178,7 @@ func (g *GrpcClient) ParseTRC20NumericProperty(data string) (*big.Int, error) {
 	return nil, fmt.Errorf("cannot parse %s", data)
 }
 
-// ParseTRC20StringProperty get string from data
+// ParseTRC20StringProperty decodes an ABI-encoded string from hex data.
 func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error) {
 	if common.Has0xPrefix(data) {
 		data = data[2:]
@@ -210,7 +210,7 @@ func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error) {
 	return "", fmt.Errorf("cannot parse %s,", data)
 }
 
-// TRC20ContractBalance get Address balance
+// TRC20ContractBalance returns the TRC20 token balance of addr for the given contract.
 func (g *GrpcClient) TRC20ContractBalance(addr, contractAddress string) (*big.Int, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -241,7 +241,7 @@ func (g *GrpcClient) TRC20ContractBalanceCtx(ctx context.Context, addr, contract
 	return r, nil
 }
 
-// TRC20Send send token to address
+// TRC20Send transfers TRC20 tokens to the specified address.
 func (g *GrpcClient) TRC20Send(from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
@@ -294,7 +294,7 @@ func (g *GrpcClient) TRC20TransferFromCtx(ctx context.Context, owner, from, to, 
 	return g.TRC20CallCtx(ctx, owner, contract, req, cfg.estimate, feeLimit)
 }
 
-// TRC20Approve approve token to address
+// TRC20Approve approves a spender to transfer up to amount TRC20 tokens on behalf of from.
 func (g *GrpcClient) TRC20Approve(from, to, contract string, amount *big.Int, feeLimit int64, opts ...TRC20Option) (*api.TransactionExtention, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()

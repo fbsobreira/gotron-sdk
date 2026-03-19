@@ -1,6 +1,6 @@
 package keystore
 
-// ForPath return keystore from path
+// ForPath returns a KeyStore backed by the directory at p using standard scrypt parameters.
 func ForPath(p string) *KeyStore {
 	return NewKeyStore(p, StandardScryptN, StandardScryptP)
 }
