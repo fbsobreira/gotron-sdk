@@ -14,6 +14,18 @@ type VoteTx struct {
 	votes map[string]int64
 }
 
+// WithMemo attaches a memo to this vote transaction.
+func (v *VoteTx) WithMemo(memo string) *VoteTx {
+	v.Tx.WithMemo(memo)
+	return v
+}
+
+// WithPermissionID sets the permission ID for this vote transaction.
+func (v *VoteTx) WithPermissionID(id int32) *VoteTx {
+	v.Tx.WithPermissionID(id)
+	return v
+}
+
 // Vote adds a vote for the given witness address. Can be called multiple times
 // to build up the vote set. Returns itself for chaining.
 func (v *VoteTx) Vote(witnessAddress string, count int64) *VoteTx {

@@ -56,6 +56,20 @@ func (b *Builder) newTx(buildFn func(ctx context.Context) (*api.TransactionExten
 	}
 }
 
+// WithMemo attaches a memo to this transaction.
+// Returns itself for chaining.
+func (t *Tx) WithMemo(memo string) *Tx {
+	t.cfg.memo = memo
+	return t
+}
+
+// WithPermissionID sets the permission ID for multi-signature transactions.
+// Returns itself for chaining.
+func (t *Tx) WithPermissionID(id int32) *Tx {
+	t.cfg.permissionID = &id
+	return t
+}
+
 // Build creates the unsigned transaction, applying any configured options
 // (permission ID, memo, etc.).
 func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
@@ -76,6 +90,16 @@ func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
 
 	if t.cfg.memo != "" {
 		tx.Transaction.RawData.Data = []byte(t.cfg.memo)
+	}
+
+	// Recompute Txid after mutations so it matches the final RawData.
+	if t.cfg.permissionID != nil || t.cfg.memo != "" {
+		raw, err := proto.Marshal(tx.Transaction.RawData)
+		if err != nil {
+			return nil, fmt.Errorf("recomputing txid: %w", err)
+		}
+		h := sha256.Sum256(raw)
+		tx.Txid = h[:]
 	}
 
 	return tx, nil
