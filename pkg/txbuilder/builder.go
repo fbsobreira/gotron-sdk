@@ -136,7 +136,7 @@ func (t *Tx) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, err
 	for {
 		select {
 		case <-ctx.Done():
-			return nil, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
+			return receipt, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
 		case <-ticker.C:
 			info, infoErr := t.client.GetTransactionInfoByIDCtx(ctx, receipt.TxID)
 			if infoErr != nil {
