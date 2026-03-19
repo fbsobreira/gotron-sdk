@@ -11,8 +11,27 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
+
+// newTestTxExt returns a minimal TransactionExtention for testing.
+func newTestTxExt() *api.TransactionExtention {
+	return &api.TransactionExtention{
+		Transaction: &core.Transaction{
+			RawData: &core.TransactionRaw{
+				Contract: []*core.Transaction_Contract{
+					{
+						Type:      core.Transaction_Contract_TriggerSmartContract,
+						Parameter: &anypb.Any{Value: []byte("test")},
+					},
+				},
+			},
+		},
+		Txid:   []byte("dummytxid"),
+		Result: &api.Return{Result: true},
+	}
+}
 
 // mockClient implements the Client interface for testing.
 type mockClient struct {
@@ -355,24 +374,6 @@ func (s *mockSigner) Sign(tx *core.Transaction) (*core.Transaction, error) {
 
 func (s *mockSigner) Address() address.Address { return nil }
 
-// newTestTxExt returns a minimal TransactionExtention for Send/SendAndConfirm tests.
-func newTestTxExt() *api.TransactionExtention {
-	return &api.TransactionExtention{
-		Transaction: &core.Transaction{
-			RawData: &core.TransactionRaw{
-				Contract: []*core.Transaction_Contract{
-					{
-						Type:      core.Transaction_Contract_TriggerSmartContract,
-						Parameter: &anypb.Any{Value: []byte("test")},
-					},
-				},
-			},
-		},
-		Txid:   []byte("dummytxid"),
-		Result: &api.Return{Result: true},
-	}
-}
-
 func TestSend(t *testing.T) {
 	broadcastCalled := false
 	mc := &mockClient{
@@ -509,4 +510,155 @@ func TestSendAndConfirm_ContextCancelled(t *testing.T) {
 		SendAndConfirm(ctx, &mockSigner{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "context canceled")
+}
+
+// --- Fluent method tests ---
+
+func TestFluentWithPermissionID(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		Method("test()").
+		From("TFrom").
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+	for _, c := range ext.Transaction.RawData.Contract {
+		assert.Equal(t, int32(2), c.PermissionId)
+	}
+}
+
+func TestFluentWithFeeLimit(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, feeLimit, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			assert.Equal(t, int64(100_000_000), feeLimit)
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		Method("transfer(address,uint256)").
+		From("TFrom").
+		WithFeeLimit(100_000_000).
+		Build(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, ext)
+}
+
+func TestFluentWithCallValue(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, callValue int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			assert.Equal(t, int64(1_000_000), callValue)
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		Method("deposit()").
+		From("TFrom").
+		WithCallValue(1_000_000).
+		Build(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, ext)
+}
+
+func TestFluentWithTokenValue(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, tokenID string, tokenAmount int64) (*api.TransactionExtention, error) {
+			assert.Equal(t, "1000001", tokenID)
+			assert.Equal(t, int64(500), tokenAmount)
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		Method("deposit()").
+		From("TFrom").
+		WithTokenValue("1000001", 500).
+		Build(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, ext)
+}
+
+func TestFluentChainAll(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, feeLimit, callValue int64, tokenID string, tokenAmount int64) (*api.TransactionExtention, error) {
+			assert.Equal(t, int64(50_000_000), feeLimit)
+			assert.Equal(t, int64(1_000_000), callValue)
+			assert.Equal(t, "1000001", tokenID)
+			assert.Equal(t, int64(100), tokenAmount)
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		Method("deposit()").
+		From("TFrom").
+		WithFeeLimit(50_000_000).
+		WithCallValue(1_000_000).
+		WithTokenValue("1000001", 100).
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+	for _, c := range ext.Transaction.RawData.Contract {
+		assert.Equal(t, int32(2), c.PermissionId)
+	}
+}
+
+func TestFluentEqualsOption(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newTestTxExt(), nil
+		},
+	}
+
+	// Build with functional options
+	extOpt, err := New(mc, "TContract").
+		Method("test()").
+		From("TFrom").
+		Apply(WithFeeLimit(50_000_000), WithPermissionID(2)).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	// Build with fluent methods
+	extFluent, err := New(mc, "TContract").
+		Method("test()").
+		From("TFrom").
+		WithFeeLimit(50_000_000).
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	// Serialized RawData must be identical
+	rawOpt, err := proto.Marshal(extOpt.Transaction.RawData)
+	require.NoError(t, err)
+	rawFluent, err := proto.Marshal(extFluent.Transaction.RawData)
+	require.NoError(t, err)
+	assert.Equal(t, rawOpt, rawFluent,
+		"fluent and option APIs must produce identical raw transaction data")
+}
+
+func TestFluentWithData_PermissionAndFeeLimit(t *testing.T) {
+	mc := &mockClient{
+		triggerContractWithDataCtxFunc: func(_ context.Context, _, _ string, data []byte, feeLimit, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			assert.Equal(t, []byte{0xa9, 0x05, 0x9c, 0xbb}, data[:4]) // transfer selector
+			assert.Equal(t, int64(100_000_000), feeLimit)
+			return newTestTxExt(), nil
+		},
+	}
+
+	ext, err := New(mc, "TContract").
+		From("TFrom").
+		WithData([]byte{0xa9, 0x05, 0x9c, 0xbb, 0x00}).
+		WithFeeLimit(100_000_000).
+		WithPermissionID(3).
+		Build(context.Background())
+	require.NoError(t, err)
+	for _, c := range ext.Transaction.RawData.Contract {
+		assert.Equal(t, int32(3), c.PermissionId)
+	}
 }
