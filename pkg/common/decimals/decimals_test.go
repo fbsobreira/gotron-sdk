@@ -21,10 +21,9 @@ func assertClose(t *testing.T, expected, got *big.Float, tol float64, msgAndArgs
 	t.Helper()
 	diff := decimals.Abs(decimals.Sub(expected, got))
 	tolF := decimals.NewFloat(tol)
-	if !decimals.Lesser(diff, tolF) {
-		t.Errorf("values not close enough: expected %s, got %s, diff %s, tolerance %s – %v",
-			expected.Text('g', 20), got.Text('g', 20), diff.Text('g', 20), tolF.Text('g', 20), msgAndArgs)
-	}
+	assert.True(t, decimals.Lesser(diff, tolF),
+		"values not close enough: expected %s, got %s, diff %s, tolerance %s – %v",
+		expected.Text('g', 20), got.Text('g', 20), diff.Text('g', 20), tolF.Text('g', 20), msgAndArgs)
 }
 
 // ---------------------------------------------------------------------------
@@ -281,7 +280,7 @@ func TestPow_MinInt64DoesNotStackOverflow(t *testing.T) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.Errorf("Pow(2, MinInt64) panicked: %v", r)
+				assert.Fail(t, "Pow(2, MinInt64) panicked", "%v", r)
 			}
 			close(done)
 		}()

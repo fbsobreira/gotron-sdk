@@ -1,7 +1,6 @@
 package address
 
 import (
-	"bytes"
 	"database/sql/driver"
 	"encoding/base64"
 	"math/big"
@@ -555,41 +554,29 @@ var _ driver.Valuer = Address{}
 
 func TestAddress_Scan(t *testing.T) {
 	validAddress, err := Base58ToAddress("TSvT6Bg3siokv3dbdtt9o4oM1CTXmymGn1")
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// correct case
 	want := validAddress
 	a := &Address{}
 	src := validAddress.Bytes()
 	err = a.Scan(src)
-	if err != nil {
-		t.Errorf("unexpected error: %v", err)
-	}
-	if !bytes.Equal(a.Bytes(), want.Bytes()) {
-		t.Errorf("got %v, want %v", *a, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, want.Bytes(), a.Bytes())
 
 	// invalid type of src
 	a = &Address{}
 	err = a.Scan("not a byte slice")
-	if err == nil {
-		t.Errorf("expected an error, but got none")
-	}
+	assert.Error(t, err)
 
 	// invalid length of src
 	a = &Address{}
 	src = make([]byte, 4)
 	err = a.Scan(src)
-	if err == nil {
-		t.Errorf("expected an error, but got none")
-	}
+	assert.Error(t, err)
 	src = make([]byte, 22) // Creating a byte array with the wrong length
 	err = a.Scan(src)
-	if err == nil {
-		t.Errorf("expected an error, but got none")
-	}
+	assert.Error(t, err)
 }
 
 func TestBytesToAddress(t *testing.T) {
@@ -947,9 +934,7 @@ func TestAddress_IsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.address.IsValid(); got != tt.want {
-				t.Errorf("Address.IsValid() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, tt.address.IsValid())
 		})
 	}
 }

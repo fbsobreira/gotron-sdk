@@ -293,6 +293,162 @@ func TestErrNoUnlockBadPassphrase(t *testing.T) {
 	assert.Contains(t, store.ErrNoUnlockBadPassphrase.Error(), "could not unlock account")
 }
 
+func TestSetKeystoreFactory(t *testing.T) {
+	acctDir := withTempLocation(t)
+	t.Cleanup(store.CloseAll)
+
+	// Create an account directory with a key file
+	acctPath := path.Join(acctDir, "factory-test")
+	err := os.MkdirAll(acctPath, 0700)
+	require.NoError(t, err)
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	_, err = ks.NewAccount("pass")
+	require.NoError(t, err)
+	ks.Close()
+
+	t.Run("custom factory is used", func(t *testing.T) {
+		callCount := 0
+		store.SetKeystoreFactory(func(p string) *keystore.KeyStore {
+			callCount++
+			return keystore.NewKeyStore(p, keystore.LightScryptN, keystore.LightScryptP)
+		})
+		t.Cleanup(store.CloseAll)
+
+		loaded := store.FromAccountName("factory-test")
+		require.NotNil(t, loaded)
+		assert.Equal(t, 1, callCount, "custom factory should have been called once")
+		loaded.Close()
+	})
+}
+
+func TestCloseAll(t *testing.T) {
+	t.Run("safe to call with no open keystores", func(t *testing.T) {
+		withTempLocation(t)
+		assert.NotPanics(t, store.CloseAll)
+	})
+
+	t.Run("safe to call multiple times", func(t *testing.T) {
+		withTempLocation(t)
+		store.CloseAll()
+		assert.NotPanics(t, store.CloseAll)
+	})
+
+	t.Run("closes tracked keystores", func(t *testing.T) {
+		acctDir := withTempLocation(t)
+
+		acctPath := path.Join(acctDir, "close-test")
+		err := os.MkdirAll(acctPath, 0700)
+		require.NoError(t, err)
+
+		// Open a keystore via FromAccountName (which tracks it)
+		_ = store.FromAccountName("close-test")
+
+		// CloseAll should not panic
+		assert.NotPanics(t, store.CloseAll)
+	})
+
+	t.Run("resets factory to default", func(t *testing.T) {
+		withTempLocation(t)
+
+		callCount := 0
+		store.SetKeystoreFactory(func(p string) *keystore.KeyStore {
+			callCount++
+			return keystore.NewKeyStore(p, keystore.LightScryptN, keystore.LightScryptP)
+		})
+
+		store.CloseAll() // Should reset factory
+
+		// After CloseAll, further FromAccountName calls should use default factory
+		before := callCount
+		loaded := store.FromAccountName("any-name")
+		require.NotNil(t, loaded)
+		loaded.Close()
+		store.CloseAll()
+
+		// Custom factory should NOT have been called after CloseAll reset
+		assert.Equal(t, before, callCount, "custom factory should not be called after CloseAll resets it")
+	})
+}
+
+func TestUnlockedKeystore_WithRealKey(t *testing.T) {
+	acctDir := withTempLocation(t)
+	t.Cleanup(store.CloseAll)
+
+	// Create account with real key
+	acctPath := path.Join(acctDir, "unlock-test")
+	err := os.MkdirAll(acctPath, 0700)
+	require.NoError(t, err)
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("correct-pass")
+	require.NoError(t, err)
+	addrStr := acct.Address.String()
+	ks.Close()
+
+	// Yield to let the keystore's watcher goroutine finish after Close().
+	runtime.Gosched()
+
+	t.Run("wrong passphrase returns ErrNoUnlockBadPassphrase", func(t *testing.T) {
+		resultKs, resultAcct, err := store.UnlockedKeystore(addrStr, "wrong-pass")
+		require.Error(t, err)
+		assert.ErrorIs(t, err, store.ErrNoUnlockBadPassphrase)
+		assert.Nil(t, resultKs)
+		assert.Nil(t, resultAcct)
+		store.CloseAll()
+	})
+
+	t.Run("correct passphrase returns keystore and account", func(t *testing.T) {
+		resultKs, resultAcct, err := store.UnlockedKeystore(addrStr, "correct-pass")
+		require.NoError(t, err)
+		require.NotNil(t, resultKs)
+		require.NotNil(t, resultAcct)
+		assert.Equal(t, addrStr, resultAcct.Address.String())
+		resultKs.Close()
+		store.CloseAll()
+	})
+}
+
+func TestAddressFromAccountName_WithRealKey(t *testing.T) {
+	acctDir := withTempLocation(t)
+	t.Cleanup(store.CloseAll)
+
+	acctPath := path.Join(acctDir, "addr-test")
+	err := os.MkdirAll(acctPath, 0700)
+	require.NoError(t, err)
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("pass")
+	require.NoError(t, err)
+	expectedAddr := acct.Address.String()
+	ks.Close()
+
+	addr, err := store.AddressFromAccountName("addr-test")
+	require.NoError(t, err)
+	assert.Equal(t, expectedAddr, addr)
+	store.CloseAll()
+}
+
+func TestFromAddress_WithRealKey(t *testing.T) {
+	acctDir := withTempLocation(t)
+	t.Cleanup(store.CloseAll)
+
+	acctPath := path.Join(acctDir, "find-test")
+	err := os.MkdirAll(acctPath, 0700)
+	require.NoError(t, err)
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("pass")
+	require.NoError(t, err)
+	addrStr := acct.Address.String()
+	ks.Close()
+
+	found := store.FromAddress(addrStr)
+	require.NotNil(t, found, "FromAddress should find the account")
+	found.Close()
+	store.CloseAll()
+}
+
 func TestFromAddress_NoGoroutineLeak(t *testing.T) {
 	acctDir := withTempLocation(t)
 

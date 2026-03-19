@@ -35,6 +35,36 @@ func TestGenerate_RepeatedCallsRemainValid(t *testing.T) {
 	assert.True(t, bip39.IsMnemonicValid(m2))
 }
 
+func TestGenerate_Uniqueness(t *testing.T) {
+	seen := make(map[string]bool, 10)
+	for range 10 {
+		m, err := mnemonic.Generate()
+		require.NoError(t, err)
+		assert.False(t, seen[m], "Generate should produce unique mnemonics")
+		seen[m] = true
+	}
+}
+
+func TestGenerate_AllWordsFromBIP39WordList(t *testing.T) {
+	m, err := mnemonic.Generate()
+	require.NoError(t, err)
+
+	wordList := bip39.GetWordList()
+	wordSet := make(map[string]bool, len(wordList))
+	for _, w := range wordList {
+		wordSet[w] = true
+	}
+
+	for _, word := range strings.Fields(m) {
+		assert.True(t, wordSet[word], "word %q should be in the BIP39 word list", word)
+	}
+}
+
+func TestErrInvalidMnemonic(t *testing.T) {
+	assert.NotNil(t, mnemonic.ErrInvalidMnemonic)
+	assert.Equal(t, "invalid mnemonic given", mnemonic.ErrInvalidMnemonic.Error())
+}
+
 func TestGenerate_ProducesValidSeed(t *testing.T) {
 	m, err := mnemonic.Generate()
 	require.NoError(t, err)
