@@ -381,6 +381,49 @@ func (g *GrpcClient) EstimateEnergyCtx(ctx context.Context, from, contractAddres
 	return g.estimateEnergy(ctx, ct)
 }
 
+// EstimateEnergyWithData returns the estimated energy using pre-packed ABI
+// data, bypassing the JSON string → parse → pack pipeline.
+func (g *GrpcClient) EstimateEnergyWithData(from, contractAddress string, data []byte,
+	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.EstimateEnergyWithDataCtx(ctx, from, contractAddress, data, tAmount, tTokenID, tTokenAmount)
+}
+
+// EstimateEnergyWithDataCtx is the context-aware version of EstimateEnergyWithData.
+func (g *GrpcClient) EstimateEnergyWithDataCtx(ctx context.Context, from, contractAddress string, data []byte,
+	tAmount int64, tTokenID string, tTokenAmount int64) (*api.EstimateEnergyMessage, error) {
+	ctx = g.withAPIKey(ctx)
+
+	fromDesc, err := address.Base58ToAddress(from)
+	if err != nil {
+		return nil, err
+	}
+
+	contractDesc, err := address.Base58ToAddress(contractAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	ct := &core.TriggerSmartContract{
+		OwnerAddress:    fromDesc.Bytes(),
+		ContractAddress: contractDesc.Bytes(),
+		Data:            data,
+	}
+	if tAmount > 0 {
+		ct.CallValue = tAmount
+	}
+	if len(tTokenID) > 0 && tTokenAmount > 0 {
+		ct.CallTokenValue = tTokenAmount
+		ct.TokenId, err = strconv.ParseInt(tTokenID, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return g.estimateEnergy(ctx, ct)
+}
+
 // triggerContract and return tx result
 func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
 	tx, err := g.Client.EstimateEnergy(ctx, ct)
