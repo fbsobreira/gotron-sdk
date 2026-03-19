@@ -1,12 +1,15 @@
 package account_test
 
 import (
+	"encoding/json"
 	"os"
 	"path"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
+	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/stretchr/testify/assert"
@@ -519,4 +522,144 @@ func TestAccountModelTypes(t *testing.T) {
 		Expire: 1700000000,
 	}
 	assert.Equal(t, int64(300000), unfrozen.Amount)
+}
+
+func TestImportKeyStore_PathTraversalRejected(t *testing.T) {
+	tests := []struct {
+		name       string
+		acctName   string
+		errContain string
+	}{
+		{name: "dot name", acctName: ".", errContain: "invalid account name"},
+		{name: "dotdot name", acctName: "..", errContain: "invalid account name"},
+		{name: "forward slash", acctName: "foo/bar", errContain: "invalid account name"},
+		{name: "backslash", acctName: `foo\bar`, errContain: "invalid account name"},
+		{name: "leading slash", acctName: "/etc/passwd", errContain: "invalid account name"},
+		{name: "embedded slash", acctName: "a/b/c", errContain: "invalid account name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupTestStore(t)
+
+			// Create a minimal valid keystore file to get past the file-read step.
+			// The path traversal check is evaluated before decryption.
+			tmpFile := path.Join(t.TempDir(), "dummy.json")
+			require.NoError(t, os.WriteFile(tmpFile, []byte("{}"), 0600))
+
+			_, err := account.ImportKeyStore(tmpFile, tt.acctName, "pass")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContain)
+		})
+	}
+}
+
+func TestImportKeyStore_ValidNamesAccepted(t *testing.T) {
+	// Valid names should pass the path traversal check and only fail later
+	// (at decryption, since our dummy keystore is not valid).
+	// The point is they do NOT fail with "invalid account name".
+	validNames := []string{"my-wallet", "wallet_1", "test123", "UPPER", "a"}
+
+	for _, name := range validNames {
+		t.Run(name, func(t *testing.T) {
+			setupTestStore(t)
+
+			tmpFile := path.Join(t.TempDir(), "dummy.json")
+			require.NoError(t, os.WriteFile(tmpFile, []byte("{}"), 0600))
+
+			_, err := account.ImportKeyStore(tmpFile, name, "pass")
+			// Should fail at decryption, NOT at name validation
+			require.Error(t, err)
+			assert.NotContains(t, err.Error(), "invalid account name",
+				"valid name %q should not be rejected by path traversal check", name)
+		})
+	}
+}
+
+func TestExportKeystore_ProducesValidJSON(t *testing.T) {
+	setupTestStore(t)
+
+	_, err := account.ImportFromPrivateKey(testPrivateKey, "json-export-test", "pass")
+	require.NoError(t, err)
+
+	addr, err := store.AddressFromAccountName("json-export-test")
+	require.NoError(t, err)
+
+	exportDir := t.TempDir()
+	outFile, err := account.ExportKeystore(addr, exportDir, "pass")
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+
+	// The exported data must be valid JSON
+	var parsed map[string]interface{}
+	err = json.Unmarshal(data, &parsed)
+	require.NoError(t, err, "exported keystore should be valid JSON")
+
+	// Standard keystore JSON should contain certain fields
+	assert.Contains(t, parsed, "address", "keystore JSON should contain 'address' field")
+	assert.Contains(t, parsed, "crypto", "keystore JSON should contain 'crypto' field")
+}
+
+func TestExportKeystore_RoundTrip(t *testing.T) {
+	setupTestStore(t)
+
+	_, err := account.ImportFromPrivateKey(testPrivateKey, "roundtrip-source", "pass")
+	require.NoError(t, err)
+
+	addr, err := store.AddressFromAccountName("roundtrip-source")
+	require.NoError(t, err)
+
+	// Export
+	exportDir := t.TempDir()
+	outFile, err := account.ExportKeystore(addr, exportDir, "pass")
+	require.NoError(t, err)
+
+	// Read and decrypt the exported keystore
+	data, err := os.ReadFile(outFile)
+	require.NoError(t, err)
+
+	decryptedKey, err := keystore.DecryptKey(data, "pass")
+	require.NoError(t, err)
+
+	// The decrypted address should match the original
+	assert.Equal(t, addr, decryptedKey.Address.String(),
+		"round-tripped keystore should decrypt to the same address")
+}
+
+func TestImportFromPrivateKey_StoredAddressMatchesDerivedAddress(t *testing.T) {
+	setupTestStore(t)
+
+	_, err := account.ImportFromPrivateKey(testPrivateKey, "rederive-test", "pass")
+	require.NoError(t, err)
+
+	addr, err := store.AddressFromAccountName("rederive-test")
+	require.NoError(t, err)
+
+	// Re-derive address from the known private key hex
+	sk, err := keys.GetPrivateKeyFromHex(testPrivateKey)
+	require.NoError(t, err)
+
+	derivedAddr := address.PubkeyToAddress(sk.ToECDSA().PublicKey)
+	assert.Equal(t, addr, derivedAddr.String(),
+		"stored address should match the address derived from the imported private key")
+}
+
+func TestImportFromPrivateKey_DifferentKeysProduceDifferentAddresses(t *testing.T) {
+	setupTestStore(t)
+
+	_, err := account.ImportFromPrivateKey(testPrivateKey, "addr-check", "pass")
+	require.NoError(t, err)
+
+	addr, err := store.AddressFromAccountName("addr-check")
+	require.NoError(t, err)
+
+	// Generate a fresh key and verify its address differs
+	freshKey, err := keys.GenerateKey()
+	require.NoError(t, err)
+
+	freshAddr := address.PubkeyToAddress(freshKey.ToECDSA().PublicKey)
+	assert.NotEqual(t, addr, freshAddr.String(),
+		"a different private key should produce a different address")
 }

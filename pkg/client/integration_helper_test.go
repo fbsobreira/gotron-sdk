@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -38,9 +39,7 @@ func newIntegrationClient(t *testing.T) *client.GrpcClient {
 	endpoint := getEndpoint()
 	c := client.NewGrpcClientWithTimeout(endpoint, integrationTimeout)
 	err := c.Start(grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		t.Fatalf("cannot connect to TRON node at %s: %v", endpoint, err)
-	}
+	require.NoError(t, err, "cannot connect to TRON node at %s", endpoint)
 	t.Cleanup(c.Stop)
 	return c
 }

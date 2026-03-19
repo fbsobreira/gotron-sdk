@@ -951,7 +951,7 @@ func TestSubscribe(t *testing.T) {
 			require.NotEmpty(t, evtAccounts)
 			assert.Equal(t, acc.Address, evtAccounts[0].Address)
 		case <-time.After(2 * time.Second):
-			t.Fatal("expected wallet event but none was received")
+			require.Fail(t, "expected wallet event but none was received")
 		}
 	})
 }

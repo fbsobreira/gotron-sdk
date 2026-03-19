@@ -2,6 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/fbsobreira/gotron-sdk.svg)](https://pkg.go.dev/github.com/fbsobreira/gotron-sdk)
 [![Go Report Card](https://goreportcard.com/badge/github.com/fbsobreira/gotron-sdk)](https://goreportcard.com/report/github.com/fbsobreira/gotron-sdk)
+[![codecov](https://codecov.io/gh/fbsobreira/gotron-sdk/branch/master/graph/badge.svg)](https://codecov.io/gh/fbsobreira/gotron-sdk)
 [![License](https://img.shields.io/github/license/fbsobreira/gotron-sdk)](LICENSE)
 
 GoTRON SDK is a comprehensive Go SDK and CLI tool for interacting with the TRON blockchain. It provides both a command-line interface (`tronctl`) and Go libraries for TRON blockchain operations.

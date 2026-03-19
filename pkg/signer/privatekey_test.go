@@ -81,6 +81,81 @@ func TestPrivateKeySigner_SignMultiple(t *testing.T) {
 	assert.Len(t, tx.Signature, 2)
 }
 
+func TestPrivateKeySigner_Address_ReturnsCopy(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	addr1 := s.Address()
+	addr2 := s.Address()
+
+	// Mutate addr1 and verify addr2 is unaffected
+	addr1[0] = 0xFF
+	assert.NotEqual(t, addr1[0], addr2[0],
+		"Address should return a defensive copy")
+}
+
+func TestPrivateKeySigner_DifferentDataDifferentSig(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	tx1 := &core.Transaction{
+		RawData: &core.TransactionRaw{RefBlockBytes: []byte{0x01}},
+	}
+	tx2 := &core.Transaction{
+		RawData: &core.TransactionRaw{RefBlockBytes: []byte{0x02}},
+	}
+
+	signed1, err := s.Sign(tx1)
+	require.NoError(t, err)
+	signed2, err := s.Sign(tx2)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, signed1.Signature[0], signed2.Signature[0],
+		"different transaction data should produce different signatures")
+}
+
+func TestPrivateKeySigner_Sign_NilRawData(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	tx := &core.Transaction{}
+	signed, err := s.Sign(tx)
+	require.NoError(t, err)
+	assert.Len(t, signed.Signature, 1)
+}
+
+func TestNewPrivateKeySigner_RejectsP384(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	require.NoError(t, err)
+
+	_, err = NewPrivateKeySigner(key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported curve")
+}
+
+func TestNewPrivateKeySigner_BTCECMatchesECDSA(t *testing.T) {
+	btcKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	s1, err := NewPrivateKeySignerFromBTCEC(btcKey)
+	require.NoError(t, err)
+
+	s2, err := NewPrivateKeySigner(btcKey.ToECDSA())
+	require.NoError(t, err)
+
+	assert.Equal(t, s1.Address(), s2.Address(),
+		"BTCEC and ECDSA constructors should produce the same address")
+}
+
 func TestNewPrivateKeySigner_RejectsP256(t *testing.T) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)

@@ -321,7 +321,7 @@ func estimateMock(t *testing.T, wantSigPrefix string) *mockWalletServer {
 	t.Helper()
 	return &mockWalletServer{
 		TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-			t.Fatal("unexpected TriggerContract call: WithEstimate() must use TriggerConstantContract")
+			require.Fail(t, "unexpected TriggerContract call: WithEstimate() must use TriggerConstantContract")
 			return nil, nil
 		},
 		TriggerConstantContractFunc: func(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {

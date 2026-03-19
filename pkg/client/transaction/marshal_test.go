@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
 )
@@ -34,9 +36,7 @@ func makeTestTx() *core.Transaction {
 func marshalRawDataHex(t *testing.T, tx *core.Transaction) string {
 	t.Helper()
 	rawBytes, err := proto.Marshal(tx.GetRawData())
-	if err != nil {
-		t.Fatalf("failed to marshal raw_data: %v", err)
-	}
+	require.NoError(t, err, "failed to marshal raw_data")
 	return hex.EncodeToString(rawBytes)
 }
 
@@ -45,16 +45,10 @@ func TestFromRawDataHex(t *testing.T) {
 	rawHex := marshalRawDataHex(t, tx)
 
 	got, err := FromRawDataHex(rawHex)
-	if err != nil {
-		t.Fatalf("FromRawDataHex: %v", err)
-	}
+	require.NoError(t, err, "FromRawDataHex")
 
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch after FromRawDataHex")
-	}
-	if len(got.GetSignature()) != 0 {
-		t.Errorf("expected no signatures, got %d", len(got.GetSignature()))
-	}
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch after FromRawDataHex")
+	assert.Empty(t, got.GetSignature(), "expected no signatures")
 }
 
 func TestFromRawDataHex_With0xPrefix(t *testing.T) {
@@ -62,13 +56,9 @@ func TestFromRawDataHex_With0xPrefix(t *testing.T) {
 	rawHex := "0x" + marshalRawDataHex(t, tx)
 
 	got, err := FromRawDataHex(rawHex)
-	if err != nil {
-		t.Fatalf("FromRawDataHex with 0x prefix: %v", err)
-	}
+	require.NoError(t, err, "FromRawDataHex with 0x prefix")
 
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch with 0x prefix")
-	}
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch with 0x prefix")
 }
 
 func TestFromRawDataHex_WithSignatures(t *testing.T) {
@@ -79,112 +69,69 @@ func TestFromRawDataHex_WithSignatures(t *testing.T) {
 	sig2 := []byte("signature-two-fake-data-65bytes-padded-to-be-realistic-enough!!")
 
 	got, err := FromRawDataHex(rawHex, sig1, sig2)
-	if err != nil {
-		t.Fatalf("FromRawDataHex with sigs: %v", err)
-	}
+	require.NoError(t, err, "FromRawDataHex with sigs")
 
-	if len(got.GetSignature()) != 2 {
-		t.Fatalf("expected 2 signatures, got %d", len(got.GetSignature()))
-	}
-	if string(got.GetSignature()[0]) != string(sig1) {
-		t.Error("signature[0] mismatch")
-	}
-	if string(got.GetSignature()[1]) != string(sig2) {
-		t.Error("signature[1] mismatch")
-	}
+	require.Len(t, got.GetSignature(), 2, "expected 2 signatures")
+	assert.Equal(t, string(sig1), string(got.GetSignature()[0]), "signature[0] mismatch")
+	assert.Equal(t, string(sig2), string(got.GetSignature()[1]), "signature[1] mismatch")
 }
 
 func TestFromRawDataHex_EmptyString(t *testing.T) {
 	_, err := FromRawDataHex("")
-	if err == nil {
-		t.Fatal("expected error for empty string")
-	}
-	if err != ErrEmptyRawData {
-		t.Errorf("expected ErrEmptyRawData, got: %v", err)
-	}
+	require.Error(t, err, "expected error for empty string")
+	assert.ErrorIs(t, err, ErrEmptyRawData)
 }
 
 func TestFromRawDataHex_InvalidHex(t *testing.T) {
 	_, err := FromRawDataHex("not-valid-hex!")
-	if err == nil {
-		t.Fatal("expected error for invalid hex")
-	}
-	if !strings.Contains(err.Error(), "invalid hex") {
-		t.Errorf("expected invalid hex error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for invalid hex")
+	assert.Contains(t, err.Error(), "invalid hex")
 }
 
 func TestFromRawDataHex_InvalidProtobuf(t *testing.T) {
 	// Valid hex but invalid wire-format protobuf data.
 	_, err := FromRawDataHex("deadbeef")
-	if err == nil {
-		t.Fatal("expected error for invalid protobuf data")
-	}
-	if !strings.Contains(err.Error(), "unmarshal") {
-		t.Errorf("expected unmarshal error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for invalid protobuf data")
+	assert.Contains(t, err.Error(), "unmarshal")
 }
 
 func TestToRawDataHex(t *testing.T) {
 	tx := makeTestTx()
 
 	gotHex, err := ToRawDataHex(tx)
-	if err != nil {
-		t.Fatalf("ToRawDataHex: %v", err)
-	}
-
-	if gotHex == "" {
-		t.Fatal("expected non-empty hex string")
-	}
+	require.NoError(t, err, "ToRawDataHex")
+	require.NotEmpty(t, gotHex, "expected non-empty hex string")
 
 	// Verify by decoding back
 	rawBytes, err := hex.DecodeString(gotHex)
-	if err != nil {
-		t.Fatalf("hex decode: %v", err)
-	}
+	require.NoError(t, err, "hex decode")
 	rawData := &core.TransactionRaw{}
-	if err := proto.Unmarshal(rawBytes, rawData); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if !proto.Equal(tx.GetRawData(), rawData) {
-		t.Error("round-trip via ToRawDataHex failed")
-	}
+	require.NoError(t, proto.Unmarshal(rawBytes, rawData), "unmarshal")
+	assert.True(t, proto.Equal(tx.GetRawData(), rawData), "round-trip via ToRawDataHex failed")
 }
 
 func TestToRawDataHex_NilRawData(t *testing.T) {
 	_, err := ToRawDataHex(&core.Transaction{})
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 
 	_, err = ToRawDataHex(nil)
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 }
 
 func TestToJSON_NilRawData(t *testing.T) {
 	_, err := ToJSON(&core.Transaction{})
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 
 	_, err = ToJSON(nil)
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 }
 
 func TestComputeTxID_NilRawData(t *testing.T) {
 	_, err := computeTxID(&core.Transaction{})
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 
 	_, err = computeTxID(nil)
-	if err != ErrNilRawData {
-		t.Errorf("expected ErrNilRawData for nil tx, got: %v", err)
-	}
+	assert.ErrorIs(t, err, ErrNilRawData)
 }
 
 func TestRoundTrip_RawDataHex(t *testing.T) {
@@ -195,21 +142,13 @@ func TestRoundTrip_RawDataHex(t *testing.T) {
 	}
 
 	hexStr, err := ToRawDataHex(tx)
-	if err != nil {
-		t.Fatalf("ToRawDataHex: %v", err)
-	}
+	require.NoError(t, err, "ToRawDataHex")
 
 	got, err := FromRawDataHex(hexStr, tx.GetSignature()...)
-	if err != nil {
-		t.Fatalf("FromRawDataHex: %v", err)
-	}
+	require.NoError(t, err, "FromRawDataHex")
 
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch in round-trip")
-	}
-	if len(got.GetSignature()) != len(tx.GetSignature()) {
-		t.Errorf("signature count mismatch: %d vs %d", len(got.GetSignature()), len(tx.GetSignature()))
-	}
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch in round-trip")
+	assert.Equal(t, len(tx.GetSignature()), len(got.GetSignature()), "signature count mismatch")
 }
 
 func TestToJSON(t *testing.T) {
@@ -217,54 +156,35 @@ func TestToJSON(t *testing.T) {
 	tx.Signature = [][]byte{{0xaa, 0xbb, 0xcc}}
 
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	var jtx jsonTransaction
-	if err := json.Unmarshal(jsonBytes, &jtx); err != nil {
-		t.Fatalf("unmarshal JSON output: %v", err)
-	}
+	require.NoError(t, json.Unmarshal(jsonBytes, &jtx), "unmarshal JSON output")
 
-	if jtx.TxID == "" {
-		t.Error("expected txID to be set")
-	}
-	if jtx.RawDataHex == "" {
-		t.Error("expected raw_data_hex to be set")
-	}
-	if len(jtx.Signature) != 1 {
-		t.Fatalf("expected 1 signature, got %d", len(jtx.Signature))
-	}
-	if jtx.Signature[0] != "aabbcc" {
-		t.Errorf("expected signature hex 'aabbcc', got %q", jtx.Signature[0])
-	}
+	assert.NotEmpty(t, jtx.TxID, "expected txID to be set")
+	assert.NotEmpty(t, jtx.RawDataHex, "expected raw_data_hex to be set")
+	require.Len(t, jtx.Signature, 1, "expected 1 signature")
+	assert.Equal(t, "aabbcc", jtx.Signature[0], "expected signature hex 'aabbcc'")
 
 	// Verify txID is correct
 	rawBytes, _ := proto.Marshal(tx.GetRawData())
 	h := sha256.Sum256(rawBytes)
 	expectedID := hex.EncodeToString(h[:])
-	if jtx.TxID != expectedID {
-		t.Errorf("txID mismatch: %s vs %s", jtx.TxID, expectedID)
-	}
+	assert.Equal(t, expectedID, jtx.TxID, "txID mismatch")
 }
 
 func TestToJSON_NoSignatures(t *testing.T) {
 	tx := makeTestTx()
 
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	var jtx jsonTransaction
-	if err := json.Unmarshal(jsonBytes, &jtx); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
+	require.NoError(t, json.Unmarshal(jsonBytes, &jtx), "unmarshal")
 
 	// With omitempty, the signature field should be absent from JSON output
-	if strings.Contains(string(jsonBytes), `"signature"`) {
-		t.Error("expected signature field to be omitted from JSON output")
-	}
+	assert.False(t, strings.Contains(string(jsonBytes), `"signature"`),
+		"expected signature field to be omitted from JSON output")
 }
 
 func TestFromJSON(t *testing.T) {
@@ -272,66 +192,42 @@ func TestFromJSON(t *testing.T) {
 	tx.Signature = [][]byte{{0xde, 0xad}, {0xbe, 0xef}}
 
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	got, err := FromJSON(jsonBytes)
-	if err != nil {
-		t.Fatalf("FromJSON: %v", err)
-	}
+	require.NoError(t, err, "FromJSON")
 
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch after FromJSON")
-	}
-	if len(got.GetSignature()) != 2 {
-		t.Fatalf("expected 2 signatures, got %d", len(got.GetSignature()))
-	}
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch after FromJSON")
+	require.Len(t, got.GetSignature(), 2, "expected 2 signatures")
 }
 
 func TestFromJSON_InvalidJSON(t *testing.T) {
 	_, err := FromJSON([]byte("not json"))
-	if err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-	if !strings.Contains(err.Error(), "invalid transaction JSON") {
-		t.Errorf("expected invalid transaction JSON error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for invalid JSON")
+	assert.Contains(t, err.Error(), "invalid transaction JSON")
 }
 
 func TestFromJSON_MissingRawDataHex(t *testing.T) {
 	data := `{"txID":"abc","signature":[]}`
 	_, err := FromJSON([]byte(data))
-	if err == nil {
-		t.Fatal("expected error for missing raw_data_hex")
-	}
-	if !strings.Contains(err.Error(), "missing raw_data_hex") {
-		t.Errorf("expected missing raw_data_hex error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for missing raw_data_hex")
+	assert.Contains(t, err.Error(), "missing raw_data_hex")
 }
 
 func TestFromJSON_TxIDMismatch(t *testing.T) {
 	tx := makeTestTx()
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	// Tamper with the txID
 	var jtx map[string]any
-	if err := json.Unmarshal(jsonBytes, &jtx); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
+	require.NoError(t, json.Unmarshal(jsonBytes, &jtx), "unmarshal")
 	jtx["txID"] = "0000000000000000000000000000000000000000000000000000000000000000"
 	tampered, _ := json.Marshal(jtx)
 
 	_, err = FromJSON(tampered)
-	if err == nil {
-		t.Fatal("expected error for txID mismatch")
-	}
-	if !strings.Contains(err.Error(), "txID does not match") {
-		t.Errorf("expected txID mismatch error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for txID mismatch")
+	assert.Contains(t, err.Error(), "txID does not match")
 }
 
 func TestFromJSON_NoTxID(t *testing.T) {
@@ -344,12 +240,8 @@ func TestFromJSON_NoTxID(t *testing.T) {
 	})
 
 	got, err := FromJSON(data)
-	if err != nil {
-		t.Fatalf("FromJSON without txID: %v", err)
-	}
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch")
-	}
+	require.NoError(t, err, "FromJSON without txID")
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch")
 }
 
 func TestFromJSON_InvalidSignatureHex(t *testing.T) {
@@ -362,12 +254,8 @@ func TestFromJSON_InvalidSignatureHex(t *testing.T) {
 	})
 
 	_, err := FromJSON(data)
-	if err == nil {
-		t.Fatal("expected error for invalid signature hex")
-	}
-	if !strings.Contains(err.Error(), "failed to decode signature") {
-		t.Errorf("expected signature decode error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for invalid signature hex")
+	assert.Contains(t, err.Error(), "failed to decode signature")
 }
 
 func TestRoundTrip_JSON(t *testing.T) {
@@ -377,27 +265,17 @@ func TestRoundTrip_JSON(t *testing.T) {
 	}
 
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	got, err := FromJSON(jsonBytes)
-	if err != nil {
-		t.Fatalf("FromJSON: %v", err)
-	}
+	require.NoError(t, err, "FromJSON")
 
-	if !proto.Equal(tx.GetRawData(), got.GetRawData()) {
-		t.Error("raw_data mismatch in JSON round-trip")
-	}
-
-	if len(got.GetSignature()) != len(tx.GetSignature()) {
-		t.Fatalf("signature count: %d vs %d", len(got.GetSignature()), len(tx.GetSignature()))
-	}
+	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch in JSON round-trip")
+	require.Len(t, got.GetSignature(), len(tx.GetSignature()), "signature count mismatch")
 
 	for i := range tx.GetSignature() {
-		if hex.EncodeToString(tx.GetSignature()[i]) != hex.EncodeToString(got.GetSignature()[i]) {
-			t.Errorf("signature[%d] mismatch", i)
-		}
+		assert.Equal(t, hex.EncodeToString(tx.GetSignature()[i]),
+			hex.EncodeToString(got.GetSignature()[i]), "signature[%d] mismatch", i)
 	}
 }
 
@@ -410,18 +288,12 @@ func TestRoundTrip_JSON_MultipleSignatures(t *testing.T) {
 	}
 
 	jsonBytes, err := ToJSON(tx)
-	if err != nil {
-		t.Fatalf("ToJSON: %v", err)
-	}
+	require.NoError(t, err, "ToJSON")
 
 	got, err := FromJSON(jsonBytes)
-	if err != nil {
-		t.Fatalf("FromJSON: %v", err)
-	}
+	require.NoError(t, err, "FromJSON")
 
-	if len(got.GetSignature()) != 3 {
-		t.Fatalf("expected 3 signatures, got %d", len(got.GetSignature()))
-	}
+	require.Len(t, got.GetSignature(), 3, "expected 3 signatures")
 }
 
 // Real transaction fixtures captured from Nile testnet TRON HTTP API.
@@ -461,135 +333,83 @@ const realUnsignedTxJSON = `{
 
 func TestFromJSON_RealSignedTransaction(t *testing.T) {
 	tx, err := FromJSON([]byte(realSignedTxJSON))
-	if err != nil {
-		t.Fatalf("FromJSON real signed tx: %v", err)
-	}
+	require.NoError(t, err, "FromJSON real signed tx")
 
 	// txID validation passed (FromJSON checks it internally), but verify explicitly
 	computedID, err := computeTxID(tx)
-	if err != nil {
-		t.Fatalf("computeTxID: %v", err)
-	}
+	require.NoError(t, err, "computeTxID")
 	expectedID := "c70b20da8cb8d96a99c1aceb283412acb9dea313a9e467178431a3c6ae8b9f08"
-	if computedID != expectedID {
-		t.Errorf("txID mismatch: got %s, want %s", computedID, expectedID)
-	}
+	assert.Equal(t, expectedID, computedID, "txID mismatch")
 
 	// Verify signature was decoded
-	if len(tx.GetSignature()) != 1 {
-		t.Fatalf("expected 1 signature, got %d", len(tx.GetSignature()))
-	}
+	require.Len(t, tx.GetSignature(), 1, "expected 1 signature")
 	sigHex := hex.EncodeToString(tx.GetSignature()[0])
 	expectedSig := "1788bf0281f67c42f5a09322523edee9969e808a863776f21ab6543de9dd42ca0e4955577879df8074086c620eb96709ba9a95d60a166de190a081e8d69801da00"
-	if sigHex != expectedSig {
-		t.Errorf("signature mismatch:\n  got  %s\n  want %s", sigHex, expectedSig)
-	}
+	assert.Equal(t, expectedSig, sigHex, "signature mismatch")
 
 	// Verify raw_data was deserialized correctly
 	raw := tx.GetRawData()
-	if raw.GetExpiration() != 1773182914544 {
-		t.Errorf("expiration: got %d, want 1773182914544", raw.GetExpiration())
-	}
-	if raw.GetTimestamp() != 1773182854544 {
-		t.Errorf("timestamp: got %d, want 1773182854544", raw.GetTimestamp())
-	}
-	if raw.GetFeeLimit() != 100000000 {
-		t.Errorf("fee_limit: got %d, want 100000000", raw.GetFeeLimit())
-	}
-	if len(raw.GetContract()) != 1 {
-		t.Fatalf("expected 1 contract, got %d", len(raw.GetContract()))
-	}
-	if raw.GetContract()[0].GetType() != core.Transaction_Contract_TriggerSmartContract {
-		t.Errorf("contract type: got %v, want TriggerSmartContract", raw.GetContract()[0].GetType())
-	}
+	assert.Equal(t, int64(1773182914544), raw.GetExpiration(), "expiration mismatch")
+	assert.Equal(t, int64(1773182854544), raw.GetTimestamp(), "timestamp mismatch")
+	assert.Equal(t, int64(100000000), raw.GetFeeLimit(), "fee_limit mismatch")
+	require.Len(t, raw.GetContract(), 1, "expected 1 contract")
+	assert.Equal(t, core.Transaction_Contract_TriggerSmartContract, raw.GetContract()[0].GetType(), "contract type mismatch")
 
 	// Verify ToRawDataHex produces the same hex as the API
 	gotHex, err := ToRawDataHex(tx)
-	if err != nil {
-		t.Fatalf("ToRawDataHex: %v", err)
-	}
+	require.NoError(t, err, "ToRawDataHex")
 	expectedHex := "0a028ad92208eaef69105495eb1540f09fc0cfcd335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541495511a493d8c362be4267224e6d81013a6862ee121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb00000000000000000000004150125bea243a640bf85348873b6c4f3c517aee7a00000000000000000000000000000000000000000000000000000000000000017090cbbccfcd33900180c2d72f"
-	if gotHex != expectedHex {
-		t.Errorf("ToRawDataHex mismatch:\n  got  %s\n  want %s", gotHex, expectedHex)
-	}
+	assert.Equal(t, expectedHex, gotHex, "ToRawDataHex mismatch")
 }
 
 func TestFromJSON_RealUnsignedTransaction(t *testing.T) {
 	tx, err := FromJSON([]byte(realUnsignedTxJSON))
-	if err != nil {
-		t.Fatalf("FromJSON real unsigned tx: %v", err)
-	}
+	require.NoError(t, err, "FromJSON real unsigned tx")
 
 	// txID validation passed internally, verify explicitly
 	computedID, err := computeTxID(tx)
-	if err != nil {
-		t.Fatalf("computeTxID: %v", err)
-	}
+	require.NoError(t, err, "computeTxID")
 	expectedID := "ae80c7aa55e19c2da5e712d4be50e4c9422dd6bfc99039cc42d5deb76938c0e7"
-	if computedID != expectedID {
-		t.Errorf("txID mismatch: got %s, want %s", computedID, expectedID)
-	}
+	assert.Equal(t, expectedID, computedID, "txID mismatch")
 
 	// No signatures on unsigned tx
-	if len(tx.GetSignature()) != 0 {
-		t.Errorf("expected 0 signatures, got %d", len(tx.GetSignature()))
-	}
+	assert.Empty(t, tx.GetSignature(), "expected 0 signatures")
 
 	// Verify raw_data fields
 	raw := tx.GetRawData()
-	if raw.GetExpiration() != 1773182925000 {
-		t.Errorf("expiration: got %d, want 1773182925000", raw.GetExpiration())
-	}
-	if len(raw.GetContract()) != 1 {
-		t.Fatalf("expected 1 contract, got %d", len(raw.GetContract()))
-	}
-	if raw.GetContract()[0].GetType() != core.Transaction_Contract_TransferContract {
-		t.Errorf("contract type: got %v, want TransferContract", raw.GetContract()[0].GetType())
-	}
+	assert.Equal(t, int64(1773182925000), raw.GetExpiration(), "expiration mismatch")
+	require.Len(t, raw.GetContract(), 1, "expected 1 contract")
+	assert.Equal(t, core.Transaction_Contract_TransferContract, raw.GetContract()[0].GetType(), "contract type mismatch")
 }
 
 func TestFromRawDataHex_RealTransaction(t *testing.T) {
 	rawHex := "0a028acb22087c571ea3e7e9dbf340c8f1c0cfcd335a66080112620a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412310a1541eca9bc828a3005b9a3b909f2cc5c2a54794de05f121541495511a493d8c362be4267224e6d81013a6862ee18e807708da3bdcfcd33"
 
 	tx, err := FromRawDataHex(rawHex)
-	if err != nil {
-		t.Fatalf("FromRawDataHex real tx: %v", err)
-	}
+	require.NoError(t, err, "FromRawDataHex real tx")
 
 	// Verify txID matches what the API returned
 	computedID, err := computeTxID(tx)
-	if err != nil {
-		t.Fatalf("computeTxID: %v", err)
-	}
+	require.NoError(t, err, "computeTxID")
 	expectedID := "ae80c7aa55e19c2da5e712d4be50e4c9422dd6bfc99039cc42d5deb76938c0e7"
-	if computedID != expectedID {
-		t.Errorf("txID mismatch: got %s, want %s", computedID, expectedID)
-	}
+	assert.Equal(t, expectedID, computedID, "txID mismatch")
 
 	// Re-encoding should produce identical hex
 	gotHex, err := ToRawDataHex(tx)
-	if err != nil {
-		t.Fatalf("ToRawDataHex: %v", err)
-	}
-	if gotHex != rawHex {
-		t.Errorf("re-encoded hex mismatch:\n  got  %s\n  want %s", gotHex, rawHex)
-	}
+	require.NoError(t, err, "ToRawDataHex")
+	assert.Equal(t, rawHex, gotHex, "re-encoded hex mismatch")
 }
 
 func TestComputeTxID(t *testing.T) {
 	tx := makeTestTx()
 
 	id, err := computeTxID(tx)
-	if err != nil {
-		t.Fatalf("computeTxID: %v", err)
-	}
+	require.NoError(t, err, "computeTxID")
 
 	// Verify manually
 	rawBytes, _ := proto.Marshal(tx.GetRawData())
 	h := sha256.Sum256(rawBytes)
 	expected := hex.EncodeToString(h[:])
 
-	if id != expected {
-		t.Errorf("txID: got %s, want %s", id, expected)
-	}
+	assert.Equal(t, expected, id, "txID mismatch")
 }
