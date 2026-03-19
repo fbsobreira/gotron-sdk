@@ -2,7 +2,6 @@ package common
 
 import (
 	"encoding/hex"
-	"strings"
 )
 
 // EmptyString is the error returned when decoding an empty hex string.
@@ -28,8 +27,10 @@ func HexStringToBytes(input string) ([]byte, error) {
 	if len(input) == 0 {
 		return nil, EmptyString
 	}
-
-	return hex.DecodeString(strings.ReplaceAll(input, "0x", ""))
+	if Has0xPrefix(input) {
+		input = input[2:]
+	}
+	return hex.DecodeString(input)
 }
 
 // ToHex returns the hex representation of b, prefixed with '0x'.
