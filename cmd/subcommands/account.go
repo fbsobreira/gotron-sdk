@@ -394,13 +394,13 @@ func accountVoteCmd() *cobra.Command {
 				if len(voteKeyValue) != 2 {
 					return fmt.Errorf("invalid vote %s", voteKeyValue)
 				}
-				if existing, ok := votes[voteKeyValue[0]]; ok {
-					return fmt.Errorf("vote collision %s:%d -> %s", voteKeyValue[0], existing, vote)
-				}
 				// check address format
 				wAddress, err := address.Base58ToAddress(voteKeyValue[0])
 				if err != nil {
 					return fmt.Errorf("invalid address %s. %+v", voteKeyValue[0], err)
+				}
+				if existing, ok := votes[wAddress.String()]; ok {
+					return fmt.Errorf("vote collision %s:%d -> %s", voteKeyValue[0], existing, vote)
 				}
 				// check vote count
 				voteCount, err := strconv.ParseInt(voteKeyValue[1], 10, 64)
@@ -671,8 +671,8 @@ func accountSignCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
-	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for signing")
+	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "hash the message with Keccak256 before signing")
 	return cmd
 }
 
@@ -711,8 +711,8 @@ func accountVerifyCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "--useFixedLength=true")
-	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "--hashMessage=true")
+	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for verification")
+	cmd.Flags().BoolVar(&hashMessage, "hashMessage", false, "hash the message with Keccak256 before verification")
 	return cmd
 }
 
