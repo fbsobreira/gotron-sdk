@@ -18,4 +18,5 @@ type Client interface {
 	DelegateResourceCtx(ctx context.Context, from, to string, resource core.ResourceCode, delegateBalance int64, lock bool, lockPeriod int64) (*api.TransactionExtention, error)
 	UnDelegateResourceCtx(ctx context.Context, owner, receiver string, resource core.ResourceCode, delegateBalance int64) (*api.TransactionExtention, error)
 	VoteWitnessAccountCtx(ctx context.Context, from string, witnessMap map[string]int64) (*api.TransactionExtention, error)
+	WithdrawExpireUnfreezeCtx(ctx context.Context, from string, timestamp int64) (*api.TransactionExtention, error)
 }

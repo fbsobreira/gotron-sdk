@@ -16,6 +16,18 @@ type DelegateTx struct {
 	lockPeriod int64
 }
 
+// WithMemo attaches a memo to this delegation transaction.
+func (d *DelegateTx) WithMemo(memo string) *DelegateTx {
+	d.Tx.WithMemo(memo)
+	return d
+}
+
+// WithPermissionID sets the permission ID for this delegation transaction.
+func (d *DelegateTx) WithPermissionID(id int32) *DelegateTx {
+	d.Tx.WithPermissionID(id)
+	return d
+}
+
 // Lock enables the delegation lock with the given period (in blocks).
 // Returns itself for chaining.
 func (d *DelegateTx) Lock(period int64) *DelegateTx {
@@ -52,5 +64,13 @@ func (b *Builder) DelegateResource(from, to string, resource core.ResourceCode, 
 func (b *Builder) UnDelegateResource(from, to string, resource core.ResourceCode, amount int64, opts ...Option) *Tx {
 	return b.newTx(func(ctx context.Context) (*api.TransactionExtention, error) {
 		return b.client.UnDelegateResourceCtx(ctx, from, to, resource, amount)
+	}, opts)
+}
+
+// WithdrawExpireUnfreeze creates a transaction to withdraw expired unfrozen
+// balances. The timestamp parameter specifies the expiration cutoff.
+func (b *Builder) WithdrawExpireUnfreeze(from string, timestamp int64, opts ...Option) *Tx {
+	return b.newTx(func(ctx context.Context) (*api.TransactionExtention, error) {
+		return b.client.WithdrawExpireUnfreezeCtx(ctx, from, timestamp)
 	}, opts)
 }
