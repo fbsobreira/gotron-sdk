@@ -364,6 +364,85 @@ func TestCallWithCallValue(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCallWithTokenValue(t *testing.T) {
+	mc := &mockClient{
+		triggerConstantContractCtxFunc: func(_ context.Context, _, _, _, _ string, opts ...client.ConstantCallOption) (*api.TransactionExtention, error) {
+			// Apply options to a TriggerSmartContract to verify token fields
+			ct := &core.TriggerSmartContract{}
+			for _, opt := range opts {
+				opt(ct)
+			}
+			assert.Equal(t, int64(1000001), ct.TokenId)
+			assert.Equal(t, int64(500), ct.CallTokenValue)
+			return &api.TransactionExtention{
+				ConstantResult: [][]byte{{0x01}},
+			}, nil
+		},
+	}
+
+	_, err := New(mc, "TContract").
+		Method("deposit()").
+		Apply(WithTokenValue("1000001", 500)).
+		Call(context.Background())
+	require.NoError(t, err)
+}
+
+func TestCallWithTokenValueAndCallValue(t *testing.T) {
+	mc := &mockClient{
+		triggerConstantContractCtxFunc: func(_ context.Context, _, _, _, _ string, opts ...client.ConstantCallOption) (*api.TransactionExtention, error) {
+			ct := &core.TriggerSmartContract{}
+			for _, opt := range opts {
+				opt(ct)
+			}
+			assert.Equal(t, int64(1_000_000), ct.CallValue)
+			assert.Equal(t, int64(1000001), ct.TokenId)
+			assert.Equal(t, int64(200), ct.CallTokenValue)
+			return &api.TransactionExtention{
+				ConstantResult: [][]byte{{0x01}},
+			}, nil
+		},
+	}
+
+	_, err := New(mc, "TContract").
+		Method("deposit()").
+		Apply(WithCallValue(1_000_000), WithTokenValue("1000001", 200)).
+		Call(context.Background())
+	require.NoError(t, err)
+}
+
+func TestCallWithTokenValueInvalidID(t *testing.T) {
+	mc := &mockClient{}
+
+	_, err := New(mc, "TContract").
+		Method("deposit()").
+		Apply(WithTokenValue("not-a-number", 500)).
+		Call(context.Background())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "token value")
+}
+
+func TestCallWithTokenValueViaData(t *testing.T) {
+	mc := &mockClient{
+		triggerConstantContractWithDataCtxFunc: func(_ context.Context, _, _ string, _ []byte, opts ...client.ConstantCallOption) (*api.TransactionExtention, error) {
+			ct := &core.TriggerSmartContract{}
+			for _, opt := range opts {
+				opt(ct)
+			}
+			assert.Equal(t, int64(1000001), ct.TokenId)
+			assert.Equal(t, int64(100), ct.CallTokenValue)
+			return &api.TransactionExtention{
+				ConstantResult: [][]byte{{0x01}},
+			}, nil
+		},
+	}
+
+	_, err := New(mc, "TContract").
+		WithData([]byte{0xa9, 0x05, 0x9c, 0xbb}).
+		Apply(WithTokenValue("1000001", 100)).
+		Call(context.Background())
+	require.NoError(t, err)
+}
+
 // mockSigner implements signer.Signer for testing.
 type mockSigner struct{}
 

@@ -174,6 +174,13 @@ func (c *ContractCall) Call(ctx context.Context) (*CallResult, error) {
 	if c.cfg.callValue > 0 {
 		opts = append(opts, client.WithCallValue(c.cfg.callValue))
 	}
+	if c.cfg.tokenID != "" {
+		tokenOpt, err := client.WithTokenValue(c.cfg.tokenID, c.cfg.tokenAmount)
+		if err != nil {
+			return nil, fmt.Errorf("token value: %w", err)
+		}
+		opts = append(opts, tokenOpt)
+	}
 
 	if len(c.data) > 0 {
 		tx, err = c.client.TriggerConstantContractWithDataCtx(ctx, from, c.contractAddress, c.data, opts...)
