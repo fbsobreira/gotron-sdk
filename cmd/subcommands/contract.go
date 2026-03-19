@@ -305,7 +305,7 @@ func contractTriggerCmd() *cobra.Command {
 	cmd.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
 	cmd.Flags().StringVar(&tTokenID, "token", "", "token id")
 	cmd.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
-	cmd.Flags().BoolVar(&estimate, "estiamte", false, "estimate energy required")
+	cmd.Flags().BoolVar(&estimate, "estimate", false, "estimate energy required")
 	return cmd
 }
 

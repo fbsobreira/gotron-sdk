@@ -215,7 +215,7 @@ func proposalCreateCmd() *cobra.Command {
 					return fmt.Errorf("invalid param ID: %s %+v", proposalKeyValue[0], err)
 				}
 
-				if proposals[paramID] > 0 {
+				if _, exists := proposals[paramID]; exists {
 					return fmt.Errorf("proposal collision %d:%d -> %s", paramID, proposals[paramID], proposal)
 				}
 				// check proposal value

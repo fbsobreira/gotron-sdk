@@ -276,7 +276,6 @@ func accountWithdrawCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["address"] = addr.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["amount"] = addr.String()
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
 			result["amount"] = float64(ctrlr.Receipt.WithdrawAmount) / 1000000

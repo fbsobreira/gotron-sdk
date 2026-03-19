@@ -16,7 +16,7 @@ import (
 
 func trc20SendCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "send <ADDRESS_TO> <AMOUNT> <CONTRACT_ADDRESS> ",
+		Use:     "send <ADDRESS_TO> <AMOUNT> <CONTRACT_ADDRESS>",
 		Short:   "send TRC20 tokens to an address",
 		Args:    cobra.ExactArgs(3),
 		PreRunE: validateAddress,
@@ -91,6 +91,7 @@ func trc20SendCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
 	return cmd
 }
 
