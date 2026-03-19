@@ -109,6 +109,18 @@ func TestHexStringToBytes(t *testing.T) {
 			want:    []byte{0x00, 0x00},
 			wantErr: false,
 		},
+		{
+			name:    "uppercase 0X prefix",
+			input:   "0Xdeadbeef",
+			want:    []byte{0xde, 0xad, 0xbe, 0xef},
+			wantErr: false,
+		},
+		{
+			name:    "embedded 0x not stripped",
+			input:   "dead0xbeef",
+			want:    nil,
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
