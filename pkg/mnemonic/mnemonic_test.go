@@ -72,7 +72,7 @@ func TestGenerate_InvalidEntropy(t *testing.T) {
 	for _, bits := range tests {
 		t.Run(fmt.Sprintf("%d_bits", bits), func(t *testing.T) {
 			_, err := mnemonic.Generate(bits)
-			assert.Error(t, err, "entropy %d should be rejected", bits)
+			require.Error(t, err, "entropy %d should be rejected", bits)
 			assert.Contains(t, err.Error(), "invalid entropy size")
 		})
 	}
