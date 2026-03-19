@@ -197,7 +197,7 @@ func proposalWithdrawCmd() *cobra.Command {
 func proposalCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create",
-		Short: "Approve network proposal",
+		Short: "Create network proposal",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if signerAddress.String() == "" {

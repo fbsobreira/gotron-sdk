@@ -63,7 +63,7 @@ func accountBalanceCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().BoolVar(&balanceDetails, "details", false, "")
+	cmd.Flags().BoolVar(&balanceDetails, "details", false, "show detailed balance information")
 	return cmd
 }
 
@@ -274,7 +274,7 @@ func accountWithdrawCmd() *cobra.Command {
 			}
 
 			result := make(map[string]interface{})
-			result["address"] = addr.String()
+			result["address"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
@@ -394,8 +394,8 @@ func accountVoteCmd() *cobra.Command {
 				if len(voteKeyValue) != 2 {
 					return fmt.Errorf("invalid vote %s", voteKeyValue)
 				}
-				if votes[voteKeyValue[0]] > 0 {
-					return fmt.Errorf("vote collision %s:%d -> %s", voteKeyValue[0], votes[voteKeyValue[0]], vote)
+				if existing, ok := votes[voteKeyValue[0]]; ok {
+					return fmt.Errorf("vote collision %s:%d -> %s", voteKeyValue[0], existing, vote)
 				}
 				// check address format
 				wAddress, err := address.Base58ToAddress(voteKeyValue[0])
