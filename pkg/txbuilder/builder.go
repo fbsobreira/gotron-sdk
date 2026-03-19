@@ -116,6 +116,9 @@ func (t *Tx) Send(ctx context.Context, s signer.Signer) (*Receipt, error) {
 	if err != nil {
 		return receipt, fmt.Errorf("broadcasting transaction: %w", err)
 	}
+	if result == nil {
+		return receipt, fmt.Errorf("broadcasting transaction: empty response")
+	}
 	if result.Code != 0 {
 		receipt.Error = string(result.GetMessage())
 	}
@@ -150,7 +153,7 @@ func (t *Tx) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, err
 				}
 				return receipt, fmt.Errorf("checking confirmation: %w", infoErr)
 			}
-			if info.GetBlockNumber() == 0 {
+			if info == nil || info.GetBlockNumber() == 0 {
 				continue
 			}
 			receipt.Confirmed = true
