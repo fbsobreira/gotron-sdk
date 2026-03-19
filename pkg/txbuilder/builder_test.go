@@ -2,6 +2,7 @@ package txbuilder
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"testing"
 
@@ -963,6 +964,63 @@ func TestVoteWitness_FluentEqualsOption(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, rawOpt, rawFluent,
 		"fluent and option APIs must produce identical raw transaction data for VoteTx")
+}
+
+func TestBuild_TxidRecomputedAfterMemo(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+
+	// Build without memo — capture the original Txid
+	extPlain, err := b.Transfer("TFrom", "TTo", 100).Build(context.Background())
+	require.NoError(t, err)
+
+	// Build with memo — Txid must differ and match the new RawData hash
+	extMemo, err := b.Transfer("TFrom", "TTo", 100).
+		WithMemo("hello").
+		Build(context.Background())
+	require.NoError(t, err)
+
+	assert.NotEqual(t, extPlain.Txid, extMemo.Txid,
+		"Txid must change when memo is added")
+
+	// Verify Txid matches sha256(RawData) after mutation
+	raw, err := proto.Marshal(extMemo.Transaction.RawData)
+	require.NoError(t, err)
+	h := sha256.Sum256(raw)
+	assert.Equal(t, h[:], extMemo.Txid,
+		"Txid must equal sha256(RawData) after memo is applied")
+}
+
+func TestBuild_TxidRecomputedAfterPermissionID(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+
+	extPlain, err := b.Transfer("TFrom", "TTo", 100).Build(context.Background())
+	require.NoError(t, err)
+
+	extPerm, err := b.Transfer("TFrom", "TTo", 100).
+		WithPermissionID(2).
+		Build(context.Background())
+	require.NoError(t, err)
+
+	assert.NotEqual(t, extPlain.Txid, extPerm.Txid,
+		"Txid must change when permissionID is set")
+
+	raw, err := proto.Marshal(extPerm.Transaction.RawData)
+	require.NoError(t, err)
+	h := sha256.Sum256(raw)
+	assert.Equal(t, h[:], extPerm.Txid,
+		"Txid must equal sha256(RawData) after permissionID is applied")
 }
 
 func TestBuilder_DefaultsDoNotMutate(t *testing.T) {

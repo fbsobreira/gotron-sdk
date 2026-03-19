@@ -92,6 +92,16 @@ func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
 		tx.Transaction.RawData.Data = []byte(t.cfg.memo)
 	}
 
+	// Recompute Txid after mutations so it matches the final RawData.
+	if t.cfg.permissionID != nil || t.cfg.memo != "" {
+		raw, err := proto.Marshal(tx.Transaction.RawData)
+		if err != nil {
+			return nil, fmt.Errorf("recomputing txid: %w", err)
+		}
+		h := sha256.Sum256(raw)
+		tx.Txid = h[:]
+	}
+
 	return tx, nil
 }
 
