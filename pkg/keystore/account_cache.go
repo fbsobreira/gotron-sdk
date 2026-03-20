@@ -266,12 +266,12 @@ func (ac *accountCache) scanAccounts() error {
 		// Parse the address.
 		key.Address = ""
 		err = json.NewDecoder(buf).Decode(&key)
-		addr := address.HexToAddress(key.Address)
+		addr, hexErr := address.HexToAddress(key.Address)
 
 		switch {
 		case err != nil:
 			fmt.Printf("Failed to decode keystore key: [%s] %+v", path, err)
-		case (addr == nil):
+		case hexErr != nil || addr == nil:
 			fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, err)
 		default:
 			return &Account{
@@ -301,10 +301,14 @@ func (ac *accountCache) scanAccounts() error {
 	}
 	end := time.Now()
 
-	select {
-	case ac.notify <- struct{}{}:
-	default:
+	ac.mu.Lock()
+	if ac.notify != nil {
+		select {
+		case ac.notify <- struct{}{}:
+		default:
+		}
 	}
+	ac.mu.Unlock()
 	zap.L().Info("Handled keystore changes", zap.Uint64("time", uint64(end.Sub(start))))
 	return nil
 }

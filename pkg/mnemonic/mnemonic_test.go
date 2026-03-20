@@ -1,6 +1,7 @@
 package mnemonic_test
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -106,4 +107,65 @@ func TestGenerate_InvalidEntropy(t *testing.T) {
 			assert.Contains(t, err.Error(), "invalid entropy size")
 		})
 	}
+}
+
+// Standard BIP39 test mnemonic used across derive tests.
+const testMnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
+
+func TestFromSeedAndPassphrase(t *testing.T) {
+	t.Run("index 0 produces known private key", func(t *testing.T) {
+		private, pub := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		require.NotNil(t, private)
+		require.NotNil(t, pub)
+
+		expected := "b5a4cea271ff424d7c31dc12a3e43e401df7a40d7412a15750f3f0b6b5449a28" // gitleaks:allow
+		assert.Equal(t, expected, hex.EncodeToString(private.Serialize()))
+	})
+
+	t.Run("different indices produce different keys", func(t *testing.T) {
+		pk0, _ := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		pk1, _ := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 1)
+		require.NotNil(t, pk0)
+		require.NotNil(t, pk1)
+
+		assert.NotEqual(t, pk0.Serialize(), pk1.Serialize(),
+			"different derivation indices must produce different keys")
+	})
+
+	t.Run("same mnemonic and index is deterministic", func(t *testing.T) {
+		pk1, pub1 := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		pk2, pub2 := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		require.NotNil(t, pk1)
+		require.NotNil(t, pk2)
+
+		assert.Equal(t, pk1.Serialize(), pk2.Serialize(),
+			"same mnemonic and index must produce the same private key")
+		assert.Equal(t, pub1.SerializeCompressed(), pub2.SerializeCompressed(),
+			"same mnemonic and index must produce the same public key")
+	})
+
+	t.Run("passphrase changes the derived key", func(t *testing.T) {
+		pkNoPass, _ := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		pkWithPass, _ := mnemonic.FromSeedAndPassphrase(testMnemonic, "my-secret", 0)
+		require.NotNil(t, pkNoPass)
+		require.NotNil(t, pkWithPass)
+
+		assert.NotEqual(t, pkNoPass.Serialize(), pkWithPass.Serialize(),
+			"a passphrase must change the derived key")
+	})
+
+	t.Run("returned public key matches private key", func(t *testing.T) {
+		private, pub := mnemonic.FromSeedAndPassphrase(testMnemonic, "", 0)
+		require.NotNil(t, private)
+		require.NotNil(t, pub)
+
+		assert.Equal(t, private.PubKey().SerializeCompressed(), pub.SerializeCompressed(),
+			"returned public key must correspond to the returned private key")
+	})
+
+	t.Run("negative derivation index is rejected", func(t *testing.T) {
+		private, pub := mnemonic.FromSeedAndPassphrase(testMnemonic, "", -1)
+		assert.Nil(t, private)
+		assert.Nil(t, pub)
+	})
 }

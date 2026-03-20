@@ -89,7 +89,7 @@ func (hf *hidFramer) Read(p []byte) (int, error) {
 	if n, err := hf.rw.Read(hf.buf[:]); err != nil {
 		return 0, err
 	} else if n != 64 {
-		panic("read less than 64 bytes from HID")
+		return 0, fmt.Errorf("read %d bytes from HID, expected 64", n)
 	}
 	// parse header
 	channelID := binary.BigEndian.Uint16(hf.buf[:2])
@@ -111,7 +111,7 @@ func (hf *hidFramer) Read(p []byte) (int, error) {
 
 func (af *apduFramer) Exchange(apdu APDU) ([]byte, error) {
 	if len(apdu.Payload) > packetSize {
-		panic("APDU payload cannot exceed 255 bytes")
+		return nil, fmt.Errorf("APDU payload length %d exceeds maximum %d", len(apdu.Payload), packetSize)
 	}
 	af.hf.Reset()
 	data := append([]byte{

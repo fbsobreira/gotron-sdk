@@ -150,7 +150,8 @@ func accountSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			valueInt := int64(value * math.Pow10(6))
+			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
+			valueInt := int64(math.Round(value * math.Pow10(6)))
 			tx, err := conn.Transfer(signerAddress.String(), addr.String(), valueInt)
 			if err != nil {
 				return err
@@ -322,7 +323,8 @@ func accountFreezeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			valueInt := int64(value * math.Pow10(6))
+			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
+			valueInt := int64(math.Round(value * math.Pow10(6)))
 
 			delegateTo := ""
 			if len(resourcesDelegate) > 0 {
@@ -648,6 +650,158 @@ func accountPermissionCmd() *cobra.Command {
 	return cmd
 }
 
+func accountFreezeV2Cmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "freezeV2 <AMOUNT>",
+		Short: "Freeze TRX to gain resources (Stake 2.0)",
+		Long:  "Freeze TRX using Stake 2.0 to gain BW(default)/Energy",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			// get amount
+			value, err := strconv.ParseFloat(args[0], 64)
+			if err != nil {
+				return err
+			}
+			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
+			valueInt := int64(math.Round(value * math.Pow10(6)))
+
+			rType := core.ResourceCode_BANDWIDTH
+			if resourcesType == 1 {
+				rType = core.ResourceCode_ENERGY
+			} else if resourcesType != 0 {
+				return fmt.Errorf("invalid resource. Use 0 for Bandwidth or 1 for Energy")
+			}
+
+			tx, err := conn.FreezeBalanceV2(
+				signerAddress.String(),
+				rType,
+				valueInt,
+			)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["Type"] = rType.String()
+			result["amount"] = value
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
+	return cmd
+}
+
+func accountUnfreezeV2Cmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "unfreezeV2 <AMOUNT>",
+		Short: "Unfreeze TRX (Stake 2.0)",
+		Long:  "Unfreeze TRX using Stake 2.0 to release BW(default)/Energy",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if signerAddress.String() == "" {
+				return fmt.Errorf("no signer specified")
+			}
+			// get amount
+			value, err := strconv.ParseFloat(args[0], 64)
+			if err != nil {
+				return err
+			}
+			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
+			valueInt := int64(math.Round(value * math.Pow10(6)))
+
+			rType := core.ResourceCode_BANDWIDTH
+			if resourcesType == 1 {
+				rType = core.ResourceCode_ENERGY
+			} else if resourcesType != 0 {
+				return fmt.Errorf("invalid resource. Use 0 for Bandwidth or 1 for Energy")
+			}
+
+			tx, err := conn.UnfreezeBalanceV2(
+				signerAddress.String(),
+				rType,
+				valueInt,
+			)
+			if err != nil {
+				return err
+			}
+
+			var ctrlr *transaction.Controller
+			if useLedgerWallet {
+				account := keystore.Account{Address: signerAddress.GetAddress()}
+				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
+			} else {
+				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
+				if err != nil {
+					return err
+				}
+				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			}
+			if err = ctrlr.ExecuteTransaction(); err != nil {
+				return err
+			}
+
+			if noPrettyOutput {
+				fmt.Println(tx, ctrlr.Receipt, ctrlr.Result)
+				return nil
+			}
+
+			result := make(map[string]interface{})
+			result["from"] = signerAddress.String()
+			result["Type"] = rType.String()
+			result["amount"] = value
+			result["txID"] = common.BytesToHexString(tx.GetTxid())
+			result["blockNumber"] = ctrlr.Receipt.BlockNumber
+			result["message"] = string(ctrlr.Result.Message)
+			result["receipt"] = map[string]interface{}{
+				"fee":      ctrlr.Receipt.Fee,
+				"netFee":   ctrlr.Receipt.Receipt.NetFee,
+				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+			}
+
+			asJSON, _ := json.Marshal(result)
+			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+			return nil
+		},
+	}
+	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
+	return cmd
+}
+
 func accountSignCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sign",
@@ -741,6 +895,8 @@ func accountSub() []*cobra.Command {
 		accountInfoCmd(),
 		accountWithdrawCmd(),
 		accountFreezeCmd(),
+		accountFreezeV2Cmd(),
+		accountUnfreezeV2Cmd(),
 		accountVoteCmd(),
 		accountPermissionCmd(),
 		accountSignCmd(),

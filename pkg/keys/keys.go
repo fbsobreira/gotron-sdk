@@ -76,10 +76,6 @@ func GetPrivateKeyFromHex(privateKeyHex string) (*btcec.PrivateKey, error) {
 
 // GetPrivateKeyFromBytes creates a private key from raw 32-byte key material.
 func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
-	if len(privateKeyBytes) != 32 {
-		return nil, fmt.Errorf("invalid private key length: %d", len(privateKeyBytes))
-	}
-
 	if len(privateKeyBytes) != common.Secp256k1PrivateKeyBytesLength {
 		return nil, common.ErrBadKeyLength
 	}
@@ -91,4 +87,11 @@ func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
 	}
 
 	return private, nil
+}
+
+// ZeroPrivateKey overwrites the private key bytes with zeros.
+func ZeroPrivateKey(key *btcec.PrivateKey) {
+	if key != nil {
+		key.Zero()
+	}
 }

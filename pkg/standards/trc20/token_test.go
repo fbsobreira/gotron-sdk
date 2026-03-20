@@ -11,6 +11,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/standards/trc20enc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -359,13 +360,13 @@ func TestEncodeWithAddress(t *testing.T) {
 	addr, err := address.Base58ToAddress("TSvT6Bg3siokv3dbdtt9o4oM1CTXmymGn1")
 	require.NoError(t, err)
 
-	result := encodeWithAddress(selectorBalanceOf, addr)
+	result := encodeWithAddress(trc20enc.SelectorBalanceOf, addr)
 
 	// 4-byte selector + 32-byte padded address = 36 bytes
 	assert.Len(t, result, 36)
 
 	// Verify selector prefix
-	assert.Equal(t, selectorBalanceOf, hex.EncodeToString(result[:4]))
+	assert.Equal(t, trc20enc.SelectorBalanceOf, hex.EncodeToString(result[:4]))
 
 	// Verify the 20-byte EVM address is at the right offset (bytes 16..36)
 	// First 12 bytes of padding should be zero
@@ -390,7 +391,7 @@ func TestEncodeTransferFrom(t *testing.T) {
 	assert.Len(t, result, 100)
 
 	// Verify selector is transferFrom
-	assert.Equal(t, selectorTransferFrom, hex.EncodeToString(result[:4]))
+	assert.Equal(t, trc20enc.SelectorTransferFrom, hex.EncodeToString(result[:4]))
 
 	// Verify from address (bytes 4..36)
 	assert.Equal(t, []byte(from[1:]), result[16:36])
@@ -627,13 +628,13 @@ func TestEncodeWithTwoAddresses(t *testing.T) {
 	addr2, err := address.Base58ToAddress("TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9")
 	require.NoError(t, err)
 
-	result := encodeWithTwoAddresses(selectorAllowance, addr1, addr2)
+	result := encodeWithTwoAddresses(trc20enc.SelectorAllowance, addr1, addr2)
 
 	// 4-byte selector + 32-byte addr1 + 32-byte addr2 = 68 bytes
 	assert.Len(t, result, 68)
 
 	// Verify selector
-	assert.Equal(t, selectorAllowance, hex.EncodeToString(result[:4]))
+	assert.Equal(t, trc20enc.SelectorAllowance, hex.EncodeToString(result[:4]))
 
 	// Verify first address EVM part
 	assert.Equal(t, []byte(addr1[1:]), result[16:36])
@@ -647,12 +648,12 @@ func TestEncodeTransfer(t *testing.T) {
 	require.NoError(t, err)
 	amount := big.NewInt(50_000_000)
 
-	result, err := encodeTransfer(selectorTransfer, addr, amount)
+	result, err := encodeTransfer(trc20enc.SelectorTransfer, addr, amount)
 	require.NoError(t, err)
 
 	// 4-byte selector + 32-byte address + 32-byte amount = 68 bytes
 	assert.Len(t, result, 68)
-	assert.Equal(t, selectorTransfer, hex.EncodeToString(result[:4]))
+	assert.Equal(t, trc20enc.SelectorTransfer, hex.EncodeToString(result[:4]))
 	assert.Equal(t, []byte(addr[1:]), result[16:36])
 
 	decoded := new(big.Int).SetBytes(result[36:68])
@@ -663,7 +664,7 @@ func TestEncodeTransferNilAmount(t *testing.T) {
 	addr, err := address.Base58ToAddress("TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9")
 	require.NoError(t, err)
 
-	_, err = encodeTransfer(selectorTransfer, addr, nil)
+	_, err = encodeTransfer(trc20enc.SelectorTransfer, addr, nil)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "nil value")
 }
@@ -834,7 +835,7 @@ func TestTokenApproveValidAddress(t *testing.T) {
 
 	// Verify the encoded call data starts with the approve selector
 	require.NotEmpty(t, mc.lastData)
-	assert.Equal(t, selectorApprove, hex.EncodeToString(mc.lastData[:4]),
+	assert.Equal(t, trc20enc.SelectorApprove, hex.EncodeToString(mc.lastData[:4]),
 		"call data should start with approve selector")
 }
 
@@ -872,7 +873,7 @@ func TestTokenTransferFromValidAddresses(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, tx)
 	require.NotEmpty(t, mc.lastData)
-	assert.Equal(t, selectorTransferFrom, hex.EncodeToString(mc.lastData[:4]),
+	assert.Equal(t, trc20enc.SelectorTransferFrom, hex.EncodeToString(mc.lastData[:4]),
 		"call data should start with transferFrom selector")
 }
 
@@ -1044,7 +1045,7 @@ func TestEncodeTransferZeroAmount(t *testing.T) {
 	addr, err := address.Base58ToAddress("TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9")
 	require.NoError(t, err)
 
-	result, err := encodeTransfer(selectorTransfer, addr, big.NewInt(0))
+	result, err := encodeTransfer(trc20enc.SelectorTransfer, addr, big.NewInt(0))
 	require.NoError(t, err)
 	assert.Len(t, result, 68)
 

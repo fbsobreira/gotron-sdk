@@ -22,7 +22,6 @@ require (
 	github.com/fbsobreira/go-bip39 v1.2.0
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pborman/uuid v1.2.1
-	github.com/pkg/errors v0.9.1
 	github.com/rjeczalik/notify v0.9.3
 	github.com/shengdoushi/base58 v1.0.0
 	github.com/spf13/cobra v1.9.1
@@ -45,6 +44,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/holiman/uint256 v1.3.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect

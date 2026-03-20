@@ -48,7 +48,7 @@ func TestGetPrivateKeyFromHex(t *testing.T) {
 		{
 			name:    "empty string",
 			input:   "",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "odd-length hex",
@@ -63,12 +63,12 @@ func TestGetPrivateKeyFromHex(t *testing.T) {
 		{
 			name:    "too short (16 bytes)",
 			input:   "00000000000000000000000000000001",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too long (33 bytes)",
 			input:   "000000000000000000000000000000000000000000000000000000000000000001",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 	}
 
@@ -101,22 +101,22 @@ func TestGetPrivateKeyFromBytes(t *testing.T) {
 		{
 			name:    "empty slice",
 			input:   []byte{},
-			wantErr: "invalid private key length: 0",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "nil slice",
 			input:   nil,
-			wantErr: "invalid private key length: 0",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too short (31 bytes)",
 			input:   make([]byte, 31),
-			wantErr: "invalid private key length: 31",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too long (33 bytes)",
 			input:   make([]byte, 33),
-			wantErr: "invalid private key length: 33",
+			wantErr: "invalid private key (wrong length)",
 		},
 	}
 

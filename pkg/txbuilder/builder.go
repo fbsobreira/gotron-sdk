@@ -5,17 +5,13 @@ package txbuilder
 
 import (
 	"context"
-	"crypto/sha256"
-	"fmt"
-	"strings"
-	"time"
+	"sync/atomic"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/signer"
-	"google.golang.org/protobuf/proto"
+	"github.com/fbsobreira/gotron-sdk/pkg/txcore"
 )
 
 // Builder is the entry point for constructing native TRON transactions.
@@ -36,10 +32,19 @@ func New(client Client, opts ...Option) *Builder {
 }
 
 // Tx represents a single prepared transaction with terminal operations.
+//
+// A Tx is single-use: its Build, Send, or SendAndConfirm method may only be
+// called once. Calling any terminal a second time returns an error. This
+// prevents accidentally broadcasting the same transaction twice or getting
+// unexpected results from a stale builder state.
+//
+// To create multiple transactions of the same type, call the Builder method
+// (e.g. Transfer, FreezeV2) again to obtain a fresh Tx.
 type Tx struct {
 	client  Client
 	cfg     config
 	buildFn func(ctx context.Context) (*api.TransactionExtention, error)
+	used    atomic.Int32 // 0 = unused, 1 = already built
 }
 
 // newTx creates a Tx that inherits the builder's defaults, with per-call
@@ -72,34 +77,40 @@ func (t *Tx) WithPermissionID(id int32) *Tx {
 
 // Build creates the unsigned transaction, applying any configured options
 // (permission ID, memo, etc.).
+//
+// Build may only be called once per Tx. Subsequent calls return
+// ErrAlreadyBuilt. Because Send and SendAndConfirm call Build internally,
+// calling any terminal method consumes the Tx.
 func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
+	if !t.used.CompareAndSwap(0, 1) {
+		return nil, ErrAlreadyBuilt
+	}
+
 	tx, err := t.buildFn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	if tx.Transaction == nil || tx.Transaction.RawData == nil {
-		return nil, fmt.Errorf("invalid transaction: missing raw data")
+		return nil, ErrMissingRawData
 	}
 
+	mutated := false
 	if t.cfg.permissionID != nil {
-		for _, c := range tx.Transaction.RawData.Contract {
-			c.PermissionId = *t.cfg.permissionID //nolint:staticcheck // proto generated field name
-		}
+		txcore.ApplyPermissionID(tx, *t.cfg.permissionID)
+		mutated = true
 	}
 
 	if t.cfg.memo != "" {
-		tx.Transaction.RawData.Data = []byte(t.cfg.memo)
+		txcore.ApplyMemo(tx, t.cfg.memo)
+		mutated = true
 	}
 
 	// Recompute Txid after mutations so it matches the final RawData.
-	if t.cfg.permissionID != nil || t.cfg.memo != "" {
-		raw, err := proto.Marshal(tx.Transaction.RawData)
-		if err != nil {
-			return nil, fmt.Errorf("recomputing txid: %w", err)
+	if mutated {
+		if err := txcore.RecomputeTxID(tx); err != nil {
+			return nil, err
 		}
-		h := sha256.Sum256(raw)
-		tx.Txid = h[:]
 	}
 
 	return tx, nil
@@ -127,94 +138,23 @@ func (t *Tx) Decode(ctx context.Context) (*transaction.ContractData, error) {
 }
 
 // Send builds, signs, and broadcasts the transaction. It returns a Receipt
-// populated from the broadcast response.
+// populated from the broadcast response. Like Build, it may only be called
+// once per Tx.
 func (t *Tx) Send(ctx context.Context, s signer.Signer) (*Receipt, error) {
 	ext, err := t.Build(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	signed, err := s.Sign(ext.Transaction)
-	if err != nil {
-		return nil, fmt.Errorf("signing transaction: %w", err)
-	}
-
-	txID, err := transactionID(signed)
-	if err != nil {
-		return nil, fmt.Errorf("computing tx ID: %w", err)
-	}
-
-	receipt := &Receipt{TxID: txID}
-
-	result, err := t.client.BroadcastCtx(ctx, signed)
-	if err != nil {
-		return receipt, fmt.Errorf("broadcasting transaction: %w", err)
-	}
-	if result == nil {
-		return receipt, fmt.Errorf("broadcasting transaction: empty response")
-	}
-	if result.Code != 0 {
-		receipt.Error = string(result.GetMessage())
-	}
-
-	return receipt, nil
+	return txcore.Send(ctx, t.client, s, ext.Transaction)
 }
 
 // SendAndConfirm is like Send but additionally polls GetTransactionInfoByID
-// until the transaction is confirmed or the context is cancelled.
+// until the transaction is confirmed or the context is cancelled. Like Build,
+// it may only be called once per Tx.
 func (t *Tx) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, error) {
-	receipt, err := t.Send(ctx, s)
+	ext, err := t.Build(ctx)
 	if err != nil {
-		return receipt, err
+		return nil, err
 	}
-	if receipt.Error != "" {
-		return receipt, nil
-	}
-
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return receipt, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
-		case <-ticker.C:
-			info, infoErr := t.client.GetTransactionInfoByIDCtx(ctx, receipt.TxID)
-			if infoErr != nil {
-				// "not found" is transient — tx not indexed yet. Other errors are permanent.
-				if strings.Contains(infoErr.Error(), "not found") {
-					continue
-				}
-				return receipt, fmt.Errorf("checking confirmation: %w", infoErr)
-			}
-			if info == nil || info.GetBlockNumber() == 0 {
-				continue
-			}
-			receipt.Confirmed = true
-			receipt.BlockNumber = info.GetBlockNumber()
-			receipt.Fee = info.GetFee()
-			if info.GetReceipt() != nil {
-				receipt.EnergyUsed = info.GetReceipt().GetEnergyUsageTotal()
-				receipt.BandwidthUsed = info.GetReceipt().GetNetUsage()
-			}
-			if results := info.GetContractResult(); len(results) > 0 {
-				receipt.Result = results[0]
-			}
-			if info.GetResult() != 0 {
-				receipt.Error = string(info.GetResMessage())
-			}
-			return receipt, nil
-		}
-	}
-}
-
-// transactionID computes the hex-encoded SHA-256 hash of the marshalled
-// RawData, which is the canonical TRON transaction ID.
-func transactionID(tx *core.Transaction) (string, error) {
-	raw, err := proto.Marshal(tx.GetRawData())
-	if err != nil {
-		return "", err
-	}
-	h := sha256.Sum256(raw)
-	return common.BytesToHexString(h[:]), nil
+	return txcore.SendAndConfirm(ctx, t.client, s, ext.Transaction, t.cfg.pollInterval)
 }

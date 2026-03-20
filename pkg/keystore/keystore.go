@@ -18,6 +18,21 @@
 //
 // Keys are stored as encrypted JSON files according to the Web3 Secret Storage specification.
 // See https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition for more information.
+//
+// # Concurrency
+//
+// A KeyStore is safe for concurrent use by multiple goroutines. All exported
+// methods acquire the necessary locks internally. In particular:
+//
+//   - [KeyStore.SignHash] and [KeyStore.SignTx] hold a read lock while
+//     accessing the unlocked key, so concurrent signing is safe.
+//   - [KeyStore.Lock], [KeyStore.Unlock], and [KeyStore.TimedUnlock] hold a
+//     write lock while mutating the set of unlocked keys.
+//   - [KeyStore.Close] may be called from any goroutine and is idempotent.
+//
+// Callers must not retain or share *[Key] values returned by
+// [KeyStore.GetDecryptedKey]; the key material is owned by the caller and
+// must be zeroized (see [zeroKey]) when no longer needed.
 package keystore
 
 import (
@@ -362,14 +377,24 @@ func (ks *KeyStore) Unlock(a Account, passphrase string) error {
 }
 
 // Lock removes the private key with the given address from memory.
+// The decrypted key material is zeroized before removal.
 func (ks *KeyStore) Lock(addr address.Address) error {
 	ks.mu.Lock()
-	if unl, found := ks.unlocked[addr.String()]; found {
-		ks.mu.Unlock()
-		ks.expire(addr, unl, time.Duration(0)*time.Nanosecond)
-	} else {
-		ks.mu.Unlock()
+	defer ks.mu.Unlock()
+
+	u, found := ks.unlocked[addr.String()]
+	if !found {
+		return nil
 	}
+	// Stop any active expire goroutine.
+	if u.abort != nil {
+		close(u.abort)
+	}
+	// Zeroize the private key and remove from unlocked set.
+	if u.PrivateKey != nil {
+		zeroKey(u.PrivateKey)
+	}
+	delete(ks.unlocked, addr.String())
 	return nil
 }
 
@@ -396,8 +421,10 @@ func (ks *KeyStore) TimedUnlock(a Account, passphrase string, timeout time.Durat
 			zeroKey(key.PrivateKey)
 			return nil
 		}
-		// Terminate the expire goroutine and replace it below.
+		// Terminate the expire goroutine and zeroize the old key
+		// before replacing it below.
 		close(u.abort)
+		zeroKey(u.PrivateKey)
 	}
 	if timeout > 0 {
 		u = &unlocked{Key: key, abort: make(chan struct{})}
@@ -468,6 +495,7 @@ func (ks *KeyStore) Export(a Account, passphrase, newPassphrase string) (keyJSON
 	if err != nil {
 		return nil, err
 	}
+	defer zeroKey(key.PrivateKey)
 	var N, P int
 	if store, ok := ks.storage.(*keyStorePassphrase); ok {
 		N, P = store.scryptN, store.scryptP
@@ -527,6 +555,7 @@ func (ks *KeyStore) Update(a Account, passphrase, newPassphrase string) error {
 	if err != nil {
 		return err
 	}
+	defer zeroKey(key.PrivateKey)
 	return ks.storage.StoreKey(a.URL.Path, key, newPassphrase)
 }
 

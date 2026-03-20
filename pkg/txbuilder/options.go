@@ -1,11 +1,14 @@
 package txbuilder
 
+import "time"
+
 // Option configures a Tx.
 type Option func(*config)
 
 type config struct {
 	permissionID *int32
 	memo         string
+	pollInterval time.Duration
 }
 
 func applyOptions(opts []Option) config {
@@ -29,5 +32,13 @@ func WithMemo(memo string) Option {
 func WithPermissionID(id int32) Option {
 	return func(c *config) {
 		c.permissionID = &id
+	}
+}
+
+// WithPollInterval sets the interval between confirmation checks in
+// SendAndConfirm. If not set, txcore.DefaultPollInterval is used.
+func WithPollInterval(d time.Duration) Option {
+	return func(c *config) {
+		c.pollInterval = d
 	}
 }

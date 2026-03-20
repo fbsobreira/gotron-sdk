@@ -299,7 +299,8 @@ func trc10ICOCmd() *cobra.Command {
 			}
 
 			// participate amount is TRX value
-			valueInt := int64(value * math.Pow10(6))
+			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
+			valueInt := int64(math.Round(value * math.Pow10(6)))
 			tx, err := conn.ParticipateAssetIssue(signerAddress.String(), issuerAddress, tokenID, valueInt)
 			if err != nil {
 				return err

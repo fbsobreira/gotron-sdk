@@ -2,19 +2,15 @@ package contract
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/signer"
-	"google.golang.org/protobuf/proto"
+	"github.com/fbsobreira/gotron-sdk/pkg/txcore"
 )
 
 // zeroAddress is the default owner address used for read-only calls when no
@@ -35,7 +31,7 @@ type ContractCall struct {
 	data            []byte // pre-packed ABI data (alternative to method+jsonParams)
 	abiJSON         string // parsed ABI (for future use)
 	cfg             callConfig
-	// err holds a deferred validation error that surfaces at any terminal call
+	// err holds deferred validation errors that surface at any terminal call
 	// (Call, Build, Send, etc.).
 	//
 	// Design note: builder methods like trc20.Transfer() validate addresses at
@@ -47,18 +43,20 @@ type ContractCall struct {
 	//
 	// Instead, validation errors are stored via SetError and deferred until a
 	// terminal is invoked — following the same pattern as bufio.Scanner.Err()
-	// and database/sql Rows.Err(). Only the first error is kept; subsequent
-	// SetError calls are no-ops.
+	// and database/sql Rows.Err(). Multiple errors are accumulated via
+	// errors.Join so that callers see ALL validation failures at once, not
+	// just the first.
 	err error
 }
 
 // SetError records a deferred error that will be returned by any terminal
-// operation (Call, Build, Send, etc.). Only the first error is stored;
-// subsequent calls are no-ops. This preserves fluent method chaining while
-// ensuring validation errors are never silently lost.
+// operation (Call, Build, Send, etc.). Multiple errors are accumulated via
+// [errors.Join] so callers see every validation failure at once. Nil errors
+// are ignored. This preserves fluent method chaining while ensuring
+// validation errors are never silently lost.
 func (c *ContractCall) SetError(err error) *ContractCall {
-	if c.err == nil {
-		c.err = err
+	if err != nil {
+		c.err = errors.Join(c.err, err)
 	}
 	return c
 }
@@ -205,7 +203,7 @@ func (c *ContractCall) EstimateEnergy(ctx context.Context) (int64, error) {
 		return 0, c.err
 	}
 	if c.from == "" {
-		return 0, errors.New("From address is required for energy estimation")
+		return 0, fmt.Errorf("energy estimation: %w", ErrNoFromAddress)
 	}
 
 	var (
@@ -250,7 +248,7 @@ func (c *ContractCall) Build(ctx context.Context) (*api.TransactionExtention, er
 		return nil, c.err
 	}
 	if c.from == "" {
-		return nil, errors.New("From address is required for state-changing calls")
+		return nil, fmt.Errorf("state-changing call: %w", ErrNoFromAddress)
 	}
 
 	var (
@@ -299,86 +297,15 @@ func (c *ContractCall) Send(ctx context.Context, s signer.Signer) (*Receipt, err
 	if err != nil {
 		return nil, err
 	}
-
-	signed, err := s.Sign(tx.GetTransaction())
-	if err != nil {
-		return nil, fmt.Errorf("sign transaction: %w", err)
-	}
-
-	txID, err := transactionID(signed)
-	if err != nil {
-		return nil, fmt.Errorf("computing tx ID: %w", err)
-	}
-	receipt := &Receipt{TxID: txID}
-
-	result, err := c.client.BroadcastCtx(ctx, signed)
-	if err != nil {
-		return receipt, fmt.Errorf("broadcast transaction: %w", err)
-	}
-
-	if result.Code != 0 {
-		receipt.Error = string(result.GetMessage())
-	}
-
-	return receipt, nil
+	return txcore.Send(ctx, c.client, s, tx.GetTransaction())
 }
 
 // SendAndConfirm is like Send but additionally polls for transaction
 // confirmation on-chain. It relies on the context for timeout control.
 func (c *ContractCall) SendAndConfirm(ctx context.Context, s signer.Signer) (*Receipt, error) {
-	receipt, err := c.Send(ctx, s)
+	tx, err := c.Build(ctx)
 	if err != nil {
-		return receipt, err
+		return nil, err
 	}
-	if receipt.Error != "" {
-		return receipt, nil
-	}
-
-	ticker := time.NewTicker(3 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return receipt, fmt.Errorf("waiting for confirmation: %w", ctx.Err())
-		case <-ticker.C:
-			info, infoErr := c.client.GetTransactionInfoByIDCtx(ctx, receipt.TxID)
-			if infoErr != nil {
-				if strings.Contains(infoErr.Error(), "not found") {
-					continue
-				}
-				return receipt, fmt.Errorf("checking confirmation: %w", infoErr)
-			}
-			if info.GetBlockNumber() == 0 {
-				continue
-			}
-
-			receipt.BlockNumber = info.GetBlockNumber()
-			receipt.Fee = info.GetFee()
-			receipt.Confirmed = true
-
-			if r := info.GetReceipt(); r != nil {
-				receipt.EnergyUsed = r.GetEnergyUsageTotal()
-				receipt.BandwidthUsed = r.GetNetUsage()
-			}
-			if len(info.GetContractResult()) > 0 {
-				receipt.Result = info.GetContractResult()[0]
-			}
-			if info.GetResult() == core.TransactionInfo_FAILED {
-				receipt.Error = string(info.GetResMessage())
-			}
-			return receipt, nil
-		}
-	}
-}
-
-// transactionID computes the hex-encoded SHA-256 hash of the marshalled
-// RawData, which is the canonical TRON transaction ID.
-func transactionID(tx *core.Transaction) (string, error) {
-	raw, err := proto.Marshal(tx.GetRawData())
-	if err != nil {
-		return "", err
-	}
-	h := sha256.Sum256(raw)
-	return common.BytesToHexString(h[:]), nil
+	return txcore.SendAndConfirm(ctx, c.client, s, tx.GetTransaction(), c.cfg.pollInterval)
 }

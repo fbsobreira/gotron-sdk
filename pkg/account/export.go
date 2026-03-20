@@ -25,6 +25,7 @@ func ExportPrivateKey(address, passphrase string) error {
 			return err
 		}
 		fmt.Printf("%064x\n", key.PrivateKey.D)
+		key.PrivateKey.D.SetInt64(0)
 	}
 	return nil
 }

@@ -6,7 +6,9 @@ func ForPath(p string) *KeyStore {
 }
 
 // ForPathLight returns a keystore using lightweight scrypt parameters.
-// This is significantly faster than ForPath and intended for testing.
+// This is significantly faster than ForPath but provides weaker key
+// derivation. It should only be used in tests; production code should
+// use [ForPath] or [NewKeyStore] with [StandardScryptN]/[StandardScryptP].
 func ForPathLight(p string) *KeyStore {
 	return NewKeyStore(p, LightScryptN, LightScryptP)
 }

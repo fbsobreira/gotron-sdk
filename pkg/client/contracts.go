@@ -15,6 +15,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// defaultFromAddress is the zero address used as the default "from" for
+// read-only contract calls. Decoded once at init to avoid repeated parsing.
+var defaultFromAddress, _ = address.HexToAddress("410000000000000000000000000000000000000000")
+
 // ConstantCallOption configures optional fields on a TriggerSmartContract
 // used by constant (read-only) contract calls. This allows callers to set
 // values like CallValue or TokenValue without breaking backward compatibility.
@@ -140,7 +144,7 @@ func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contr
 	ctx = g.withAPIKey(ctx)
 
 	var err error
-	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
+	fromDesc := defaultFromAddress
 	if len(from) > 0 {
 		fromDesc, err = address.Base58ToAddress(from)
 		if err != nil {
@@ -262,7 +266,7 @@ func (g *GrpcClient) TriggerConstantContractWithDataCtx(ctx context.Context, fro
 	ctx = g.withAPIKey(ctx)
 
 	var err error
-	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
+	fromDesc := defaultFromAddress
 	if len(from) > 0 {
 		fromDesc, err = address.Base58ToAddress(from)
 		if err != nil {
@@ -625,7 +629,7 @@ func (g *GrpcClient) getProxyImplementation(ctx context.Context, contractAddress
 		return "", err
 	}
 	contractBytes := contractDesc.Bytes()
-	ownerBytes := address.HexToAddress("410000000000000000000000000000000000000000").Bytes()
+	ownerBytes := defaultFromAddress.Bytes()
 
 	for _, sel := range proxySelectors {
 		addr := g.callForAddress(ctx, ownerBytes, contractBytes, sel[:])
