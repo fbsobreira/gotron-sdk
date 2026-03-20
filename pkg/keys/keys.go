@@ -15,32 +15,30 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 )
 
-func checkAndMakeKeyDirIfNeeded() string {
+func checkAndMakeKeyDirIfNeeded() (string, error) {
 	userDir, err := os.UserHomeDir()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: cannot determine home directory: %v\n", err)
-		return ""
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
 	}
 	tronCTLDir := path.Join(userDir, ".tronctl", "keystore")
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
-		// Double check with Leo what is right file persmission
-		err := os.Mkdir(tronCTLDir, 0700)
-		if err != nil {
-			fmt.Printf("create keystore dir error: %v\n", err)
-			return ""
+		if err := os.MkdirAll(tronCTLDir, 0700); err != nil {
+			return "", fmt.Errorf("create keystore dir: %w", err)
 		}
 	}
-
-	return tronCTLDir
+	return tronCTLDir, nil
 }
 
 // ListKeys prints all accounts in the keystore directory to stdout.
 func ListKeys(keystoreDir string) {
-	tronCTLDir := checkAndMakeKeyDirIfNeeded()
+	tronCTLDir, err := checkAndMakeKeyDirIfNeeded()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	ks := keystore.NewKeyStore(tronCTLDir, scryptN, scryptP)
-	// keystore.KeyStore
 	allAccounts := ks.Accounts()
 	fmt.Printf("Tron Address:%s File URL:\n", strings.Repeat(" ", address.AddressLengthBase58))
 	for _, account := range allAccounts {
@@ -50,7 +48,11 @@ func ListKeys(keystoreDir string) {
 
 // AddNewKey creates a new account in the default keystore directory.
 func AddNewKey(password string) {
-	tronCTLDir := checkAndMakeKeyDirIfNeeded()
+	tronCTLDir, err := checkAndMakeKeyDirIfNeeded()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return
+	}
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	ks := keystore.NewKeyStore(tronCTLDir, scryptN, scryptP)
