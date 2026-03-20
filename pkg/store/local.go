@@ -33,12 +33,7 @@ func NewStore(configDir string) *Store {
 
 // DefaultStoreInstance creates a Store using the default ~/.tronctl directory.
 func DefaultStoreInstance() *Store {
-	uDir, _ := homedir.Dir()
-	return &Store{
-		configDir:     filepath.Join(uDir, c.DefaultConfigDirName),
-		openKeystores: make(map[*keystore.KeyStore]struct{}),
-		newKeyStore:   keystore.ForPath,
-	}
+	return NewStore(configRoot())
 }
 
 // configDir must be read under s.mu. These helpers snapshot it for callers.
@@ -231,12 +226,16 @@ func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *
 // --- Backward-compatible package-level functions ---
 // These preserve the original API so existing callers continue to work.
 
+// getDefaultConfigDir snapshots c.DefaultConfigDirName under keystoreMu.
+func getDefaultConfigDir() string {
+	keystoreMu.Lock()
+	dir := c.DefaultConfigDirName
+	keystoreMu.Unlock()
+	return dir
+}
+
 func configRoot() string {
-	if filepath.IsAbs(c.DefaultConfigDirName) {
-		return filepath.Clean(c.DefaultConfigDirName)
-	}
-	uDir, _ := homedir.Dir()
-	return filepath.Join(uDir, c.DefaultConfigDirName)
+	return configRootFromDir(getDefaultConfigDir())
 }
 
 func configAccountsDir() string {
@@ -362,8 +361,8 @@ func DefaultLocation() string {
 func SetDefaultLocation(directory string) {
 	keystoreMu.Lock()
 	c.DefaultConfigDirName = directory
+	tronCTLDir := filepath.Join(configRootFromDir(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Unlock()
-	tronCTLDir := configAccountsDir()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
 		if err != nil {
