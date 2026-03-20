@@ -200,9 +200,9 @@ func (s *Store) DefaultLocation() string {
 // SetDefaultLocation updates the config directory and creates the account-keys
 // subdirectory if needed.
 func (s *Store) SetDefaultLocation(directory string) {
+	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Lock()
 	s.configDir = directory
-	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Unlock()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
@@ -372,9 +372,9 @@ func DefaultLocation() string {
 
 // SetDefaultLocation updates the default keystore directory and creates it if needed.
 func SetDefaultLocation(directory string) {
+	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Lock()
 	c.DefaultConfigDirName = directory
-	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Unlock()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
