@@ -11,7 +11,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	homedir "github.com/mitchellh/go-homedir"
 )
 
 // Store manages keystores for TRON accounts.
@@ -44,16 +43,30 @@ func (s *Store) getConfigDir() string {
 	return dir
 }
 
-func configRootFromDir(dir string) string {
+func configRootFromDir(dir string) (string, error) {
 	if filepath.IsAbs(dir) {
-		return filepath.Clean(dir)
+		return filepath.Clean(dir), nil
 	}
-	uDir, _ := homedir.Dir()
-	return filepath.Join(uDir, dir)
+	uDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("cannot determine home directory: %w", err)
+	}
+	return filepath.Join(uDir, dir), nil
+}
+
+// mustConfigRoot calls configRootFromDir and panics on error.
+// This is safe because UserHomeDir only fails when HOME is unset,
+// which is detected at startup before any keystore operations.
+func mustConfigRoot(dir string) string {
+	root, err := configRootFromDir(dir)
+	if err != nil {
+		panic(err)
+	}
+	return root
 }
 
 func (s *Store) configAccountsDir() string {
-	return filepath.Join(configRootFromDir(s.getConfigDir()), c.DefaultConfigAccountAliasesDirName)
+	return filepath.Join(mustConfigRoot(s.getConfigDir()), c.DefaultConfigAccountAliasesDirName)
 }
 
 // InitConfigDir creates the account keystore directory if it does not exist.
@@ -187,9 +200,9 @@ func (s *Store) DefaultLocation() string {
 // SetDefaultLocation updates the config directory and creates the account-keys
 // subdirectory if needed.
 func (s *Store) SetDefaultLocation(directory string) {
+	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Lock()
 	s.configDir = directory
-	tronCTLDir := filepath.Join(configRootFromDir(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Unlock()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
@@ -235,7 +248,7 @@ func getDefaultConfigDir() string {
 }
 
 func configRoot() string {
-	return configRootFromDir(getDefaultConfigDir())
+	return mustConfigRoot(getDefaultConfigDir())
 }
 
 func configAccountsDir() string {
@@ -359,9 +372,9 @@ func DefaultLocation() string {
 
 // SetDefaultLocation updates the default keystore directory and creates it if needed.
 func SetDefaultLocation(directory string) {
+	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Lock()
 	c.DefaultConfigDirName = directory
-	tronCTLDir := filepath.Join(configRootFromDir(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Unlock()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
