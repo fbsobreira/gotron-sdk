@@ -356,7 +356,7 @@ func TestURL_UnmarshalJSON_errors(t *testing.T) {
 
 func TestAuthNeededError(t *testing.T) {
 	err := keystore.NewAuthNeededError("password or unlock")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "authentication needed")
 	assert.Contains(t, err.Error(), "password or unlock")
 }

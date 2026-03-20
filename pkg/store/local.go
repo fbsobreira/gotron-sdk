@@ -105,7 +105,10 @@ func (s *Store) DoesNamedAccountExist(name string) bool {
 // AddressFromAccountName returns the Base58 address for the named account, or an error if not found.
 func (s *Store) AddressFromAccountName(name string) (string, error) {
 	ks := s.FromAccountName(name)
-	defer ks.Close()
+	defer func() {
+		ks.Close()
+		s.Forget(ks)
+	}()
 	// FIXME: Assume 1 account per keystore for now
 	for _, account := range ks.Accounts() {
 		return account.Address.String(), nil
@@ -175,6 +178,8 @@ func (s *Store) CloseAll() {
 
 // DefaultLocation returns the current default keystore directory path.
 func (s *Store) DefaultLocation() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.configAccountsDir()
 }
 
@@ -206,10 +211,12 @@ func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *
 	account, lookupErr := ks.Find(keystore.Account{Address: sender})
 	if lookupErr != nil {
 		ks.Close()
+		s.Forget(ks)
 		return nil, nil, fmt.Errorf("could not find %s in keystore", from)
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
 		ks.Close()
+		s.Forget(ks)
 		return nil, nil, fmt.Errorf("%s: %w", unlockError.Error(), ErrNoUnlockBadPassphrase)
 	}
 	return ks, &account, nil

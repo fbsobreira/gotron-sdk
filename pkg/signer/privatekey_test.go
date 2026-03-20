@@ -185,15 +185,14 @@ func TestNewPrivateKeySigner_RejectsUnnamedCurve(t *testing.T) {
 	assert.Contains(t, err.Error(), "unsupported curve")
 }
 
-func TestPrivateKeySigner_Sign_NilTransaction(t *testing.T) {
+func TestPrivateKeySigner_Sign_EmptyTransaction(t *testing.T) {
 	key, err := crypto.GenerateKey()
 	require.NoError(t, err)
 
 	s, err := NewPrivateKeySigner(key)
 	require.NoError(t, err)
 
-	// Sign with a nil transaction should not panic but may return an error
-	// depending on protobuf marshaling behavior.
+	// Sign an empty (but non-nil) transaction — should not panic.
 	signed, err := s.Sign(&core.Transaction{})
 	require.NoError(t, err)
 	assert.NotNil(t, signed)
@@ -208,6 +207,9 @@ func TestPrivateKeySigner_SignPreservesRawData(t *testing.T) {
 	require.NoError(t, err)
 
 	rawBytes := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	expected := make([]byte, len(rawBytes))
+	copy(expected, rawBytes)
+
 	tx := &core.Transaction{
 		RawData: &core.TransactionRaw{
 			RefBlockBytes: rawBytes,
@@ -217,8 +219,8 @@ func TestPrivateKeySigner_SignPreservesRawData(t *testing.T) {
 	signed, err := s.Sign(tx)
 	require.NoError(t, err)
 
-	// Verify the raw data was not modified by signing.
-	assert.Equal(t, rawBytes, signed.RawData.RefBlockBytes,
+	// Verify the raw data was not modified by signing (compare against independent copy).
+	assert.Equal(t, expected, signed.RawData.RefBlockBytes,
 		"Sign must not modify the transaction's raw data")
 }
 
