@@ -138,6 +138,117 @@ func TestKeystoreWallet_SignTxWithPassphrase_DecryptsAndSigns(t *testing.T) {
 	assert.Error(t, err)
 }
 
+func TestKeystoreWallet_Open_IsNoop(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+	err := w.Open("any-passphrase")
+	assert.NoError(t, err, "Open should be a no-op and always succeed")
+}
+
+func TestKeystoreWallet_Close_IsNoop(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+	err := w.Close()
+	assert.NoError(t, err, "Close should be a no-op and always succeed")
+}
+
+func TestKeystoreWallet_Derive_ReturnsErrNotSupported(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+	_, err := w.Derive(DerivationPath{0, 1, 2}, false)
+	assert.ErrorIs(t, err, ErrNotSupported)
+}
+
+func TestKeystoreWallet_SignDataWithPassphrase(t *testing.T) {
+	w, _, acct := newTestWallet(t, "pass")
+
+	data := []byte("hello tron")
+	sig, err := w.SignDataWithPassphrase(acct, "pass", "text/plain", data)
+	require.NoError(t, err)
+	assert.Len(t, sig, 65)
+
+	// Recover and verify
+	hash := crypto.Keccak256(data)
+	pubBytes, err := crypto.Ecrecover(hash, sig)
+	require.NoError(t, err)
+	pubKey, err := UnmarshalPublic(pubBytes)
+	require.NoError(t, err)
+	recoveredAddr := address.PubkeyToAddress(*pubKey)
+	assert.Equal(t, acct.Address, recoveredAddr)
+}
+
+func TestKeystoreWallet_SignDataWithPassphrase_RejectsUnknownAccount(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+
+	otherAddr := make([]byte, 21)
+	otherAddr[0] = 0x41
+	otherAddr[20] = 0x01
+	_, err := w.SignDataWithPassphrase(Account{Address: otherAddr}, "pass", "text/plain", []byte("data"))
+	assert.ErrorIs(t, err, ErrUnknownAccount)
+}
+
+func TestKeystoreWallet_SignText(t *testing.T) {
+	w, ks, acct := newTestWallet(t, "pass")
+	require.NoError(t, ks.Unlock(acct, "pass"))
+
+	text := []byte("Sign this message")
+	sig, err := w.SignText(acct, text)
+	require.NoError(t, err)
+	assert.Len(t, sig, 65)
+}
+
+func TestKeystoreWallet_SignText_RejectsUnknownAccount(t *testing.T) {
+	w, ks, acct := newTestWallet(t, "pass")
+	require.NoError(t, ks.Unlock(acct, "pass"))
+
+	otherAddr := make([]byte, 21)
+	otherAddr[0] = 0x41
+	otherAddr[20] = 0x01
+	_, err := w.SignText(Account{Address: otherAddr}, []byte("text"))
+	assert.ErrorIs(t, err, ErrUnknownAccount)
+}
+
+func TestKeystoreWallet_SignTextWithPassphrase(t *testing.T) {
+	w, _, acct := newTestWallet(t, "pass")
+
+	text := []byte("Sign this message")
+	sig, err := w.SignTextWithPassphrase(acct, "pass", text)
+	require.NoError(t, err)
+	assert.Len(t, sig, 65)
+}
+
+func TestKeystoreWallet_SignTextWithPassphrase_RejectsUnknownAccount(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+
+	otherAddr := make([]byte, 21)
+	otherAddr[0] = 0x41
+	otherAddr[20] = 0x01
+	_, err := w.SignTextWithPassphrase(Account{Address: otherAddr}, "pass", []byte("text"))
+	assert.ErrorIs(t, err, ErrUnknownAccount)
+}
+
+func TestKeystoreWallet_SignTxWithPassphrase_RejectsUnknownAccount(t *testing.T) {
+	w, _, _ := newTestWallet(t, "pass")
+
+	tx := &core.Transaction{RawData: &core.TransactionRaw{RefBlockBytes: []byte{0x01}}}
+	otherAddr := make([]byte, 21)
+	otherAddr[0] = 0x41
+	otherAddr[20] = 0x01
+	_, err := w.SignTxWithPassphrase(Account{Address: otherAddr}, "pass", tx)
+	assert.ErrorIs(t, err, ErrUnknownAccount)
+}
+
+func TestKeystoreWallet_URL(t *testing.T) {
+	w, _, acct := newTestWallet(t, "pass")
+	url := w.URL()
+	assert.Equal(t, acct.URL.Scheme, url.Scheme)
+	assert.Equal(t, acct.URL.Path, url.Path)
+}
+
+func TestKeystoreWallet_Accounts_ReturnsSingleAccount(t *testing.T) {
+	w, _, acct := newTestWallet(t, "pass")
+	accounts := w.Accounts()
+	require.Len(t, accounts, 1)
+	assert.Equal(t, acct.Address, accounts[0].Address)
+}
+
 func TestForPath_CreatesUsableKeystore(t *testing.T) {
 	tmpDir := t.TempDir()
 	ks := ForPath(tmpDir)

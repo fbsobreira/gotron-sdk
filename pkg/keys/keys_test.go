@@ -48,7 +48,7 @@ func TestGetPrivateKeyFromHex(t *testing.T) {
 		{
 			name:    "empty string",
 			input:   "",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "odd-length hex",
@@ -63,12 +63,12 @@ func TestGetPrivateKeyFromHex(t *testing.T) {
 		{
 			name:    "too short (16 bytes)",
 			input:   "00000000000000000000000000000001",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too long (33 bytes)",
 			input:   "000000000000000000000000000000000000000000000000000000000000000001",
-			wantErr: "invalid private key length",
+			wantErr: "invalid private key (wrong length)",
 		},
 	}
 
@@ -101,22 +101,22 @@ func TestGetPrivateKeyFromBytes(t *testing.T) {
 		{
 			name:    "empty slice",
 			input:   []byte{},
-			wantErr: "invalid private key length: 0",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "nil slice",
 			input:   nil,
-			wantErr: "invalid private key length: 0",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too short (31 bytes)",
 			input:   make([]byte, 31),
-			wantErr: "invalid private key length: 31",
+			wantErr: "invalid private key (wrong length)",
 		},
 		{
 			name:    "too long (33 bytes)",
 			input:   make([]byte, 33),
-			wantErr: "invalid private key length: 33",
+			wantErr: "invalid private key (wrong length)",
 		},
 	}
 
@@ -383,6 +383,44 @@ func TestEncodeHex_format(t *testing.T) {
 				"private key hex must be 66 chars (0x + 64)")
 		})
 	}
+}
+
+func TestZeroPrivateKey(t *testing.T) {
+	t.Run("nil key does not panic", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			keys.ZeroPrivateKey(nil)
+		})
+	})
+
+	t.Run("zeroes a valid key", func(t *testing.T) {
+		pk, err := keys.GenerateKey()
+		require.NoError(t, err)
+
+		// Verify key has non-zero bytes before zeroing.
+		original := make([]byte, 32)
+		copy(original, pk.Serialize())
+		assert.NotEqual(t, make([]byte, 32), original,
+			"generated key should not be all zeros")
+
+		keys.ZeroPrivateKey(pk)
+
+		// After zeroing, the key's scalar should be zero.
+		assert.Equal(t, make([]byte, 32), pk.Serialize(),
+			"key bytes should be all zeros after ZeroPrivateKey")
+	})
+}
+
+func TestCheckAndMakeKeyDirIfNeeded(t *testing.T) {
+	// ListKeys and AddNewKey internally call checkAndMakeKeyDirIfNeeded.
+	// We test them here to verify the function works end-to-end by
+	// exercising the public API. Since these functions print to stdout
+	// and use the user's home directory, we just verify they don't panic.
+
+	t.Run("ListKeys does not panic with empty keystore dir", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			keys.ListKeys("")
+		})
+	})
 }
 
 func TestFromMnemonicSeedAndPassphrase(t *testing.T) {

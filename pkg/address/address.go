@@ -2,7 +2,6 @@
 package address
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"database/sql/driver"
 	"encoding/base64"
@@ -28,9 +27,11 @@ const (
 // Address represents the 21 byte address of an Tron account.
 type Address []byte
 
-// Bytes returns the raw byte representation of the address.
+// Bytes returns a copy of the raw byte representation of the address.
 func (a Address) Bytes() []byte {
-	return a[:]
+	result := make([]byte, len(a))
+	copy(result, a)
+	return result
 }
 
 // Hex returns the address encoded as a hex string (e.g. "41..." for mainnet).
@@ -39,28 +40,32 @@ func (a Address) Hex() string {
 }
 
 // BigToAddress returns Address with byte values of b.
-// If b is larger than len(h), b will be cropped from the left.
-func BigToAddress(b *big.Int) Address {
+// Returns an error if b requires more than AddressLength bytes.
+func BigToAddress(b *big.Int) (Address, error) {
 	id := b.Bytes()
-	base := bytes.Repeat([]byte{0}, AddressLength-len(id))
-	return append(base, id...)
+	if len(id) > AddressLength {
+		return nil, fmt.Errorf("%d bytes, max %d: %w", len(id), AddressLength, ErrOversizeBigInt)
+	}
+	addr := make([]byte, AddressLength)
+	copy(addr[AddressLength-len(id):], id)
+	return addr, nil
 }
 
 // HexToAddress returns Address with byte values of s.
-// If s is larger than len(h), s will be cropped from the left.
-func HexToAddress(s string) Address {
+// Returns an error if s is not valid hex.
+func HexToAddress(s string) (Address, error) {
 	addr, err := common.FromHex(s)
 	if err != nil {
-		return nil
+		return nil, fmt.Errorf("%s: %w", err.Error(), ErrInvalidHex)
 	}
-	return addr
+	return addr, nil
 }
 
 // Base58ToAddress returns Address with byte values of s.
 func Base58ToAddress(s string) (Address, error) {
 	addr, err := common.DecodeCheck(s)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("base58 decode %q: %w", s, err)
 	}
 	return addr, nil
 }
@@ -137,7 +142,7 @@ func BytesToAddress(b []byte) Address {
 // Returns an error if the input is not exactly 20 bytes.
 func EthAddressToAddress(ethAddr []byte) (Address, error) {
 	if len(ethAddr) != AddressLength-1 {
-		return nil, fmt.Errorf("invalid ethereum address length: got %d, want %d", len(ethAddr), AddressLength-1)
+		return nil, fmt.Errorf("got %d, want %d: %w", len(ethAddr), AddressLength-1, ErrInvalidAddressLength)
 	}
 	addr := make([]byte, AddressLength)
 	addr[0] = TronBytePrefix
@@ -154,7 +159,9 @@ func (a *Address) Scan(src interface{}) error {
 	if len(srcB) != AddressLength {
 		return fmt.Errorf("can't scan []byte of len %d into Address, want %d", len(srcB), AddressLength)
 	}
-	*a = Address(srcB)
+	buf := make([]byte, len(srcB))
+	copy(buf, srcB)
+	*a = Address(buf)
 	return nil
 }
 
@@ -163,17 +170,16 @@ func (a Address) Value() (driver.Value, error) {
 	return []byte(a), nil
 }
 
-// IsValid checks if the address is a valid TRON address
+// IsValid checks if the address is a valid TRON address with checksum validation.
 func (a Address) IsValid() bool {
-	// Check if address has correct length
 	if len(a) != AddressLength {
 		return false
 	}
-
-	// Check if address starts with TRON byte prefix
 	if a[0] != TronBytePrefix {
 		return false
 	}
-
-	return true
+	// Validate Base58Check round-trip
+	encoded := common.EncodeCheck(a)
+	_, err := common.DecodeCheck(encoded)
+	return err == nil
 }

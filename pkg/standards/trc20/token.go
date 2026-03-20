@@ -5,26 +5,13 @@ package trc20
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"strings"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/contract"
-)
-
-// Well-known EVM function selectors for TRC20.
-const (
-	selectorName         = "06fdde03"
-	selectorSymbol       = "95d89b41"
-	selectorDecimals     = "313ce567"
-	selectorTotalSupply  = "18160ddd"
-	selectorBalanceOf    = "70a08231"
-	selectorTransfer     = "a9059cbb"
-	selectorApprove      = "095ea7b3"
-	selectorTransferFrom = "23b872dd"
-	selectorAllowance    = "dd62ed3e"
+	"github.com/fbsobreira/gotron-sdk/pkg/standards/trc20enc"
 )
 
 // TokenInfo holds metadata returned by Info.
@@ -109,12 +96,8 @@ func (t *Token) Name(ctx context.Context) (string, error) {
 		}
 	}
 
-	data, err := hex.DecodeString(selectorName)
-	if err != nil {
-		return "", err
-	}
 	result, err := contract.New(t.client, t.contractAddress).
-		WithData(data).
+		WithData(trc20enc.SelectorBytes(trc20enc.SelectorName)).
 		Call(ctx)
 	if err != nil {
 		return "", err
@@ -139,12 +122,8 @@ func (t *Token) Symbol(ctx context.Context) (string, error) {
 		}
 	}
 
-	data, err := hex.DecodeString(selectorSymbol)
-	if err != nil {
-		return "", err
-	}
 	result, err := contract.New(t.client, t.contractAddress).
-		WithData(data).
+		WithData(trc20enc.SelectorBytes(trc20enc.SelectorSymbol)).
 		Call(ctx)
 	if err != nil {
 		return "", err
@@ -169,12 +148,8 @@ func (t *Token) Decimals(ctx context.Context) (uint8, error) {
 		}
 	}
 
-	data, err := hex.DecodeString(selectorDecimals)
-	if err != nil {
-		return 0, err
-	}
 	result, err := contract.New(t.client, t.contractAddress).
-		WithData(data).
+		WithData(trc20enc.SelectorBytes(trc20enc.SelectorDecimals)).
 		Call(ctx)
 	if err != nil {
 		return 0, err
@@ -196,12 +171,8 @@ func (t *Token) Decimals(ctx context.Context) (uint8, error) {
 
 // TotalSupply returns the total token supply.
 func (t *Token) TotalSupply(ctx context.Context) (*big.Int, error) {
-	data, err := hex.DecodeString(selectorTotalSupply)
-	if err != nil {
-		return nil, err
-	}
 	result, err := contract.New(t.client, t.contractAddress).
-		WithData(data).
+		WithData(trc20enc.SelectorBytes(trc20enc.SelectorTotalSupply)).
 		Call(ctx)
 	if err != nil {
 		return nil, err
@@ -217,7 +188,7 @@ func (t *Token) BalanceOf(ctx context.Context, addr string) (*Balance, error) {
 		return nil, fmt.Errorf("invalid address %s: %w", addr, err)
 	}
 
-	callData := encodeWithAddress(selectorBalanceOf, addrBytes)
+	callData := encodeWithAddress(trc20enc.SelectorBalanceOf, addrBytes)
 
 	result, err := contract.New(t.client, t.contractAddress).
 		WithData(callData).
@@ -258,7 +229,7 @@ func (t *Token) Allowance(ctx context.Context, owner, spender string) (*big.Int,
 		return nil, fmt.Errorf("invalid spender address %s: %w", spender, err)
 	}
 
-	callData := encodeWithTwoAddresses(selectorAllowance, ownerBytes, spenderBytes)
+	callData := encodeWithTwoAddresses(trc20enc.SelectorAllowance, ownerBytes, spenderBytes)
 
 	result, err := contract.New(t.client, t.contractAddress).
 		WithData(callData).
@@ -278,7 +249,7 @@ func (t *Token) Transfer(from, to string, amount *big.Int, opts ...contract.Opti
 		return contract.New(t.client, t.contractAddress).
 			SetError(fmt.Errorf("invalid to address %s: %w", to, err))
 	}
-	callData, err := encodeTransfer(selectorTransfer, toBytes, amount)
+	callData, err := encodeTransfer(trc20enc.SelectorTransfer, toBytes, amount)
 	if err != nil {
 		return contract.New(t.client, t.contractAddress).SetError(err)
 	}
@@ -296,7 +267,7 @@ func (t *Token) Approve(from, spender string, amount *big.Int, opts ...contract.
 		return contract.New(t.client, t.contractAddress).
 			SetError(fmt.Errorf("invalid spender address %s: %w", spender, err))
 	}
-	callData, err := encodeTransfer(selectorApprove, spenderBytes, amount)
+	callData, err := encodeTransfer(trc20enc.SelectorApprove, spenderBytes, amount)
 	if err != nil {
 		return contract.New(t.client, t.contractAddress).SetError(err)
 	}

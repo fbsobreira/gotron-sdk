@@ -65,7 +65,7 @@ func (g *GrpcClient) TRC20CallCtx(ctx context.Context, from, contractAddress, da
 	ctx = g.withAPIKey(ctx)
 
 	var err error
-	fromDesc := address.HexToAddress("410000000000000000000000000000000000000000")
+	fromDesc := defaultFromAddress
 	if len(from) > 0 {
 		fromDesc, err = address.Base58ToAddress(from)
 		if err != nil {

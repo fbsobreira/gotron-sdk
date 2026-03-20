@@ -43,7 +43,11 @@ func CreateNewLocalAccount(candidate *Creation) error {
 		candidate.Mnemonic = m
 	}
 	// Hardcoded index of 0 for brandnew account.
-	private, _ := keys.FromMnemonicSeedAndPassphrase(candidate.Mnemonic, candidate.MnemonicPassphrase, 0)
+	private, _ := mnemonic.FromSeedAndPassphrase(candidate.Mnemonic, candidate.MnemonicPassphrase, 0)
+	if private == nil {
+		return fmt.Errorf("failed to derive key from mnemonic")
+	}
+	defer keys.ZeroPrivateKey(private)
 	_, err := ks.ImportECDSA(private.ToECDSA(), candidate.Passphrase)
 	if err != nil {
 		return err

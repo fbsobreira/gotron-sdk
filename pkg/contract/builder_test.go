@@ -229,7 +229,7 @@ func TestBuildRequiresFrom(t *testing.T) {
 		Build(context.Background())
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "From address is required")
+	assert.ErrorIs(t, err, ErrNoFromAddress)
 }
 
 func TestOptionsApplied(t *testing.T) {
@@ -336,7 +336,7 @@ func TestEstimateEnergyRequiresFrom(t *testing.T) {
 		EstimateEnergy(context.Background())
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "From address is required")
+	assert.ErrorIs(t, err, ErrNoFromAddress)
 }
 
 func TestWithABI(t *testing.T) {
@@ -494,7 +494,7 @@ func TestSign_NoFrom(t *testing.T) {
 		Method("test()").
 		Sign(context.Background(), &mockSigner{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "From address is required")
+	assert.ErrorIs(t, err, ErrNoFromAddress)
 }
 
 func TestSend(t *testing.T) {
@@ -560,6 +560,32 @@ func TestSend_BroadcastNetworkError(t *testing.T) {
 		Send(context.Background(), &mockSigner{})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "network timeout")
+}
+
+func TestSetError_AccumulatesErrors(t *testing.T) {
+	mc := &mockClient{}
+
+	call := New(mc, "TContract").
+		SetError(errors.New("bad address")).
+		SetError(errors.New("bad amount"))
+
+	err := call.Err()
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "bad address")
+	assert.ErrorContains(t, err, "bad amount")
+}
+
+func TestSetError_NilIgnored(t *testing.T) {
+	mc := &mockClient{}
+
+	call := New(mc, "TContract").
+		SetError(nil).
+		SetError(errors.New("real error")).
+		SetError(nil)
+
+	err := call.Err()
+	require.Error(t, err)
+	assert.Equal(t, "real error", err.Error())
 }
 
 func TestSend_DeferredError(t *testing.T) {

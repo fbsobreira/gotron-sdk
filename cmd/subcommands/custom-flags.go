@@ -1,8 +1,9 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/pkg/errors"
 )
 
 type tronAddress struct {
@@ -16,7 +17,7 @@ func (tronAddress tronAddress) String() string {
 func (tronAddress *tronAddress) Set(s string) error {
 	_, err := address.Base58ToAddress(s)
 	if err != nil {
-		return errors.Wrap(err, "not a valid one address")
+		return fmt.Errorf("not a valid TRON address: %w", err)
 	}
 	tronAddress.address = s
 	return nil

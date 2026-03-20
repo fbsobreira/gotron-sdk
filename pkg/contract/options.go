@@ -1,5 +1,7 @@
 package contract
 
+import "time"
+
 // Option configures a ContractCall.
 type Option func(*callConfig)
 
@@ -9,6 +11,7 @@ type callConfig struct {
 	tokenID      string
 	tokenAmount  int64
 	permissionID *int32
+	pollInterval time.Duration
 }
 
 // WithFeeLimit sets the maximum TRX (in SUN) the caller is willing to spend
@@ -38,5 +41,13 @@ func WithTokenValue(tokenID string, amount int64) Option {
 func WithPermissionID(id int32) Option {
 	return func(c *callConfig) {
 		c.permissionID = &id
+	}
+}
+
+// WithPollInterval sets the interval between confirmation checks in
+// SendAndConfirm. If not set, txcore.DefaultPollInterval is used.
+func WithPollInterval(d time.Duration) Option {
+	return func(c *callConfig) {
+		c.pollInterval = d
 	}
 }

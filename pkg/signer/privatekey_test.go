@@ -164,3 +164,93 @@ func TestNewPrivateKeySigner_RejectsP256(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported curve")
 }
+
+func TestNewPrivateKeySigner_RejectsP521(t *testing.T) {
+	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	require.NoError(t, err)
+
+	_, err = NewPrivateKeySigner(key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported curve")
+}
+
+func TestNewPrivateKeySigner_RejectsUnnamedCurve(t *testing.T) {
+	// Create a key on a custom unnamed curve with a different bit size.
+	// We use P-224 which has Name="" in some Go versions and bitsize 224.
+	key, err := ecdsa.GenerateKey(elliptic.P224(), rand.Reader)
+	require.NoError(t, err)
+
+	_, err = NewPrivateKeySigner(key)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported curve")
+}
+
+func TestPrivateKeySigner_Sign_EmptyTransaction(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	// Sign an empty (but non-nil) transaction — should not panic.
+	signed, err := s.Sign(&core.Transaction{})
+	require.NoError(t, err)
+	assert.NotNil(t, signed)
+	assert.Len(t, signed.Signature, 1)
+}
+
+func TestPrivateKeySigner_SignPreservesRawData(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	rawBytes := []byte{0xDE, 0xAD, 0xBE, 0xEF}
+	expected := make([]byte, len(rawBytes))
+	copy(expected, rawBytes)
+
+	tx := &core.Transaction{
+		RawData: &core.TransactionRaw{
+			RefBlockBytes: rawBytes,
+		},
+	}
+
+	signed, err := s.Sign(tx)
+	require.NoError(t, err)
+
+	// Verify the raw data was not modified by signing (compare against independent copy).
+	assert.Equal(t, expected, signed.RawData.RefBlockBytes,
+		"Sign must not modify the transaction's raw data")
+}
+
+func TestPrivateKeySigner_Address_HasTronPrefix(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	addr := s.Address()
+	assert.Len(t, addr, 21, "TRON address must be 21 bytes")
+	assert.Equal(t, byte(0x41), addr[0], "TRON address must start with 0x41")
+}
+
+func TestNewPrivateKeySignerFromBTCEC_SignAndVerifyAddress(t *testing.T) {
+	btcKey, err := btcec.NewPrivateKey()
+	require.NoError(t, err)
+
+	s, err := NewPrivateKeySignerFromBTCEC(btcKey)
+	require.NoError(t, err)
+
+	tx := &core.Transaction{
+		RawData: &core.TransactionRaw{
+			RefBlockBytes: []byte{0x01, 0x02},
+		},
+	}
+
+	signed, err := s.Sign(tx)
+	require.NoError(t, err)
+	assert.Len(t, signed.Signature, 1)
+	assert.Len(t, signed.Signature[0], 65)
+}

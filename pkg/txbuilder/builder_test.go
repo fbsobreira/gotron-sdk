@@ -1078,3 +1078,69 @@ func TestBuilder_DefaultsDoNotMutate(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte("default"), ext2.Transaction.RawData.Data)
 }
+
+// --- Single-use guard tests ---
+
+func TestBuild_SingleUse(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+	tx := b.Transfer("TFrom", "TTo", 100)
+
+	// First call succeeds.
+	ext, err := tx.Build(context.Background())
+	require.NoError(t, err)
+	require.NotNil(t, ext)
+
+	// Second call returns ErrAlreadyBuilt.
+	ext2, err := tx.Build(context.Background())
+	assert.Nil(t, ext2)
+	assert.ErrorIs(t, err, ErrAlreadyBuilt)
+}
+
+func TestSend_SingleUse(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+		broadcastFn: func(_ context.Context, _ *core.Transaction) (*api.Return, error) {
+			return &api.Return{Result: true, Code: 0}, nil
+		},
+	}
+
+	s := &mockSigner{}
+	b := New(mc)
+	tx := b.Transfer("TFrom", "TTo", 100)
+
+	// First call succeeds.
+	receipt, err := tx.Send(context.Background(), s)
+	require.NoError(t, err)
+	require.NotNil(t, receipt)
+
+	// Second call returns ErrAlreadyBuilt (Send calls Build internally).
+	_, err = tx.Send(context.Background(), s)
+	assert.ErrorIs(t, err, ErrAlreadyBuilt)
+}
+
+func TestDecode_SingleUse(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	b := New(mc)
+	tx := b.Transfer("TFrom", "TTo", 100)
+
+	// First call succeeds.
+	_, err := tx.Build(context.Background())
+	require.NoError(t, err)
+
+	// Second call returns ErrAlreadyBuilt.
+	_, err = tx.Build(context.Background())
+	assert.ErrorIs(t, err, ErrAlreadyBuilt)
+}

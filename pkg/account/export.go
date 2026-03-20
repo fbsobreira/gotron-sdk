@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/keys"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
@@ -25,6 +26,7 @@ func ExportPrivateKey(address, passphrase string) error {
 			return err
 		}
 		fmt.Printf("%064x\n", key.PrivateKey.D)
+		keys.ZeroECDSAKey(key.PrivateKey)
 	}
 	return nil
 }

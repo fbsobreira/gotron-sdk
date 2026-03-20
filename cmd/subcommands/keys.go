@@ -40,7 +40,19 @@ func keysListCmd() *cobra.Command {
 		Short: "List all the local accounts",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if useLedgerWallet {
-				ledger.ProcessAddressCommand()
+				dev, err := ledger.OpenDevice()
+				if err != nil {
+					return err
+				}
+				defer func() { _ = dev.Close() }()
+				addr, err := dev.GetAddress()
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%-24s\t\t%23s\n", "NAME", "ADDRESS")
+				// TODO: add Device.Name() to the ledger.Device interface to support
+				// Nano X, Nano S Plus, Stax, and Flex models instead of hardcoding.
+				fmt.Printf("%-48s\t%s\n", "Ledger Nano S", addr)
 				return nil
 			}
 			store.DescribeLocalAccounts()

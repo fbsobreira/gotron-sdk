@@ -7,11 +7,11 @@ tronctl
 tronctl-docs
 bin/
 dist/
-# scripts 
-scripts/*
 # keys
 *.pem
 *.key
+# tronbox keys
+accounts.json
 # Go test binary, build with `go test -c`
 *.out
 # dotenv environment variable files

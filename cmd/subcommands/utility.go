@@ -45,7 +45,11 @@ func init() {
 		Args:  cobra.ExactArgs(1),
 		Short: "base58 tron-address of an 0x address",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println(address.HexToAddress(args[0]))
+			addr, err := address.HexToAddress(args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Println(addr)
 			return nil
 		},
 	}}...)

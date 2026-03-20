@@ -646,6 +646,86 @@ func TestImportFromPrivateKey_StoredAddressMatchesDerivedAddress(t *testing.T) {
 		"stored address should match the address derived from the imported private key")
 }
 
+func TestDefaultStore_ReturnsNonNil(t *testing.T) {
+	ds := account.DefaultStore()
+	require.NotNil(t, ds, "DefaultStore must return a non-nil Store")
+}
+
+func TestDefaultStore_DefaultLocation(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	loc := ds.DefaultLocation()
+	assert.NotEmpty(t, loc, "DefaultLocation must return a non-empty string")
+}
+
+func TestDefaultStore_LocalAccounts(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	accounts := ds.LocalAccounts()
+	// Fresh store should have no accounts.
+	assert.Empty(t, accounts)
+}
+
+func TestDefaultStore_DoesNamedAccountExist(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	assert.False(t, ds.DoesNamedAccountExist("nonexistent"))
+}
+
+func TestDefaultStore_FromAccountName(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	ks := ds.FromAccountName("test-account")
+	require.NotNil(t, ks, "FromAccountName must return a non-nil keystore")
+	ks.Close()
+}
+
+func TestDefaultStore_FromAddress(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	ks := ds.FromAddress("TUnknownAddress")
+	// Unknown address should return nil.
+	assert.Nil(t, ks)
+}
+
+func TestDefaultStore_InitConfigDir(t *testing.T) {
+	setupTestStore(t)
+
+	ds := account.DefaultStore()
+	// InitConfigDir should not panic.
+	assert.NotPanics(t, func() {
+		ds.InitConfigDir()
+	})
+}
+
+func TestImportFromPrivateKey_PathTraversalInPrivateKeyImport(t *testing.T) {
+	tests := []struct {
+		name       string
+		acctName   string
+		errContain string
+	}{
+		{name: "dot name", acctName: ".", errContain: "invalid account name"},
+		{name: "dotdot name", acctName: "..", errContain: "invalid account name"},
+		{name: "forward slash", acctName: "foo/bar", errContain: "invalid account name"},
+		{name: "backslash", acctName: `foo\bar`, errContain: "invalid account name"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setupTestStore(t)
+
+			_, err := account.ImportFromPrivateKey(testPrivateKey, tt.acctName, "pass")
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errContain)
+		})
+	}
+}
+
 func TestImportFromPrivateKey_DifferentKeysProduceDifferentAddresses(t *testing.T) {
 	setupTestStore(t)
 

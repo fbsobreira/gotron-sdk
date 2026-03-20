@@ -155,11 +155,13 @@ func TestHexToAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr := HexToAddress(tt.input)
+			addr, err := HexToAddress(tt.input)
 			if tt.wantNil {
+				assert.Error(t, err)
 				assert.Nil(t, addr)
 				return
 			}
+			require.NoError(t, err)
 			require.NotNil(t, addr)
 			assert.Equal(t, tt.wantBytes, addr.Bytes())
 		})
@@ -218,10 +220,17 @@ func TestBigToAddress(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			addr := BigToAddress(tt.input)
+			addr, err := BigToAddress(tt.input)
+			require.NoError(t, err)
 			tt.check(t, addr)
 		})
 	}
+
+	t.Run("oversize big.Int returns error", func(t *testing.T) {
+		oversize := new(big.Int).Lsh(big.NewInt(1), 168) // 2^168 = 22 bytes
+		_, err := BigToAddress(oversize)
+		require.Error(t, err)
+	})
 }
 
 func TestPubkeyToAddress(t *testing.T) {
@@ -298,7 +307,8 @@ func TestHex(t *testing.T) {
 				return addr
 			}(),
 			check: func(t *testing.T, hex string) {
-				roundTripped := HexToAddress(hex)
+				roundTripped, err := HexToAddress(hex)
+				require.NoError(t, err)
 				original, _ := Base58ToAddress(testBase58Addr1)
 				assert.Equal(t, original.Bytes(), roundTripped.Bytes())
 			},
@@ -401,7 +411,8 @@ func TestRoundTrips(t *testing.T) {
 		require.NoError(t, err)
 
 		hexStr := original.Hex()
-		recovered := HexToAddress(hexStr)
+		recovered, err := HexToAddress(hexStr)
+		require.NoError(t, err)
 
 		assert.Equal(t, original.Bytes(), recovered.Bytes())
 	})
@@ -444,7 +455,8 @@ func TestRoundTrips(t *testing.T) {
 		require.NoError(t, err)
 
 		bi := new(big.Int).SetBytes(original.Bytes())
-		recovered := BigToAddress(bi)
+		recovered, err := BigToAddress(bi)
+		require.NoError(t, err)
 
 		assert.Equal(t, original.Bytes(), recovered.Bytes())
 	})
@@ -455,7 +467,8 @@ func TestRoundTrips(t *testing.T) {
 
 		addr := PubkeyToAddress(privKey.PublicKey)
 		hexStr := addr.Hex()
-		recovered := HexToAddress(hexStr)
+		recovered, err := HexToAddress(hexStr)
+		require.NoError(t, err)
 
 		assert.Equal(t, addr.Bytes(), recovered.Bytes())
 		assert.Equal(t, addr.String(), recovered.String())
@@ -468,7 +481,8 @@ func TestRoundTrips(t *testing.T) {
 			require.NoError(t, err)
 
 			// hex round-trip
-			fromHex := HexToAddress(original.Hex())
+			fromHex, err := HexToAddress(original.Hex())
+			require.NoError(t, err)
 			assert.Equal(t, original.Bytes(), fromHex.Bytes(), "hex round-trip failed for %s", b58)
 
 			// string round-trip

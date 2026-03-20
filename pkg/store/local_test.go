@@ -29,6 +29,17 @@ func withTempLocation(t *testing.T) string {
 	return store.DefaultLocation()
 }
 
+// newTempStore creates a Store backed by a temp directory. The directory is
+// automatically cleaned up when the test completes.
+func newTempStore(t *testing.T) *store.Store {
+	t.Helper()
+	tmpDir := t.TempDir()
+	s := store.NewStore(tmpDir)
+	s.InitConfigDir()
+	t.Cleanup(s.CloseAll)
+	return s
+}
+
 func TestDefaultLocation(t *testing.T) {
 	loc := store.DefaultLocation()
 	assert.NotEmpty(t, loc, "default location should not be empty")
@@ -211,7 +222,7 @@ func TestAddressFromAccountName(t *testing.T) {
 
 		addr, err := store.AddressFromAccountName("empty-wallet")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "keystore not found")
+		assert.Contains(t, err.Error(), "no accounts found in keystore")
 		assert.Empty(t, addr)
 	})
 
@@ -220,7 +231,7 @@ func TestAddressFromAccountName(t *testing.T) {
 
 		addr, err := store.AddressFromAccountName("does-not-exist")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "keystore not found")
+		assert.Contains(t, err.Error(), "no accounts found in keystore")
 		assert.Empty(t, addr)
 	})
 }
@@ -492,4 +503,213 @@ func TestFromAddress_NoGoroutineLeak(t *testing.T) {
 	after := runtime.NumGoroutine()
 	assert.LessOrEqual(t, after, baseline+2,
 		"goroutine count should return near baseline after FromAddress calls (baseline=%d, after=%d)", baseline, after)
+}
+
+// --- Tests for Store struct methods ---
+
+func TestNewStore(t *testing.T) {
+	tmpDir := t.TempDir()
+	s := store.NewStore(tmpDir)
+	require.NotNil(t, s)
+
+	loc := s.DefaultLocation()
+	assert.Contains(t, loc, tmpDir)
+	assert.Contains(t, loc, "account-keys")
+}
+
+func TestDefaultStoreInstance(t *testing.T) {
+	s := store.DefaultStoreInstance()
+	require.NotNil(t, s)
+
+	loc := s.DefaultLocation()
+	assert.NotEmpty(t, loc)
+	assert.Contains(t, loc, "account-keys")
+}
+
+func TestStore_InitConfigDir(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	info, err := os.Stat(loc)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func TestStore_LocalAccounts(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	assert.Empty(t, s.LocalAccounts())
+
+	for _, name := range []string{"alice", "bob"} {
+		require.NoError(t, os.MkdirAll(path.Join(loc, name), 0700))
+	}
+
+	accounts := s.LocalAccounts()
+	assert.Len(t, accounts, 2)
+	assert.Contains(t, accounts, "alice")
+	assert.Contains(t, accounts, "bob")
+}
+
+func TestStore_DoesNamedAccountExist(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	assert.False(t, s.DoesNamedAccountExist("test"))
+
+	require.NoError(t, os.MkdirAll(path.Join(loc, "test"), 0700))
+	assert.True(t, s.DoesNamedAccountExist("test"))
+}
+
+func TestStore_FromAccountName(t *testing.T) {
+	s := newTempStore(t)
+
+	ks := s.FromAccountName("my-wallet")
+	require.NotNil(t, ks)
+	assert.Empty(t, ks.Accounts())
+	ks.Close()
+}
+
+func TestStore_SetDefaultLocation(t *testing.T) {
+	s := newTempStore(t)
+
+	newDir := t.TempDir()
+	s.SetDefaultLocation(newDir)
+
+	loc := s.DefaultLocation()
+	assert.Contains(t, loc, newDir)
+	assert.Contains(t, loc, "account-keys")
+
+	info, err := os.Stat(loc)
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+}
+
+func TestStore_SetKeystoreFactory(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	acctPath := path.Join(loc, "factory-acct")
+	require.NoError(t, os.MkdirAll(acctPath, 0700))
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	_, err := ks.NewAccount("pass")
+	require.NoError(t, err)
+	ks.Close()
+
+	callCount := 0
+	s.SetKeystoreFactory(func(p string) *keystore.KeyStore {
+		callCount++
+		return keystore.NewKeyStore(p, keystore.LightScryptN, keystore.LightScryptP)
+	})
+
+	loaded := s.FromAccountName("factory-acct")
+	require.NotNil(t, loaded)
+	assert.Equal(t, 1, callCount)
+	loaded.Close()
+}
+
+func TestStore_CloseAll(t *testing.T) {
+	s := newTempStore(t)
+
+	// Safe to call with nothing open
+	assert.NotPanics(t, s.CloseAll)
+
+	// Open some and close
+	_ = s.FromAccountName("a")
+	_ = s.FromAccountName("b")
+	assert.NotPanics(t, s.CloseAll)
+}
+
+func TestStore_DescribeLocalAccounts(t *testing.T) {
+	s := newTempStore(t)
+
+	assert.NotPanics(t, func() {
+		s.DescribeLocalAccounts()
+	})
+}
+
+func TestStore_AddressFromAccountName(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	// Empty keystore returns error
+	require.NoError(t, os.MkdirAll(path.Join(loc, "empty"), 0700))
+	_, err := s.AddressFromAccountName("empty")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no accounts found in keystore")
+
+	// With a real key
+	acctPath := path.Join(loc, "real")
+	require.NoError(t, os.MkdirAll(acctPath, 0700))
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("pass")
+	require.NoError(t, err)
+	expected := acct.Address.String()
+	ks.Close()
+
+	addr, err := s.AddressFromAccountName("real")
+	require.NoError(t, err)
+	assert.Equal(t, expected, addr)
+}
+
+func TestStore_FromAddress(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	// Not found
+	assert.Nil(t, s.FromAddress("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8"))
+
+	// Create account and find it
+	acctPath := path.Join(loc, "lookup")
+	require.NoError(t, os.MkdirAll(acctPath, 0700))
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("pass")
+	require.NoError(t, err)
+	addrStr := acct.Address.String()
+	ks.Close()
+
+	found := s.FromAddress(addrStr)
+	require.NotNil(t, found)
+	found.Close()
+}
+
+func TestStore_UnlockedKeystore(t *testing.T) {
+	s := newTempStore(t)
+	loc := s.DefaultLocation()
+
+	// Invalid address
+	_, _, err := s.UnlockedKeystore("bad-addr", "pass")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "address not valid")
+
+	// Create account
+	acctPath := path.Join(loc, "unlock")
+	require.NoError(t, os.MkdirAll(acctPath, 0700))
+
+	ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+	acct, err := ks.NewAccount("correct")
+	require.NoError(t, err)
+	addrStr := acct.Address.String()
+	ks.Close()
+
+	runtime.Gosched()
+
+	// Wrong passphrase
+	rKs, rAcct, err := s.UnlockedKeystore(addrStr, "wrong")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, store.ErrNoUnlockBadPassphrase)
+	assert.Nil(t, rKs)
+	assert.Nil(t, rAcct)
+	s.CloseAll()
+
+	// Correct passphrase
+	rKs, rAcct, err = s.UnlockedKeystore(addrStr, "correct")
+	require.NoError(t, err)
+	require.NotNil(t, rKs)
+	require.NotNil(t, rAcct)
+	assert.Equal(t, addrStr, rAcct.Address.String())
+	rKs.Close()
 }

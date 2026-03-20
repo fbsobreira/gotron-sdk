@@ -41,8 +41,13 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 		return "", err
 	}
 
+	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
+		return "", fmt.Errorf("invalid account name %q", name)
+	}
+
 	ks := store.FromAccountName(name)
 	defer ks.Close()
+	defer keys.ZeroPrivateKey(sk)
 	_, err = ks.ImportECDSA(sk.ToECDSA(), passphrase)
 	return name, err
 }
@@ -54,7 +59,7 @@ func generateName() (string, error) {
 	}
 	words := strings.Split(m, " ")
 	existingAccounts := mapset.NewSet()
-	for a := range store.LocalAccounts() {
+	for _, a := range store.LocalAccounts() {
 		existingAccounts.Add(a)
 	}
 
@@ -77,31 +82,20 @@ func generateName() (string, error) {
 }
 
 func writeToFile(path string, data string) error {
-	currDir, _ := os.Getwd()
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return err
 	}
-	err = os.MkdirAll(filepath.Dir(path), 0777)
+	err = os.MkdirAll(filepath.Dir(path), 0700)
 	if err != nil {
 		return err
 	}
-	err = os.Chdir(filepath.Dir(path))
-	if err != nil {
-		return err
-	}
-
-	file, err := os.Create(filepath.Base(path))
+	file, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}
 	defer func() { _ = file.Close() }()
-
 	_, err = io.WriteString(file, data)
-	if err != nil {
-		return err
-	}
-	err = os.Chdir(currDir)
 	if err != nil {
 		return err
 	}

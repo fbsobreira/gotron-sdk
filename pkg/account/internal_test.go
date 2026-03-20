@@ -88,6 +88,44 @@ func TestGenerateName_ProducesValidName(t *testing.T) {
 	assert.LessOrEqual(t, len(name), 20, "name should be at most 20 characters")
 }
 
+func TestGenerateName_SkipsExistingAccountNames(t *testing.T) {
+	setupInternalTestStore(t)
+
+	// Create a few accounts so LocalAccounts() returns names.
+	for _, name := range []string{"alpha", "bravo"} {
+		acctDir := filepath.Join(store.DefaultLocation(), name)
+		require.NoError(t, os.MkdirAll(acctDir, 0700))
+	}
+
+	// generateName should never return a name that already exists in the store.
+	existing := store.LocalAccounts()
+	existingSet := make(map[string]struct{}, len(existing))
+	for _, e := range existing {
+		existingSet[e] = struct{}{}
+	}
+
+	for range 20 {
+		name, err := generateName()
+		require.NoError(t, err)
+		_, collision := existingSet[name]
+		assert.False(t, collision, "generateName returned existing account name %q", name)
+	}
+}
+
+func TestWriteToFile_DoesNotChangeCwd(t *testing.T) {
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	filePath := filepath.Join(tmpDir, "subdir", "file.txt")
+	err = writeToFile(filePath, "content")
+	require.NoError(t, err)
+
+	afterDir, err := os.Getwd()
+	require.NoError(t, err)
+	assert.Equal(t, origDir, afterDir, "writeToFile must not change the working directory")
+}
+
 func TestGenerateName_Uniqueness(t *testing.T) {
 	setupInternalTestStore(t)
 

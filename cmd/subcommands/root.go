@@ -3,6 +3,7 @@ package cmd
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -15,12 +16,9 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	"golang.org/x/term"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -44,63 +42,52 @@ var (
 	// RootCmd is single entry point of the CLI
 	RootCmd = &cobra.Command{
 		Use:          "tronctl",
-		Short:        "Tron Blokchain Controller ",
+		Short:        "Tron Blockchain Controller",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			if verbose {
-				c.EnableAllVerbose()
-			}
-			switch URLcomponents := strings.Split(node, ":"); len(URLcomponents) {
-			case 1:
-				node = node + ":50051"
-			}
-			conn = client.NewGrpcClient(node)
+			// sync flag values into runtime
+			rt.Verbose = verbose
+			rt.Node = node
+			rt.APIKey = apiKey
+			rt.WithTLS = withTLS
+			rt.NoPrettyOutput = noPrettyOutput
+			rt.NoWait = noWait
+			rt.DryRun = dryRun
+			rt.Timeout = timeout
+			rt.UseLedgerWallet = useLedgerWallet
+			rt.GivenFilePath = givenFilePath
+			rt.DefaultKeystoreDir = defaultKeystoreDir
 
-			// load grpc options
-			opts := make([]grpc.DialOption, 0)
-			if withTLS {
-				opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(nil)))
-			} else {
-				opts = append(opts, client.GRPCInsecure())
-			}
+			rt.loadDotEnv()
+			rt.setupVerbose()
+			signer = rt.applyEnvOverrides(config.Node, signer, withTLS)
 
-			// check for env API Key
-			if trongridKey := os.Getenv("TRONGRID_APIKEY"); len(trongridKey) > 0 {
-				apiKey = trongridKey
-			}
-			// set API
-			if err := conn.SetAPIKey(apiKey); err != nil {
+			if err := rt.setupNetwork(); err != nil {
 				return err
 			}
+			// sync back to legacy globals
+			conn = rt.Conn
 
-			if err := conn.Start(opts...); err != nil {
+			if err := rt.setupSigner(signer); err != nil {
 				return err
 			}
-
-			if len(signer) > 0 {
-				var err error
-				if signerAddress, err = findAddress(signer); err != nil {
-					return err
-				}
-			}
+			signerAddress = rt.SignerAddress
 
 			var err error
-			passphrase, err = getPassphrase()
+			rt.Passphrase, err = getPassphrase()
 			if err != nil {
 				return err
 			}
+			passphrase = rt.Passphrase
 
-			if len(defaultKeystoreDir) > 0 {
-				// set default directory
-				store.SetDefaultLocation(defaultKeystoreDir)
-			}
+			rt.setupKeystore()
 
 			return nil
 		},
 		Long: fmt.Sprintf(`
 CLI interface to Tron blockchain
 
-%s`, g("type 'tronclt --help' for details")),
+%s`, g("type 'tronctl --help' for details")),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return cmd.Help()
 		},
@@ -238,7 +225,7 @@ func Execute() {
 		if tag, errGit := getGitVersion(); errGit == nil {
 			VersionWrapDump += ":" + tag
 		}
-		errMsg := errors.Wrapf(err, "commit: %s, error", VersionWrapDump).Error()
+		errMsg := fmt.Errorf("commit: %s, error: %w", VersionWrapDump, err).Error()
 		fmt.Fprintf(os.Stderr, "%s\n", errMsg)
 		fmt.Fprintf(os.Stderr, "try adding a `--help` flag\n")
 		os.Exit(1)
@@ -266,16 +253,16 @@ func findAddress(value string) (tronAddress, error) {
 }
 
 func opts(ctlr *transaction.Controller) {
-	if dryRun {
+	if rt.DryRun {
 		ctlr.Behavior.DryRun = true
 	}
-	if useLedgerWallet {
+	if rt.UseLedgerWallet {
 		ctlr.Behavior.SigningImpl = transaction.Ledger
 	}
-	if noWait {
+	if rt.NoWait {
 		ctlr.Behavior.ConfirmationWaitTime = 0
-	} else if timeout > 0 {
-		ctlr.Behavior.ConfirmationWaitTime = timeout
+	} else if rt.Timeout > 0 {
+		ctlr.Behavior.ConfirmationWaitTime = rt.Timeout
 	}
 }
 
@@ -305,9 +292,9 @@ func getPassphrase() (string, error) {
 	}
 }
 
-// getPassphrase fetches the correct passphrase depending on if a file is available to
-// read from or if the user wants to enter in their own passphrase. Otherwise, just use
-// the default passphrase. Passphrase requires a confirmation
+// getPassphraseWithConfirm fetches the correct passphrase depending on if a file is
+// available to read from or if the user wants to enter in their own passphrase.
+// Otherwise, just use the default passphrase. Passphrase requires a confirmation
 func getPassphraseWithConfirm() (string, error) {
 	if passphraseFilePath != "" {
 		if _, err := os.Stat(passphraseFilePath); os.IsNotExist(err) {
