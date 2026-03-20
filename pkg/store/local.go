@@ -121,7 +121,7 @@ func (s *Store) AddressFromAccountName(name string) (string, error) {
 	for _, account := range ks.Accounts() {
 		return account.Address.String(), nil
 	}
-	return "", fmt.Errorf("keystore not found")
+	return "", fmt.Errorf("no accounts found in keystore for %s", name)
 }
 
 // FromAddress will return nil if the Base58 string is not found in the imported accounts.
@@ -293,7 +293,7 @@ func AddressFromAccountName(name string) (string, error) {
 	for _, account := range ks.Accounts() {
 		return account.Address.String(), nil
 	}
-	return "", fmt.Errorf("keystore not found")
+	return "", fmt.Errorf("no accounts found in keystore for %s", name)
 }
 
 // FromAddress will return nil if the Base58 string is not found in the imported accounts.

@@ -1,9 +1,8 @@
 package store_test
 
 import (
-	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 
@@ -21,7 +20,7 @@ func TestStoreConcurrentFromAddress(t *testing.T) {
 	// Create two accounts in separate directories.
 	var addrs []string
 	for _, name := range []string{"race-a", "race-b"} {
-		acctPath := path.Join(loc, name)
+		acctPath := filepath.Join(loc, name)
 		require.NoError(t, os.MkdirAll(acctPath, 0700))
 
 		ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
@@ -59,7 +58,7 @@ func TestStoreConcurrentCloseAll(t *testing.T) {
 
 	// Open several keystores.
 	for _, name := range []string{"close-a", "close-b", "close-c"} {
-		require.NoError(t, os.MkdirAll(path.Join(loc, name), 0700))
+		require.NoError(t, os.MkdirAll(filepath.Join(loc, name), 0700))
 		_ = s.FromAccountName(name)
 	}
 
@@ -86,7 +85,7 @@ func TestStoreConcurrentSetDefaultLocation(t *testing.T) {
 		wg.Add(1)
 		go func(n int) {
 			defer wg.Done()
-			s.SetDefaultLocation(fmt.Sprintf("/tmp/test-%d", n))
+			s.SetDefaultLocation(filepath.Join(t.TempDir(), "test"))
 		}(i)
 	}
 	wg.Wait()
@@ -101,7 +100,7 @@ func TestStoreConcurrentFromAccountName(t *testing.T) {
 
 	names := []string{"conc-a", "conc-b", "conc-c"}
 	for _, name := range names {
-		require.NoError(t, os.MkdirAll(path.Join(loc, name), 0700))
+		require.NoError(t, os.MkdirAll(filepath.Join(loc, name), 0700))
 	}
 
 	const goroutines = 5

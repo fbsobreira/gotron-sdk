@@ -2,6 +2,7 @@
 package keys
 
 import (
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -93,5 +94,17 @@ func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
 func ZeroPrivateKey(key *btcec.PrivateKey) {
 	if key != nil {
 		key.Zero()
+	}
+}
+
+// ZeroECDSAKey overwrites the backing memory of an ECDSA private key's D value.
+// Unlike big.Int.SetInt64(0) which only changes the logical value, this zeros
+// the actual backing array to prevent key material from lingering in memory.
+func ZeroECDSAKey(key *ecdsa.PrivateKey) {
+	if key != nil && key.D != nil {
+		b := key.D.Bits()
+		for i := range b {
+			b[i] = 0
+		}
 	}
 }

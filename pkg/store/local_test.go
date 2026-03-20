@@ -222,7 +222,7 @@ func TestAddressFromAccountName(t *testing.T) {
 
 		addr, err := store.AddressFromAccountName("empty-wallet")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "keystore not found")
+		assert.Contains(t, err.Error(), "no accounts found in keystore")
 		assert.Empty(t, addr)
 	})
 
@@ -231,7 +231,7 @@ func TestAddressFromAccountName(t *testing.T) {
 
 		addr, err := store.AddressFromAccountName("does-not-exist")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "keystore not found")
+		assert.Contains(t, err.Error(), "no accounts found in keystore")
 		assert.Empty(t, addr)
 	})
 }
@@ -637,7 +637,7 @@ func TestStore_AddressFromAccountName(t *testing.T) {
 	require.NoError(t, os.MkdirAll(path.Join(loc, "empty"), 0700))
 	_, err := s.AddressFromAccountName("empty")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "keystore not found")
+	assert.Contains(t, err.Error(), "no accounts found in keystore")
 
 	// With a real key
 	acctPath := path.Join(loc, "real")

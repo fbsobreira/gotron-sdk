@@ -272,7 +272,7 @@ func (ac *accountCache) scanAccounts() error {
 		case err != nil:
 			fmt.Printf("Failed to decode keystore key: [%s] %+v", path, err)
 		case hexErr != nil || addr == nil:
-			fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, err)
+			fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, hexErr)
 		default:
 			return &Account{
 				Address: addr,
