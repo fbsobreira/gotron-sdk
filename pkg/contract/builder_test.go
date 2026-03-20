@@ -453,6 +453,50 @@ func (s *mockSigner) Sign(tx *core.Transaction) (*core.Transaction, error) {
 
 func (s *mockSigner) Address() address.Address { return nil }
 
+func TestSign(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newTestTxExt(), nil
+		},
+	}
+
+	signed, err := New(mc, "TContract").
+		Method("transfer(address,uint256)").
+		From("TFrom").
+		Sign(context.Background(), &mockSigner{})
+	require.NoError(t, err)
+	require.NotNil(t, signed)
+	assert.NotEmpty(t, signed.Signature, "transaction should be signed")
+}
+
+func TestSign_WithPermissionID(t *testing.T) {
+	mc := &mockClient{
+		triggerContractCtxFunc: func(_ context.Context, _, _, _, _ string, _, _ int64, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newTestTxExt(), nil
+		},
+	}
+
+	signed, err := New(mc, "TContract").
+		Method("transfer(address,uint256)").
+		From("TFrom").
+		WithPermissionID(2).
+		Sign(context.Background(), &mockSigner{})
+	require.NoError(t, err)
+	for _, c := range signed.RawData.Contract {
+		assert.Equal(t, int32(2), c.PermissionId)
+	}
+}
+
+func TestSign_NoFrom(t *testing.T) {
+	mc := &mockClient{}
+
+	_, err := New(mc, "TContract").
+		Method("test()").
+		Sign(context.Background(), &mockSigner{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "From address is required")
+}
+
 func TestSend(t *testing.T) {
 	broadcastCalled := false
 	mc := &mockClient{

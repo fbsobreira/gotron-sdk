@@ -63,6 +63,8 @@ func DecodeContractData(tx *core.Transaction) (*ContractData, error) {
 		return decodeDelegateResourceContract(paramValue)
 	case core.Transaction_Contract_UnDelegateResourceContract:
 		return decodeUnDelegateResourceContract(paramValue)
+	case core.Transaction_Contract_WithdrawExpireUnfreezeContract:
+		return decodeWithdrawExpireUnfreezeContract(paramValue)
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedContract, contractType.String())
 	}
@@ -198,6 +200,19 @@ func decodeUnDelegateResourceContract(data []byte) (*ContractData, error) {
 			"receiver_address": address.Address(c.GetReceiverAddress()).String(),
 			"balance":          sunToTRX(c.GetBalance()),
 			"resource":         c.GetResource().String(),
+		},
+	}, nil
+}
+
+func decodeWithdrawExpireUnfreezeContract(data []byte) (*ContractData, error) {
+	var c core.WithdrawExpireUnfreezeContract
+	if err := proto.Unmarshal(data, &c); err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrUnmarshalContract, err)
+	}
+	return &ContractData{
+		Type: "WithdrawExpireUnfreezeContract",
+		Fields: map[string]any{
+			"owner_address": address.Address(c.GetOwnerAddress()).String(),
 		},
 	}, nil
 }

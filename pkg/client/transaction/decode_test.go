@@ -329,3 +329,16 @@ func TestSunToTRX(t *testing.T) {
 		})
 	}
 }
+
+func TestDecodeContractData_WithdrawExpireUnfreezeContract(t *testing.T) {
+	owner := testAddr(0x10)
+	tx := buildTx(core.Transaction_Contract_WithdrawExpireUnfreezeContract, &core.WithdrawExpireUnfreezeContract{
+		OwnerAddress: owner,
+	})
+
+	result, err := DecodeContractData(tx)
+	require.NoError(t, err)
+
+	assert.Equal(t, "WithdrawExpireUnfreezeContract", result.Type)
+	assert.Equal(t, address.Address(owner).String(), result.Fields["owner_address"])
+}
