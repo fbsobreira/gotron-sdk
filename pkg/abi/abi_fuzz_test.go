@@ -24,21 +24,59 @@ func FuzzABIEncode(f *testing.F) {
 	})
 }
 
+// erc20ABI returns a minimal ERC-20 ABI with transfer and approve methods
+// so the fuzzer can exercise GetParser and GetInputsParser beyond "not found".
+func erc20ABI() *core.SmartContract_ABI {
+	return &core.SmartContract_ABI{
+		Entrys: []*core.SmartContract_ABI_Entry{
+			{
+				Name: "transfer",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "to", Type: "address"},
+					{Name: "value", Type: "uint256"},
+				},
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "bool"},
+				},
+			},
+			{
+				Name: "approve",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "spender", Type: "address"},
+					{Name: "value", Type: "uint256"},
+				},
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "bool"},
+				},
+			},
+			{
+				Name: "balanceOf",
+				Type: core.SmartContract_ABI_Entry_Function,
+				Inputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "owner", Type: "address"},
+				},
+				Outputs: []*core.SmartContract_ABI_Entry_Param{
+					{Name: "", Type: "uint256"},
+				},
+			},
+		},
+	}
+}
+
 func FuzzABIGetParser(f *testing.F) {
-	f.Add(`[{"type":"function","name":"transfer","inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"outputs":[{"name":"","type":"bool"}]}]`)
-	f.Add(`[]`)
-	f.Add(``)
-	f.Add(`not valid json`)
-	f.Add(`[{"type":"function","name":"balanceOf","inputs":[{"name":"owner","type":"address"}],"outputs":[{"name":"","type":"uint256"}]}]`)
+	f.Add("transfer")
+	f.Add("approve")
+	f.Add("balanceOf")
+	f.Add("")
+	f.Add("nonExistentMethod")
+	f.Add("transfer(address,uint256)")
 
-	f.Fuzz(func(t *testing.T, abiJSON string) {
-		abi := &core.SmartContract_ABI{}
-
-		// Try to build an ABI from the fuzzed JSON-like string.
-		// We can't easily parse arbitrary JSON into protobuf, so we test
-		// GetParser with an empty/minimal ABI and the fuzzed string as method name.
-		// The goal is to verify no panics.
-		_, _ = GetParser(abi, abiJSON)
-		_, _ = GetInputsParser(abi, abiJSON)
+	f.Fuzz(func(t *testing.T, method string) {
+		abi := erc20ABI()
+		// Verify no panics; exercise both found and not-found paths.
+		_, _ = GetParser(abi, method)
+		_, _ = GetInputsParser(abi, method)
 	})
 }

@@ -217,7 +217,11 @@ func DecodeString(data []byte) (string, error) {
 	// Standard ABI string encoding: offset (32) + length (32) + data
 	if len(data) > 64 {
 		lengthBytes := data[32:64]
-		length := new(big.Int).SetBytes(lengthBytes).Uint64()
+		lengthBI := new(big.Int).SetBytes(lengthBytes)
+		if lengthBI.BitLen() > 63 {
+			return "", fmt.Errorf("string length exceeds maximum")
+		}
+		length := lengthBI.Uint64()
 		if 64+length <= uint64(len(data)) {
 			return string(data[64 : 64+length]), nil
 		}

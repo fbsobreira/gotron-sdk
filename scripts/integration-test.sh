@@ -169,7 +169,7 @@ for ACC in "$ACC1" "$ACC2"; do
         log_pass "Account '$ACC' exists"
     else
         log_info "Creating account '$ACC'..."
-        if $TRONCTL keys add "$ACC" --passphrase-file "$PASS_FILE" 2>&1 >/dev/null; then
+        if $TRONCTL keys add "$ACC" --passphrase-file "$PASS_FILE" >/dev/null 2>&1; then
             log_pass "Created account '$ACC'"
         else
             log_fail "Create '$ACC'" "failed"
@@ -256,7 +256,7 @@ log_section "Transaction Lookup"
 if [[ -n "${TXID:-}" ]]; then
     sleep 3
     log_info "Looking up transaction $TXID..."
-    if $TRONCTL bc tx "$TXID" 2>&1 >/dev/null; then
+    if $TRONCTL bc tx "$TXID" >/dev/null 2>&1; then
         log_pass "Transaction lookup"
     else
         log_skip "Transaction lookup" "tx not yet confirmed (expected on fast test)"
@@ -271,7 +271,7 @@ log_section "Freeze (Stake V2)"
 if has_balance "$ADDR1"; then
     log_info "Freezing $FREEZE_AMOUNT TRX for bandwidth (V2)..."
     if $TRONCTL account freezeV2 "$FREEZE_AMOUNT" \
-        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 0 --no-wait 2>&1 >/dev/null; then
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 0 --no-wait >/dev/null 2>&1; then
         log_pass "FreezeV2 for bandwidth"
     else
         log_fail "FreezeV2 for bandwidth" "failed"
@@ -281,7 +281,7 @@ if has_balance "$ADDR1"; then
 
     log_info "Freezing $FREEZE_AMOUNT TRX for energy (V2)..."
     if $TRONCTL account freezeV2 "$FREEZE_AMOUNT" \
-        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 1 --no-wait 2>&1 >/dev/null; then
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 1 --no-wait >/dev/null 2>&1; then
         log_pass "FreezeV2 for energy"
     else
         log_fail "FreezeV2 for energy" "failed"
@@ -291,7 +291,7 @@ if has_balance "$ADDR1"; then
 
     log_info "Unfreezing $FREEZE_AMOUNT TRX bandwidth (V2)..."
     if $TRONCTL account unfreezeV2 "$FREEZE_AMOUNT" \
-        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 0 --no-wait 2>&1 >/dev/null; then
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" -t 0 --no-wait >/dev/null 2>&1; then
         log_pass "UnfreezeV2 for bandwidth"
     else
         log_skip "UnfreezeV2 for bandwidth" "may fail if freeze hasn't matured"
@@ -310,7 +310,7 @@ if [[ -n "$WITNESS" ]] && has_balance "$ADDR1"; then
     log_info "Voting 1 vote for witness $WITNESS..."
     if $TRONCTL account vote \
         --signer "$ADDR1" --passphrase-file "$PASS_FILE" --no-wait \
-        --wv "$WITNESS:1" 2>&1 >/dev/null; then
+        --wv "$WITNESS:1" >/dev/null 2>&1; then
         log_pass "Vote for witness"
     else
         log_fail "Vote for witness" "failed"
@@ -324,7 +324,7 @@ log_section "Withdraw Rewards"
 
 if has_balance "$ADDR1"; then
     if $TRONCTL account withdraw \
-        --signer "$ADDR1" --passphrase-file "$PASS_FILE" --no-wait 2>&1 >/dev/null; then
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" --no-wait >/dev/null 2>&1; then
         log_pass "Withdraw rewards"
     else
         log_skip "Withdraw rewards" "No rewards available (expected for fresh accounts)"
@@ -380,7 +380,7 @@ if [[ -n "$ADDR1" ]]; then
         echo "$SIG_OUTPUT" | jq -r '.Signature' 2>/dev/null || true)
     if [[ -n "$SIG_HEX" && "$SIG_HEX" != "null" ]]; then
         log_pass "Sign message"
-        if $TRONCTL account verify "integration test message" "$SIG_HEX" --signer "$ADDR1" 2>&1 >/dev/null; then
+        if $TRONCTL account verify "integration test message" "$SIG_HEX" --signer "$ADDR1" >/dev/null 2>&1; then
             log_pass "Verify message signature"
         else
             log_fail "Verify message signature" "failed"
@@ -402,7 +402,7 @@ if [[ -n "$ADDR1" ]]; then
         log_pass "Export private key"
         # Import as new account
         if $TRONCTL keys import-private-key "$PK" "reimported-test" \
-            --passphrase-file "$PASS_FILE" 2>&1 >/dev/null; then
+            --passphrase-file "$PASS_FILE" >/dev/null 2>&1; then
             log_pass "Import private key"
             REIMPORTED_ADDR=$(get_address "reimported-test")
             if [[ "$REIMPORTED_ADDR" == "$ADDR1" ]]; then
@@ -411,7 +411,7 @@ if [[ -n "$ADDR1" ]]; then
                 log_fail "Address match" "got '$REIMPORTED_ADDR', expected '$ADDR1'"
             fi
             # Cleanup
-            $TRONCTL keys remove "reimported-test" --passphrase-file "$PASS_FILE" 2>&1 >/dev/null || true
+            $TRONCTL keys remove "reimported-test" --passphrase-file "$PASS_FILE" >/dev/null 2>&1 || true
         else
             log_fail "Import private key" "failed"
         fi
@@ -438,7 +438,7 @@ log_section "TRC10 Token"
 if has_balance "$ADDR1"; then
     log_info "Issuing test token..."
     if $TRONCTL trc10 issue "TestToken" "Test" "TST" "http://test.com" 1000000 1 \
-        --signer "$ADDR1" --passphrase-file "$PASS_FILE" --no-wait -p 0 2>&1 >/dev/null; then
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" --no-wait -p 0 >/dev/null 2>&1; then
         log_pass "TRC10 token issue"
         sleep 2
     else

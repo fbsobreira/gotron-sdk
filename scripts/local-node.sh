@@ -18,7 +18,8 @@ CONTAINER_NAME="tron-local"
 IMAGE="tronbox/tre"
 HTTP_PORT=9090
 GRPC_PORT=50051
-DATA_DIR="$PWD/accounts-data"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DATA_DIR="$(dirname "$SCRIPT_DIR")/accounts-data"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'

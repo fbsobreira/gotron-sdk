@@ -17,7 +17,15 @@ import (
 
 // defaultFromAddress is the zero address used as the default "from" for
 // read-only contract calls. Decoded once at init to avoid repeated parsing.
-var defaultFromAddress, _ = address.HexToAddress("410000000000000000000000000000000000000000")
+var defaultFromAddress address.Address
+
+func init() {
+	var err error
+	defaultFromAddress, err = address.HexToAddress("410000000000000000000000000000000000000000")
+	if err != nil {
+		panic("invalid default from address: " + err.Error())
+	}
+}
 
 // ConstantCallOption configures optional fields on a TriggerSmartContract
 // used by constant (read-only) contract calls. This allows callers to set

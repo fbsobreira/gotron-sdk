@@ -93,6 +93,7 @@ func (s *Store) DescribeLocalAccounts() {
 			fmt.Printf("%-48s\t%s\n", name, account.Address)
 		}
 		ks.Close()
+		s.Forget(ks)
 	}
 }
 
@@ -129,6 +130,7 @@ func (s *Store) FromAddress(addr string) *keystore.KeyStore {
 			return ks
 		}
 		ks.Close()
+		s.Forget(ks)
 	}
 	return nil
 }

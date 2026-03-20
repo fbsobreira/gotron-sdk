@@ -17,7 +17,7 @@ func (tronAddress tronAddress) String() string {
 func (tronAddress *tronAddress) Set(s string) error {
 	_, err := address.Base58ToAddress(s)
 	if err != nil {
-		return fmt.Errorf("not a valid one address: %w", err)
+		return fmt.Errorf("not a valid TRON address: %w", err)
 	}
 	tronAddress.address = s
 	return nil

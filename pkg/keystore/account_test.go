@@ -354,6 +354,13 @@ func TestURL_UnmarshalJSON_errors(t *testing.T) {
 	}
 }
 
+func TestAuthNeededError(t *testing.T) {
+	err := keystore.NewAuthNeededError("password or unlock")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "authentication needed")
+	assert.Contains(t, err.Error(), "password or unlock")
+}
+
 func TestURL_TerminalString(t *testing.T) {
 	t.Run("short URL returned as-is", func(t *testing.T) {
 		u := keystore.URL{Scheme: "ks", Path: "/a"}

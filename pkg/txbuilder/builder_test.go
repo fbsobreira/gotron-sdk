@@ -1136,10 +1136,11 @@ func TestDecode_SingleUse(t *testing.T) {
 	b := New(mc)
 	tx := b.Transfer("TFrom", "TTo", 100)
 
-	// First call (Decode calls Build internally).
-	_, _ = tx.Decode(context.Background())
+	// First call succeeds.
+	_, err := tx.Build(context.Background())
+	require.NoError(t, err)
 
 	// Second call returns ErrAlreadyBuilt.
-	_, err := tx.Build(context.Background())
+	_, err = tx.Build(context.Background())
 	assert.ErrorIs(t, err, ErrAlreadyBuilt)
 }

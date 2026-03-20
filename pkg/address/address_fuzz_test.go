@@ -44,6 +44,8 @@ func FuzzBase58ToAddress(f *testing.F) {
 	f.Add("TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9")
 	f.Add("")
 	f.Add("not_a_valid_address")
+	// Valid Base58-alphabet string with a flipped checksum byte.
+	f.Add("TSvT6Bg3siokv3dbdtt9o4oM1CTXmymGn2")
 
 	f.Fuzz(func(t *testing.T, s string) {
 		addr, err := Base58ToAddress(s)
