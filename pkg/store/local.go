@@ -11,7 +11,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	homedir "github.com/mitchellh/go-homedir"
 )
 
 // Store manages keystores for TRON accounts.
@@ -48,7 +47,12 @@ func configRootFromDir(dir string) string {
 	if filepath.IsAbs(dir) {
 		return filepath.Clean(dir)
 	}
-	uDir, _ := homedir.Dir()
+	uDir, err := os.UserHomeDir()
+	if err != nil {
+		// Fall back to current directory if home cannot be determined.
+		fmt.Fprintf(os.Stderr, "warning: cannot determine home directory: %v\n", err)
+		uDir = "."
+	}
 	return filepath.Join(uDir, dir)
 }
 
