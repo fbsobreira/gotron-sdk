@@ -46,14 +46,32 @@ type Balance struct {
 type Token struct {
 	client          contract.Client
 	contractAddress string
+	cache           *MetadataCache // nil means no caching (opt-in)
+}
+
+// TokenOption configures optional Token behavior.
+type TokenOption func(*Token)
+
+// WithCache enables metadata caching for this Token instance. Cached fields
+// (name, symbol, decimals) are fetched from the network once and served from
+// memory on subsequent calls. The same MetadataCache should be shared across
+// Token instances to benefit from cross-instance cache hits.
+func WithCache(c *MetadataCache) TokenOption {
+	return func(t *Token) {
+		t.cache = c
+	}
 }
 
 // New creates a Token instance for the given TRC20 contract.
-func New(client contract.Client, contractAddress string) *Token {
-	return &Token{
+func New(client contract.Client, contractAddress string, opts ...TokenOption) *Token {
+	t := &Token{
 		client:          client,
 		contractAddress: contractAddress,
 	}
+	for _, opt := range opts {
+		opt(t)
+	}
+	return t
 }
 
 // Info retrieves the token name, symbol, decimals, and total supply.
@@ -82,8 +100,15 @@ func (t *Token) Info(ctx context.Context) (*TokenInfo, error) {
 	}, nil
 }
 
-// Name returns the token name.
+// Name returns the token name. If a MetadataCache is configured, the result
+// is cached after the first successful fetch.
 func (t *Token) Name(ctx context.Context) (string, error) {
+	if t.cache != nil {
+		if name, ok := t.cache.getName(t.contractAddress); ok {
+			return name, nil
+		}
+	}
+
 	data, err := hex.DecodeString(selectorName)
 	if err != nil {
 		return "", err
@@ -94,11 +119,26 @@ func (t *Token) Name(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return decodeString(result.RawResults)
+	name, err := decodeString(result.RawResults)
+	if err != nil {
+		return "", err
+	}
+
+	if t.cache != nil {
+		t.cache.putName(t.contractAddress, name)
+	}
+	return name, nil
 }
 
-// Symbol returns the token symbol.
+// Symbol returns the token symbol. If a MetadataCache is configured, the
+// result is cached after the first successful fetch.
 func (t *Token) Symbol(ctx context.Context) (string, error) {
+	if t.cache != nil {
+		if symbol, ok := t.cache.getSymbol(t.contractAddress); ok {
+			return symbol, nil
+		}
+	}
+
 	data, err := hex.DecodeString(selectorSymbol)
 	if err != nil {
 		return "", err
@@ -109,11 +149,26 @@ func (t *Token) Symbol(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return decodeString(result.RawResults)
+	symbol, err := decodeString(result.RawResults)
+	if err != nil {
+		return "", err
+	}
+
+	if t.cache != nil {
+		t.cache.putSymbol(t.contractAddress, symbol)
+	}
+	return symbol, nil
 }
 
-// Decimals returns the token decimals.
+// Decimals returns the token decimals. If a MetadataCache is configured, the
+// result is cached after the first successful fetch.
 func (t *Token) Decimals(ctx context.Context) (uint8, error) {
+	if t.cache != nil {
+		if d, ok := t.cache.getDecimals(t.contractAddress); ok {
+			return d, nil
+		}
+	}
+
 	data, err := hex.DecodeString(selectorDecimals)
 	if err != nil {
 		return 0, err
@@ -131,7 +186,12 @@ func (t *Token) Decimals(ctx context.Context) (uint8, error) {
 	if !n.IsUint64() || n.Uint64() > 255 {
 		return 0, fmt.Errorf("decimals value %s out of uint8 range", n.String())
 	}
-	return uint8(n.Uint64()), nil
+	d := uint8(n.Uint64())
+
+	if t.cache != nil {
+		t.cache.putDecimals(t.contractAddress, d)
+	}
+	return d, nil
 }
 
 // TotalSupply returns the total token supply.
