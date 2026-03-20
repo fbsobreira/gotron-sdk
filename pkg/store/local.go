@@ -41,16 +41,24 @@ func DefaultStoreInstance() *Store {
 	}
 }
 
-func (s *Store) configRoot() string {
-	if filepath.IsAbs(s.configDir) {
-		return filepath.Clean(s.configDir)
+// configDir must be read under s.mu. These helpers snapshot it for callers.
+func (s *Store) getConfigDir() string {
+	s.mu.Lock()
+	dir := s.configDir
+	s.mu.Unlock()
+	return dir
+}
+
+func configRootFromDir(dir string) string {
+	if filepath.IsAbs(dir) {
+		return filepath.Clean(dir)
 	}
 	uDir, _ := homedir.Dir()
-	return filepath.Join(uDir, s.configDir)
+	return filepath.Join(uDir, dir)
 }
 
 func (s *Store) configAccountsDir() string {
-	return filepath.Join(s.configRoot(), c.DefaultConfigAccountAliasesDirName)
+	return filepath.Join(configRootFromDir(s.getConfigDir()), c.DefaultConfigAccountAliasesDirName)
 }
 
 // InitConfigDir creates the account keystore directory if it does not exist.
@@ -178,8 +186,6 @@ func (s *Store) CloseAll() {
 
 // DefaultLocation returns the current default keystore directory path.
 func (s *Store) DefaultLocation() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	return s.configAccountsDir()
 }
 
@@ -188,7 +194,7 @@ func (s *Store) DefaultLocation() string {
 func (s *Store) SetDefaultLocation(directory string) {
 	s.mu.Lock()
 	s.configDir = directory
-	tronCTLDir := s.configAccountsDir()
+	tronCTLDir := filepath.Join(configRootFromDir(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Unlock()
 	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
 		err = os.MkdirAll(tronCTLDir, 0700)
