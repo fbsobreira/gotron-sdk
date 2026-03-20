@@ -124,6 +124,42 @@ func newDummyTxExt() *api.TransactionExtention {
 	}
 }
 
+func TestTransfer_Sign(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	s := &mockSigner{}
+	b := New(mc)
+	signed, err := b.Transfer("TFrom", "TTo", 100).Sign(context.Background(), s)
+	require.NoError(t, err)
+	require.NotNil(t, signed)
+	assert.NotEmpty(t, signed.Signature, "transaction should be signed")
+	// Should NOT have been broadcast (no broadcastFn set, would panic if called)
+}
+
+func TestTransfer_SignWithMemoAndPermission(t *testing.T) {
+	mc := &mockClient{
+		transferFn: func(_ context.Context, _, _ string, _ int64) (*api.TransactionExtention, error) {
+			return newDummyTxExt(), nil
+		},
+	}
+
+	s := &mockSigner{}
+	b := New(mc)
+	signed, err := b.Transfer("TFrom", "TTo", 100).
+		WithMemo("test memo").
+		WithPermissionID(2).
+		Sign(context.Background(), s)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("test memo"), signed.RawData.Data)
+	for _, c := range signed.RawData.Contract {
+		assert.Equal(t, int32(2), c.PermissionId)
+	}
+}
+
 func TestTransfer_Build(t *testing.T) {
 	mc := &mockClient{
 		transferFn: func(_ context.Context, from, to string, amount int64) (*api.TransactionExtention, error) {

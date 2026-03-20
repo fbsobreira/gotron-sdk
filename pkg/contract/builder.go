@@ -283,6 +283,16 @@ func (c *ContractCall) Build(ctx context.Context) (*api.TransactionExtention, er
 	return tx, nil
 }
 
+// Sign builds and signs the transaction without broadcasting. Returns the
+// signed transaction ready for deferred broadcast or inspection.
+func (c *ContractCall) Sign(ctx context.Context, s signer.Signer) (*core.Transaction, error) {
+	tx, err := c.Build(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Sign(tx.GetTransaction())
+}
+
 // Send builds, signs, and broadcasts a state-changing transaction.
 func (c *ContractCall) Send(ctx context.Context, s signer.Signer) (*Receipt, error) {
 	tx, err := c.Build(ctx)

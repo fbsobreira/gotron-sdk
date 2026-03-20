@@ -105,6 +105,16 @@ func (t *Tx) Build(ctx context.Context) (*api.TransactionExtention, error) {
 	return tx, nil
 }
 
+// Sign builds and signs the transaction without broadcasting. Returns the
+// signed transaction ready for deferred broadcast or inspection.
+func (t *Tx) Sign(ctx context.Context, s signer.Signer) (*core.Transaction, error) {
+	ext, err := t.Build(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s.Sign(ext.Transaction)
+}
+
 // Decode builds the transaction and decodes the first contract parameter into
 // human-readable fields (base58 addresses, TRX-formatted amounts). Useful for
 // inspecting or displaying what a transaction does before signing.
