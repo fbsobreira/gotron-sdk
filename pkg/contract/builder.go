@@ -142,9 +142,8 @@ func (c *ContractCall) WithCallValue(value int64) *ContractCall {
 }
 
 // WithTokenValue sets the TRC10 token ID and amount sent with the call.
-// Only affects state-changing operations (Build, Send, SendAndConfirm) and
-// EstimateEnergy; read-only Call does not forward token parameters.
-// Returns itself for chaining.
+// Forwarded by all operations: Call, Build, Send, SendAndConfirm, and
+// EstimateEnergy. Returns itself for chaining.
 func (c *ContractCall) WithTokenValue(tokenID string, amount int64) *ContractCall {
 	return c.Apply(WithTokenValue(tokenID, amount))
 }
