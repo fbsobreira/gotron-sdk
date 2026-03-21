@@ -16,7 +16,7 @@ The following versions of gotron-sdk are currently being supported with security
 We take the security of gotron-sdk seriously. If you believe you've found a security vulnerability, please follow these steps:
 
 1. **Do not disclose the vulnerability publicly**
-2. **Email us directly** at security@cryptochain.network
+2. **Email us directly** at security@gotron.sh
 3. **Include the following information**:
    - A description of the vulnerability
    - Steps to reproduce the issue

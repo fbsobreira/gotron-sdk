@@ -958,3 +958,33 @@ func TestBankersRounding(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Display
+// ---------------------------------------------------------------------------
+
+func TestDisplay(t *testing.T) {
+	tests := []struct {
+		name    string
+		dec     numeric.Dec
+		want    string
+		wantStr string // String() should preserve trailing zeros
+	}{
+		{"zero", numeric.ZeroDec(), "0", "0.000000000000000000"},
+		{"one", numeric.OneDec(), "1", "1.000000000000000000"},
+		{"smallest", numeric.SmallestDec(), "0.000000000000000001", "0.000000000000000001"},
+		{"integer", numeric.NewDec(42), "42", "42.000000000000000000"},
+		{"with decimals", numeric.NewDecWithPrec(1500, 3), "1.5", "1.500000000000000000"},
+		{"precise", numeric.NewDecWithPrec(123456, 6), "0.123456", "0.123456000000000000"},
+		{"negative", numeric.NewDec(-7), "-7", "-7.000000000000000000"},
+		{"negative decimal", numeric.NewDecWithPrec(-2500, 3), "-2.5", "-2.500000000000000000"},
+		{"large", numeric.NewDec(1000000), "1000000", "1000000.000000000000000000"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.dec.Display(), "Display()")
+			assert.Equal(t, tt.wantStr, tt.dec.String(), "String() unchanged")
+		})
+	}
+}

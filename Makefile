@@ -2,7 +2,7 @@ SHELL := /bin/bash
 version := $(shell git rev-list --count HEAD)
 commit := $(shell git describe --always --long --dirty)
 built_at := $(shell date +%FT%T%z)
-built_by := ${USER}@cryptochain.network
+built_by := ${USER}@gotron.sh
 BUILD_TARGET := tronctl
 
 flags := -gcflags="all=-N -l -c 2"

@@ -12,7 +12,7 @@ builds:
       - -X main.version=v{{ .Version }}
       - -X main.commit={{ .ShortCommit }}
       - -X main.builtAt={{ .Date }}
-      - -X main.builtBy=goreleaser@cryptochain.network
+      - -X main.builtBy=goreleaser@gotron.sh
     goos:
       - linux
       - darwin

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"strings"
 
@@ -200,8 +201,19 @@ func contractConstantCmd() *cobra.Command {
 			}
 
 			result := make(map[string]interface{})
-			//TODO: parse based on contract ABI
-			result["Result"] = common.BytesToHexString(cResult[0])
+			if len(cResult) == 0 {
+				result["Result"] = ""
+			} else {
+				result["Result"] = common.BytesToHexString(cResult[0])
+
+				// Try to auto-decode common return types
+				if len(cResult[0]) >= 32 {
+					decoded := tryDecodeResult(cResult[0])
+					for k, v := range decoded {
+						result[k] = v
+					}
+				}
+			}
 
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
@@ -210,6 +222,59 @@ func contractConstantCmd() *cobra.Command {
 		},
 	}
 	return cmd
+}
+
+// tryDecodeResult attempts to auto-decode ABI-encoded return data into
+// human-readable values. It handles the most common return types:
+// uint256, bool, string, and address.
+func tryDecodeResult(data []byte) map[string]interface{} {
+	result := make(map[string]interface{})
+
+	if len(data) < 32 {
+		return result
+	}
+
+	first32 := data[:32]
+	val := new(big.Int).SetBytes(first32)
+
+	// 1. Try ABI-encoded string first (offset=32 at first word)
+	if len(data) >= 64 && val.IsUint64() && val.Uint64() == 32 {
+		lengthWord := new(big.Int).SetBytes(data[32:64])
+		if lengthWord.IsUint64() {
+			strLen := lengthWord.Uint64()
+			if strLen > 0 && strLen < 1024 && 64+strLen <= uint64(len(data)) {
+				result["asString"] = string(data[64 : 64+strLen])
+				return result
+			}
+		}
+	}
+
+	// 2. Try TRON address (first 12 bytes zero, 160-bit payload)
+	allZero := true
+	for i := 0; i < 12; i++ {
+		if first32[i] != 0 {
+			allZero = false
+			break
+		}
+	}
+	if allZero && val.BitLen() > 64 && val.BitLen() <= 160 {
+		evmAddr := first32[12:]
+		tronAddr := make([]byte, 21)
+		tronAddr[0] = 0x41
+		copy(tronAddr[1:], evmAddr)
+		result["asAddress"] = address.Address(tronAddr).String()
+		return result
+	}
+
+	// 3. Try bool (0 or 1)
+	if val.IsUint64() && (val.Uint64() == 0 || val.Uint64() == 1) {
+		result["asBool"] = val.Uint64() == 1
+	}
+
+	// 4. Try number (full uint256)
+	result["asNumber"] = val.String()
+
+	return result
 }
 
 func contractTriggerCmd() *cobra.Command {
