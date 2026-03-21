@@ -20,17 +20,17 @@ import (
 )
 
 var (
-	abiSTR         string
-	abiFile        string
-	bcSTR          string
-	bcFile         string
-	feeLimit       int64
-	curPercent     int64
-	oeLimit        int64
-	tAmount        float64
-	tTokenID       string
-	tTokenAmount   float64
-	estimate       bool
+	abiSTR            string
+	abiFile           string
+	bcSTR             string
+	bcFile            string
+	feeLimit          int64
+	curPercent        int64
+	oeLimit           int64
+	tAmount           float64
+	tTokenID          string
+	tTokenAmount      float64
+	estimate          bool
 	constructorParams string
 )
 
