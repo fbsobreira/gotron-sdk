@@ -50,7 +50,15 @@ GoTRON SDK is built for **backend and infrastructure** teams that need performan
 
 ## MCP Server
 
-Connect AI agents (Claude, ChatGPT) to TRON via the [GoTRON MCP Server](https://github.com/fbsobreira/gotron-mcp):
+Connect AI agents to TRON via the [GoTRON MCP Server](https://github.com/fbsobreira/gotron-mcp). Zero install — hosted at [mcp.gotron.sh](https://mcp.gotron.sh).
+
+**Claude Code:**
+
+```bash
+claude mcp add gotron --scope user --transport http https://mcp.gotron.sh/mcp
+```
+
+**Claude Desktop** (Settings > Connectors > Add) or `claude_desktop_config.json`:
 
 ```json
 {
@@ -62,7 +70,7 @@ Connect AI agents (Claude, ChatGPT) to TRON via the [GoTRON MCP Server](https://
 }
 ```
 
-Zero install — hosted at [mcp.gotron.sh](https://mcp.gotron.sh). Includes read-only blockchain queries, transaction builders, contract interaction, and full SDK documentation for AI-assisted development.
+Includes read-only blockchain queries, unsigned transaction builders, and full SDK documentation for AI-assisted development. See the [gotron-mcp repo](https://github.com/fbsobreira/gotron-mcp) for local mode with signing support.
 
 ## Quick Start
 
