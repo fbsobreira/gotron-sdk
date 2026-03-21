@@ -46,6 +46,21 @@ GoTRON SDK is built for **backend and infrastructure** teams that need performan
 - 🔐 **Secure Key Management**: Hardware wallet support, encrypted keystores
 - 🚀 **High Performance**: Native gRPC communication with TRON nodes
 - 🛠️ **Developer Friendly**: Comprehensive examples and documentation
+- 🤖 **AI-Ready**: [MCP server](https://github.com/fbsobreira/gotron-mcp) lets AI agents interact with TRON blockchain
+
+## MCP Server
+
+Connect AI agents to TRON via the [GoTRON MCP Server](https://github.com/fbsobreira/gotron-mcp). Zero install — hosted at [mcp.gotron.sh](https://mcp.gotron.sh).
+
+**Claude Code:**
+
+```bash
+claude mcp add gotron --scope user --transport http https://mcp.gotron.sh/mcp
+```
+
+**Claude Desktop:** Add via Settings > Connectors using URL `https://mcp.gotron.sh/mcp`
+
+Includes read-only blockchain queries, unsigned transaction builders, and full SDK documentation for AI-assisted development. See the [gotron-mcp repo](https://github.com/fbsobreira/gotron-mcp) for local mode with signing support.
 
 ## Quick Start
 
