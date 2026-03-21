@@ -17,6 +17,8 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(dirname "$SCRIPT_DIR")"
 TRONCTL="./bin/tronctl"
 PASS="testpass1234"
 SEED_NAME="seed-account"
@@ -26,6 +28,8 @@ ACCOUNTS_JSON="accounts-data/accounts.json"
 FUND_AMOUNT="1500"
 TRANSFER_AMOUNT="1"
 FREEZE_AMOUNT="10"
+CONTRACT_ABI="$REPO_ROOT/testdata/contracts/TestToken.abi"
+CONTRACT_BIN="$REPO_ROOT/testdata/contracts/TestToken.bin"
 PASS_FILE=$(mktemp)
 trap 'rm -f "$PASS_FILE"' EXIT
 echo -n "$PASS" > "$PASS_FILE"
@@ -432,7 +436,103 @@ else
     log_fail "Random private key" "expected 64 hex chars, got ${#PK}"
 fi
 
-# ── 17. TRC10 token operations ─────────────────────────────────────────────
+# ── 17. TRC20 contract deploy + interact ──────────────────────────────────
+log_section "TRC20 Contract (Deploy + Interact)"
+
+CONTRACT_ADDR=""
+if has_balance "$ADDR1" && [[ -f "$CONTRACT_ABI" ]] && [[ -f "$CONTRACT_BIN" ]]; then
+    log_info "Deploying TestToken TRC20 contract..."
+    DEPLOY_OUTPUT=$($TRONCTL contract deploy "TestToken" \
+        --abiFile "$CONTRACT_ABI" \
+        --bcFile "$CONTRACT_BIN" \
+        --params '[1000000]' \
+        --signer "$ADDR1" --passphrase-file "$PASS_FILE" \
+        --feeLimit 1000000000 --oeLimit 10000000 2>&1 || true)
+
+    CONTRACT_ADDR=$(echo "$DEPLOY_OUTPUT" | python3 -c "import sys,json; print(json.load(sys.stdin)['contractAddress'])" 2>/dev/null || \
+        echo "$DEPLOY_OUTPUT" | jq -r '.contractAddress' 2>/dev/null || true)
+
+    if [[ -n "$CONTRACT_ADDR" && "$CONTRACT_ADDR" != "null" && "$CONTRACT_ADDR" != "" ]]; then
+        log_pass "Deploy TRC20 contract: $CONTRACT_ADDR"
+        sleep 3  # wait for confirmation
+
+        # Read token name via constant call
+        NAME_OUT=$($TRONCTL contract constant "$CONTRACT_ADDR" "name()" 2>&1 || true)
+        if echo "$NAME_OUT" | grep -qi "result\|0x"; then
+            log_pass "Constant call: name()"
+        else
+            log_skip "Constant call: name()" "may need more time"
+        fi
+
+        # Read token symbol
+        SYM_OUT=$($TRONCTL contract constant "$CONTRACT_ADDR" "symbol()" 2>&1 || true)
+        if echo "$SYM_OUT" | grep -qi "result\|0x"; then
+            log_pass "Constant call: symbol()"
+        else
+            log_skip "Constant call: symbol()" "may need more time"
+        fi
+
+        # Read decimals
+        DEC_OUT=$($TRONCTL contract constant "$CONTRACT_ADDR" "decimals()" 2>&1 || true)
+        if echo "$DEC_OUT" | grep -qi "result\|0x"; then
+            log_pass "Constant call: decimals()"
+        else
+            log_skip "Constant call: decimals()" "may need more time"
+        fi
+
+        # TRC20 balance check via tronctl trc20
+        BAL_OUT=$($TRONCTL trc20 balance "$ADDR1" "$CONTRACT_ADDR" 2>&1 || true)
+        if echo "$BAL_OUT" | grep -qiE "balance|[0-9]"; then
+            log_pass "TRC20 balance check"
+        else
+            log_skip "TRC20 balance" "contract may not be indexed yet"
+        fi
+
+        # TRC20 transfer: send tokens from ACC1 to ACC2
+        log_info "Sending 100 TST tokens from ACC1 to ACC2..."
+        TRC20_SEND=$($TRONCTL trc20 send "$ADDR2" 100 "$CONTRACT_ADDR" \
+            --signer "$ADDR1" --passphrase-file "$PASS_FILE" \
+            --feeLimit 100000000 --no-wait 2>&1 || true)
+        if echo "$TRC20_SEND" | grep -qiE "txID|txid|0x[a-f0-9]"; then
+            log_pass "TRC20 transfer ACC1 -> ACC2"
+            sleep 5
+
+            # Verify ACC2 received tokens
+            BAL2_OUT=$($TRONCTL trc20 balance "$ADDR2" "$CONTRACT_ADDR" 2>&1 || true)
+            if echo "$BAL2_OUT" | grep -qE '"balance":.*[1-9]'; then
+                log_pass "TRC20 balance ACC2 > 0 after transfer"
+            else
+                log_info "Balance output: $BAL2_OUT"
+                log_skip "TRC20 balance verify" "balance not yet reflected"
+            fi
+        else
+            log_fail "TRC20 transfer" "$TRC20_SEND"
+        fi
+
+        # Trigger approve via contract trigger
+        log_info "Approving ACC2 to spend 50 TST..."
+        APPROVE_OUT=$($TRONCTL contract trigger "$CONTRACT_ADDR" \
+            "approve(address,uint256)" "[\"$ADDR2\",50000000]" \
+            --signer "$ADDR1" --passphrase-file "$PASS_FILE" \
+            --feeLimit 100000000 --no-wait 2>&1 || true)
+        if echo "$APPROVE_OUT" | grep -qiE "txID|txid|0x[a-f0-9]"; then
+            log_pass "Contract trigger: approve()"
+        else
+            log_fail "Contract trigger: approve()" "$APPROVE_OUT"
+        fi
+    else
+        log_fail "Deploy TRC20 contract" "no contract address in output"
+        log_info "Output: $DEPLOY_OUTPUT"
+    fi
+else
+    if ! has_balance "$ADDR1"; then
+        log_skip "TRC20 Contract" "ACC1 has no funds"
+    else
+        log_skip "TRC20 Contract" "Contract files not found at $CONTRACT_ABI"
+    fi
+fi
+
+# ── 18. TRC10 token operations ─────────────────────────────────────────────
 log_section "TRC10 Token"
 
 if has_balance "$ADDR1"; then

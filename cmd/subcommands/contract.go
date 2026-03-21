@@ -5,29 +5,33 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"strings"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/abi"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/contract"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 
 	"github.com/spf13/cobra"
 )
 
 var (
-	abiSTR       string
-	abiFile      string
-	bcSTR        string
-	bcFile       string
-	feeLimit     int64
-	curPercent   int64
-	oeLimit      int64
-	tAmount      float64
-	tTokenID     string
-	tTokenAmount float64
-	estimate     bool
+	abiSTR            string
+	abiFile           string
+	bcSTR             string
+	bcFile            string
+	feeLimit          int64
+	curPercent        int64
+	oeLimit           int64
+	tAmount           float64
+	tTokenID          string
+	tTokenAmount      float64
+	estimate          bool
+	constructorParams string
 )
 
 func contractDeployCmd() *cobra.Command {
@@ -43,7 +47,7 @@ func contractDeployCmd() *cobra.Command {
 					if err != nil {
 						return fmt.Errorf("cannot read ABI file: %s %v", abiFile, err)
 					}
-					abiSTR = string(abiBytes)
+					abiSTR = strings.TrimSpace(string(abiBytes))
 				} else {
 					return fmt.Errorf("no ABI string or ABI file specified")
 				}
@@ -59,7 +63,7 @@ func contractDeployCmd() *cobra.Command {
 					if err != nil {
 						return fmt.Errorf("cannot read Bytecode file: %s %v", bcFile, err)
 					}
-					bcSTR = string(bcBytes)
+					bcSTR = strings.TrimSpace(string(bcBytes))
 				} else {
 					return fmt.Errorf("no Bytecode string or Bytecode file specified")
 				}
@@ -69,7 +73,36 @@ func contractDeployCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 
-			// TODO: add constructor arguments
+			// Encode constructor arguments if provided
+			if constructorParams != "" {
+				found := false
+				for _, entry := range ABI.Entrys {
+					if entry.Type != core.SmartContract_ABI_Entry_Constructor {
+						continue
+					}
+					found = true
+					// Build constructor signature: constructor(type1,type2,...)
+					types := make([]string, len(entry.Inputs))
+					for i, input := range entry.Inputs {
+						types[i] = input.Type
+					}
+					sig := fmt.Sprintf("constructor(%s)", strings.Join(types, ","))
+					params, err := abi.LoadFromJSONWithMethod(sig, constructorParams)
+					if err != nil {
+						return fmt.Errorf("parse constructor params: %w", err)
+					}
+					encoded, err := abi.GetPaddedParam(params)
+					if err != nil {
+						return fmt.Errorf("encode constructor args: %w", err)
+					}
+					bcSTR += fmt.Sprintf("%x", encoded)
+					break
+				}
+				if !found {
+					return fmt.Errorf("--params provided but ABI has no constructor")
+				}
+			}
+
 			tx, err := conn.DeployContract(signerAddress.String(), args[0],
 				ABI, bcSTR, feeLimit, curPercent, oeLimit)
 			if err != nil {
@@ -127,6 +160,7 @@ func contractDeployCmd() *cobra.Command {
 	cmd.Flags().StringVar(&abiFile, "abiFile", "", "abi file location")
 	cmd.Flags().StringVar(&bcSTR, "bc", "", "bytecode HEX string")
 	cmd.Flags().StringVar(&bcFile, "bcFile", "", "bytecode file location")
+	cmd.Flags().StringVar(&constructorParams, "params", "", "constructor parameters as JSON (e.g. '[1000000]')")
 	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 1000000000, "fee limit")
 	cmd.Flags().Int64Var(&curPercent, "curPercent", 100, "consume user resource percentage")
 	cmd.Flags().Int64Var(&oeLimit, "oeLimit", 1000000, "origin energy limit")
@@ -137,13 +171,11 @@ func contractDeployCmd() *cobra.Command {
 func contractConstantCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "constant <CONTRACT_ADDRESS> <METHOD> [PARAMETER]",
-		Short:   "constantTrigger contract",
+		Short:   "constant (read-only) contract call",
 		Args:    cobra.RangeArgs(2, 3),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if signerAddress.String() == "" {
-				return fmt.Errorf("no signer specified")
-			}
+			from := signerAddress.String()
 
 			param := ""
 			if len(args) == 3 {
@@ -151,7 +183,7 @@ func contractConstantCmd() *cobra.Command {
 			}
 
 			tx, err := conn.TriggerConstantContract(
-				signerAddress.String(),
+				from,
 				addr.String(),
 				args[1],
 				param,
