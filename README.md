@@ -58,17 +58,7 @@ Connect AI agents to TRON via the [GoTRON MCP Server](https://github.com/fbsobre
 claude mcp add gotron --scope user --transport http https://mcp.gotron.sh/mcp
 ```
 
-**Claude Desktop** (Settings > Connectors > Add) or `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "gotron": {
-      "url": "https://mcp.gotron.sh/mcp"
-    }
-  }
-}
-```
+**Claude Desktop:** Add via Settings > Connectors using URL `https://mcp.gotron.sh/mcp`
 
 Includes read-only blockchain queries, unsigned transaction builders, and full SDK documentation for AI-assisted development. See the [gotron-mcp repo](https://github.com/fbsobreira/gotron-mcp) for local mode with signing support.
 
