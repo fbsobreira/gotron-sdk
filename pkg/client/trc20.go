@@ -225,7 +225,9 @@ func (g *GrpcClient) TRC20ContractBalanceCtx(ctx context.Context, addr, contract
 	if err != nil {
 		return nil, fmt.Errorf("invalid address %s: %v", addr, err)
 	}
-	req := trc20BalanceOf + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-2:] + addrB.Hex()[2:]
+	// ABI-encode: use 20-byte EVM address (strip 0x41 TRON prefix), left-pad to 32 bytes
+	evmHex := addrB.Hex()[4:] // strip "0x41"
+	req := trc20BalanceOf + "0000000000000000000000000000000000000000000000000000000000000000"[len(evmHex):] + evmHex
 	result, err := g.TRC20CallCtx(ctx, "", contractAddress, req, true, 0)
 	if err != nil {
 		return nil, err
