@@ -26,30 +26,18 @@ const (
 	SelectorAllowance    = "dd62ed3e"
 )
 
-// Pre-decoded selector bytes, cached at init to avoid repeated hex decoding.
+// Pre-computed selector bytes — no init() or hex decoding needed.
 var (
-	selectorNameBytes         []byte
-	selectorSymbolBytes       []byte
-	selectorDecimalsBytes     []byte
-	selectorTotalSupplyBytes  []byte
-	selectorBalanceOfBytes    []byte
-	selectorTransferBytes     []byte
-	selectorApproveBytes      []byte
-	selectorTransferFromBytes []byte
-	selectorAllowanceBytes    []byte
+	selectorNameBytes         = []byte{0x06, 0xfd, 0xde, 0x03}
+	selectorSymbolBytes       = []byte{0x95, 0xd8, 0x9b, 0x41}
+	selectorDecimalsBytes     = []byte{0x31, 0x3c, 0xe5, 0x67}
+	selectorTotalSupplyBytes  = []byte{0x18, 0x16, 0x0d, 0xdd}
+	selectorBalanceOfBytes    = []byte{0x70, 0xa0, 0x82, 0x31}
+	selectorTransferBytes     = []byte{0xa9, 0x05, 0x9c, 0xbb}
+	selectorApproveBytes      = []byte{0x09, 0x5e, 0xa7, 0xb3}
+	selectorTransferFromBytes = []byte{0x23, 0xb8, 0x72, 0xdd}
+	selectorAllowanceBytes    = []byte{0xdd, 0x62, 0xed, 0x3e}
 )
-
-func init() {
-	selectorNameBytes, _ = hex.DecodeString(SelectorName)
-	selectorSymbolBytes, _ = hex.DecodeString(SelectorSymbol)
-	selectorDecimalsBytes, _ = hex.DecodeString(SelectorDecimals)
-	selectorTotalSupplyBytes, _ = hex.DecodeString(SelectorTotalSupply)
-	selectorBalanceOfBytes, _ = hex.DecodeString(SelectorBalanceOf)
-	selectorTransferBytes, _ = hex.DecodeString(SelectorTransfer)
-	selectorApproveBytes, _ = hex.DecodeString(SelectorApprove)
-	selectorTransferFromBytes, _ = hex.DecodeString(SelectorTransferFrom)
-	selectorAllowanceBytes, _ = hex.DecodeString(SelectorAllowance)
-}
 
 // SelectorBytes returns a copy of the pre-decoded bytes for the given hex selector.
 // Returns nil if the selector is not recognized.

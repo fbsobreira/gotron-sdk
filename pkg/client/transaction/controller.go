@@ -119,17 +119,6 @@ func (C *Controller) hardwareSignTxForSending() {
 		return
 	}
 
-	/* TODO: validate signature
-	if strings.Compare(signerAddr, address.ToBech32(C.sender.account.Address)) != 0 {
-		C.executionError = ErrBadTransactionParam
-		errorMsg := "signature verification failed : sender address doesn't match with ledger hardware address"
-		C.transactionErrors = append(C.transactionErrors, &Error{
-			ErrMessage:           &errorMsg,
-			TimestampOfRejection: time.Now().Unix(),
-		})
-		return
-	}
-	*/
 	// add signature
 	C.tx.Signature = append(C.tx.Signature, signature)
 }

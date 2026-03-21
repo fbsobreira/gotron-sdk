@@ -414,6 +414,18 @@ func (d Dec) String() string {
 	return string(bzStr)
 }
 
+// Display returns a human-readable string with trailing zeros removed.
+// Unlike String(), which preserves full precision for serialization,
+// Display() is intended for user-facing output.
+func (d Dec) Display() string {
+	s := d.String()
+	if strings.Contains(s, ".") {
+		s = strings.TrimRight(s, "0")
+		s = strings.TrimRight(s, ".")
+	}
+	return s
+}
+
 //     ____
 //  __|    |__   "chop 'em
 //       ` \     round!"
