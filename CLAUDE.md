@@ -8,7 +8,9 @@ GoTRON SDK — a Go SDK and CLI (`tronctl`) for the TRON blockchain over gRPC.
 Module path: `github.com/fbsobreira/gotron-sdk`. Minimum Go 1.25 (`go 1.25.0`).
 
 As a library, the `go` directive is a hard floor for every downstream consumer — raise it only when a
-dependency genuinely requires it, and never pin a patch version there. Deliberately **no `toolchain`
+dependency genuinely requires it, and never pin a *specific* patch (`go 1.25.7` would lock out anyone
+on 1.25.0–1.25.6). The trailing `.0` is not a pin: `go mod tidy` canonicalizes `go 1.25` to
+`go 1.25.0`, so writing the short form only makes `make tidy` fail. Deliberately **no `toolchain`
 directive**: it would silently upgrade the CI matrix so every job ran the same Go release. Release
 binaries get a patched compiler via `go-version: '>=1.26.5'` in `release.yaml` instead, and the test
 and build matrices set `GOTOOLCHAIN: local` so each job really tests its named version.
@@ -140,7 +142,8 @@ Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`
 1. `git tag v0.X.Y && git push origin v0.X.Y`
 2. GitHub Actions runs tests → GoReleaser builds binaries → creates the GitHub Release → pushes the
    Homebrew formula.
-3. Edit the release notes to this format:
+3. Edit the release notes to this format. GoReleaser already groups commits under
+   these headings; include **only** the sections that have entries:
 
 ```markdown
 ### 🔖 Release: `v0.X.Y` — Short Title
@@ -149,31 +152,31 @@ One-sentence summary of what this release is about.
 
 #### ✨ Features
 
-* **Feature name** — short description (#PR)
+* **Feature name** — short description (#123)
 
 #### 🔒 Security
 
-* **CVE or fix title** — description (#PR)
+* **CVE or fix title** — description (#123)
 
 #### 🐛 Bug Fixes
 
-* **Fix title** — description (#PR)
+* **Fix title** — description (#123)
 
 #### 🔨 Refactoring
 
-* Description (#PR)
+* Description (#123)
 
 #### 🧪 Testing
 
-* **Coverage or test improvement** (#PR)
+* **Coverage or test improvement** (#123)
 
 #### 📦 Dependencies
 
-* Updated `package` to vX.Y.Z (#PR)
+* Updated `package` to vX.Y.Z (#123)
 
 #### 📖 Documentation
 
-* Description (#PR)
+* Description (#123)
 
 **Full Changelog**: https://github.com/fbsobreira/gotron-sdk/compare/v0.PREV...v0.X.Y
 ```
@@ -211,6 +214,7 @@ targeted reads, and interactive iteration in the main context.
 
 - [ ] Tests pass (`make test`)
 - [ ] Linter clean (`make lint`)
+- [ ] Build succeeds (`make`)
 - [ ] Commit message follows the convention above (when committing)
 - [ ] `.local/current-task.md` updated, if it exists
 

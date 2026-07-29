@@ -38,16 +38,24 @@ changelog:
   sort: desc
   # Entries are `<abbrev-sha> <subject>` (git log --pretty=oneline --abbrev-commit),
   # so every pattern must tolerate the leading hash — a bare `^feat` never matches.
+  # Titles match the release-note headings documented in CLAUDE.md, so the
+  # generated changelog needs no manual reformatting before publishing.
   groups:
-    - title: Features
+    - title: ✨ Features
       regexp: '^.*?feat(\(.+\))??!?:.+$'
       order: 0
-    - title: Bug Fixes
-      regexp: '^.*?fix(\(.+\))??!?:.+$'
+    - title: 🔒 Security
+      regexp: '^.*?(sec|security)(\(.+\))??!?:.+$'
       order: 1
-    - title: Refactoring
-      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+    - title: 🐛 Bug Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
       order: 2
+    - title: 🔨 Refactoring
+      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+      order: 3
+    - title: ⚡ Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 4
     - title: Other
       order: 999
   filters:
