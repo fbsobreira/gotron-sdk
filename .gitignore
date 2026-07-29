@@ -24,3 +24,9 @@ accounts.json
 # JetBrains IDEs
 .idea/
 *.test
+# Local working notes, task files and scratch docs (never committed)
+.local/
+# Claude Code: local session state and personal instruction overrides
+# (to share something here later, negate it, e.g. !.claude/commands/)
+.claude/
+CLAUDE.local.md

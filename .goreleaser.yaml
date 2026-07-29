@@ -35,13 +35,28 @@ checksum:
   name_template: checksums.txt
 
 changelog:
+  sort: desc
+  # Entries are `<abbrev-sha> <subject>` (git log --pretty=oneline --abbrev-commit),
+  # so every pattern must tolerate the leading hash — a bare `^feat` never matches.
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Refactoring
+      regexp: '^.*?refactor(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^ci:"
-      - "^Merge "
+      - '^.*?docs(\(.+\))??!?:.+$'
+      - '^.*?test(\(.+\))??!?:.+$'
+      - '^.*?chore(\(.+\))??!?:.+$'
+      - '^.*?ci(\(.+\))??!?:.+$'
+      - '^.*?Merge '
 
 brews:
   - repository:

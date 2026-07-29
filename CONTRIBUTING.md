@@ -6,7 +6,7 @@ Thank you for your interest in contributing to GoTRON SDK! This guide will help 
 
 ### Prerequisites
 
-- Go 1.24 or higher
+- Go 1.25 or higher
 - Make
 - Protocol Buffers compiler (only if regenerating protos)
 

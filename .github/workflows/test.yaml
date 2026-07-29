@@ -12,10 +12,15 @@ jobs:
   test:
     name: Test (Go ${{ matrix.go-version }})
     runs-on: ubuntu-latest
+    # Pin the toolchain to the matrix version. Without this, a `toolchain`
+    # directive or a higher `go` line would silently upgrade every job to the
+    # same Go release, making the matrix test one version instead of several.
+    env:
+      GOTOOLCHAIN: local
     strategy:
       fail-fast: false
       matrix:
-        go-version: ['1.24', '1.26']
+        go-version: ['1.25', '1.26']
     steps:
       - name: Check out code
         uses: actions/checkout@v6

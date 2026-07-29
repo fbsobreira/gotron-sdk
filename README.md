@@ -237,7 +237,7 @@ source <(tronctl completion zsh)
 ## Development
 
 ### Requirements
-- Go 1.24 or higher
+- Go 1.25 or higher
 - Make (for building)
 - Protocol Buffers compiler (for regenerating protos)
 
