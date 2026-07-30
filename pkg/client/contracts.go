@@ -94,8 +94,8 @@ func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, con
 		return nil, err
 	}
 
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if tx.GetResult().GetCode() > 0 {
+		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 
 	return tx, err
@@ -133,8 +133,8 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 		return nil, err
 	}
 
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if tx.GetResult().GetCode() > 0 {
+		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 
 	return tx, err
@@ -248,8 +248,13 @@ func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartC
 		return nil, err
 	}
 
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if tx.GetResult().GetCode() > 0 {
+		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
+	}
+	// A success code does not guarantee a transaction: guard before assigning
+	// through it, as DeployContractCtx does.
+	if tx.GetTransaction().GetRawData() == nil {
+		return nil, fmt.Errorf("trigger contract: node returned no transaction")
 	}
 	if feeLimit > 0 {
 		tx.Transaction.RawData.FeeLimit = feeLimit
@@ -446,8 +451,8 @@ func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartCo
 		return nil, err
 	}
 
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if tx.GetResult().GetCode() > 0 {
+		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 
 	return tx, err
@@ -504,6 +509,15 @@ func (g *GrpcClient) DeployContractCtx(ctx context.Context, from, contractName s
 	tx, err := g.Client.DeployContract(ctx, ct)
 	if err != nil {
 		return nil, err
+	}
+	// A rejected deployment comes back with a nil gRPC error, a non-zero result
+	// code and no Transaction, so the fee-limit assignment below would panic
+	// instead of surfacing the node's reason for the rejection.
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
+	if tx.GetTransaction().GetRawData() == nil {
+		return nil, fmt.Errorf("deploy contract: node returned no transaction")
 	}
 	if feeLimit > 0 {
 		tx.Transaction.RawData.FeeLimit = feeLimit

@@ -634,7 +634,9 @@ func MaxDec(d1, d2 Dec) Dec {
 }
 
 var (
-	pattern, _ = regexp.Compile(`[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+`)
+	// Anchored: an unanchored pattern also matches inside malformed input such as
+	// "1e5x", which then parsed as 1 with a nil error.
+	pattern = regexp.MustCompile(`^[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+$`)
 )
 
 // Pow calcs power of numeric with int
@@ -661,10 +663,16 @@ func NewDecFromString(i string) (Dec, error) {
 	if strings.HasPrefix(i, "-") {
 		return ZeroDec(), fmt.Errorf("can not be negative: %s", i)
 	}
-	if pattern.FindString(i) != "" {
+	if pattern.MatchString(i) {
 		tokens := strings.Split(i, "e")
-		a, _ := NewDecFromStr(tokens[0])
-		b, _ := strconv.Atoi(tokens[1])
+		a, err := NewDecFromStr(tokens[0])
+		if err != nil {
+			return ZeroDec(), fmt.Errorf("invalid mantissa %q in %q: %w", tokens[0], i, err)
+		}
+		b, err := strconv.Atoi(tokens[1])
+		if err != nil {
+			return ZeroDec(), fmt.Errorf("invalid exponent %q in %q: %w", tokens[1], i, err)
+		}
 		return a.Mul(Pow(NewDec(10), b)), nil
 	}
 	if strings.HasPrefix(i, ".") {
@@ -676,16 +684,36 @@ func NewDecFromString(i string) (Dec, error) {
 
 // NewDecFromHex Assumes Hex string input
 // Split into 2 64 bit integers to guarantee 128 bit precision
+//
+// Invalid hex — the empty string, non-hex digits, or a sign — returns ZeroDec.
+// It previously let a nil *big.Int from SetString reach big.Int.Mul, which
+// panicked, so no caller that works today changes behaviour. The signature
+// cannot report the condition; gaining an error return is queued as a breaking
+// change.
 func NewDecFromHex(str string) Dec {
 	str = strings.TrimPrefix(str, "0x")
+	if str == "" {
+		return ZeroDec()
+	}
+	// big.Int.SetString accepts a leading sign, so "-abc" would split into a
+	// negative left half and yield a negative Dec from a hex parser.
+	if strings.ContainsAny(str, "+-") {
+		return ZeroDec()
+	}
 	half := len(str) / 2
 	right := str[half:]
-	r, _ := big.NewInt(0).SetString(right, 16)
+	r, ok := big.NewInt(0).SetString(right, 16)
+	if !ok {
+		return ZeroDec()
+	}
 	if half == 0 {
 		return NewDecFromBigInt(r)
 	}
 	left := str[:half]
-	l, _ := big.NewInt(0).SetString(left, 16)
+	l, ok := big.NewInt(0).SetString(left, 16)
+	if !ok {
+		return ZeroDec()
+	}
 	return NewDecFromBigInt(l).Mul(
 		Pow(NewDec(16), len(right)),
 	).Add(NewDecFromBigInt(r))

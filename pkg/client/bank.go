@@ -249,5 +249,8 @@ func (g *GrpcClient) WithdrawExpireUnfreezeCtx(ctx context.Context, from string,
 	if proto.Size(tx) == 0 {
 		return nil, fmt.Errorf("bad transaction")
 	}
+	if tx.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	}
 	return tx, nil
 }

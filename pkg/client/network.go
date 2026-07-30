@@ -106,7 +106,10 @@ func (g *GrpcClient) GetTransactionInfoByIDCtx(ctx context.Context, id string) (
 	if err != nil {
 		return nil, err
 	}
-	if bytes.Equal(txi.Id, transactionID.Value) {
+	if txi == nil {
+		return nil, fmt.Errorf("transaction info not found: empty response from node")
+	}
+	if bytes.Equal(txi.GetId(), transactionID.Value) {
 		return txi, nil
 	}
 	return nil, fmt.Errorf("transaction info not found")

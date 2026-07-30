@@ -127,12 +127,6 @@ func TestKeyJSON(t *testing.T) {
 	})
 }
 
-// Note: NewKeyForDirectICAP is not tested here because it uses recursive retries
-// until the generated address fits into < 155 bits, which can overflow the stack
-// with the standard rand.Reader (each call reads a fixed 64-byte buffer and derives
-// a deterministic reader, so the chance of hitting a valid address per attempt is
-// very low). The function is exercised indirectly via integration if needed.
-
 // ---------- storeNewKey ----------
 
 func TestStoreNewKey(t *testing.T) {

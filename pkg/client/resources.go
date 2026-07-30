@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"google.golang.org/protobuf/proto"
 )
 
 // GetAccountResource from BASE58 address
@@ -205,6 +207,12 @@ func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, r
 		return nil, err
 
 	}
+	if proto.Size(response) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if response.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
+	}
 
 	return response, nil
 }
@@ -241,6 +249,12 @@ func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver 
 	if err != nil {
 		return nil, err
 
+	}
+	if proto.Size(response) == 0 {
+		return nil, fmt.Errorf("bad transaction")
+	}
+	if response.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
 	}
 
 	return response, nil
