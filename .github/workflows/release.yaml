@@ -24,7 +24,10 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.26'
+          # Release binaries must be built with a toolchain that carries the
+          # crypto/tls, net/textproto and crypto/x509 fixes (>= go1.26.5).
+          # The range keeps picking up later patch releases automatically.
+          go-version: '>=1.26.5'
           cache: true
 
       - name: Run GoReleaser

@@ -35,13 +35,39 @@ checksum:
   name_template: checksums.txt
 
 changelog:
+  sort: desc
+  # Entries are `<abbrev-sha> <subject>` (git log --pretty=oneline --abbrev-commit).
+  # Every pattern anchors on the hash prefix itself (^[[:xdigit:]]+\s+) rather than
+  # a bare `^.*?type` — the loose form also matches "type:" appearing later in the
+  # subject text (e.g. a chore commit whose message happens to mention "feat:"),
+  # misgrouping or wrongly excluding it.
+  # Titles match the release-note headings documented in CLAUDE.md, so the
+  # generated changelog needs no manual reformatting before publishing.
+  groups:
+    - title: ✨ Features
+      regexp: '^[[:xdigit:]]+\s+feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: 🔒 Security
+      regexp: '^[[:xdigit:]]+\s+(sec|security)(\(.+\))??!?:.+$'
+      order: 1
+    - title: 🐛 Bug Fixes
+      regexp: '^[[:xdigit:]]+\s+fix(\(.+\))??!?:.+$'
+      order: 2
+    - title: 🔨 Refactoring
+      regexp: '^[[:xdigit:]]+\s+refactor(\(.+\))??!?:.+$'
+      order: 3
+    - title: ⚡ Performance
+      regexp: '^[[:xdigit:]]+\s+perf(\(.+\))??!?:.+$'
+      order: 4
+    - title: Other
+      order: 999
   filters:
     exclude:
-      - "^docs:"
-      - "^test:"
-      - "^chore:"
-      - "^ci:"
-      - "^Merge "
+      - '^[[:xdigit:]]+\s+docs(\(.+\))??!?:.+$'
+      - '^[[:xdigit:]]+\s+test(\(.+\))??!?:.+$'
+      - '^[[:xdigit:]]+\s+chore(\(.+\))??!?:.+$'
+      - '^[[:xdigit:]]+\s+ci(\(.+\))??!?:.+$'
+      - '^[[:xdigit:]]+\s+Merge '
 
 brews:
   - repository:
