@@ -639,6 +639,22 @@ var (
 	pattern = regexp.MustCompile(`^[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+$`)
 )
 
+// maxDecExponent bounds the scientific-notation exponent accepted by
+// NewDecFromString. The regex allows any number of digits and Atoi accepts the
+// whole int range, so without this a short string reaches Pow with an arbitrary
+// exponent, where two things go wrong:
+//
+//   - Dec is capped at 255+DecimalPrecisionBits bits over an 18-decimal scale, so
+//     Pow(10, e) panics with "Int overflow" once e exceeds 76 (verified: 10^76 is
+//     representable, 10^77 panics).
+//   - Pow negates a negative exponent, and for math.MinInt the negation stays
+//     negative, so it recurses until the stack overflows.
+//
+// The bound is symmetric: an exponent below -76 cannot be represented either, and
+// silently collapsing such an input to zero is the same class of wrong-value bug
+// this parser is being hardened against.
+const maxDecExponent = 76
+
 // Pow calcs power of numeric with int
 func Pow(base Dec, exp int) Dec {
 	if exp < 0 {
@@ -672,6 +688,9 @@ func NewDecFromString(i string) (Dec, error) {
 		b, err := strconv.Atoi(tokens[1])
 		if err != nil {
 			return ZeroDec(), fmt.Errorf("invalid exponent %q in %q: %w", tokens[1], i, err)
+		}
+		if b > maxDecExponent || b < -maxDecExponent {
+			return ZeroDec(), fmt.Errorf("exponent %d in %q outside [-%d, %d]", b, i, maxDecExponent, maxDecExponent)
 		}
 		return a.Mul(Pow(NewDec(10), b)), nil
 	}

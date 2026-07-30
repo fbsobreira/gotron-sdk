@@ -328,8 +328,14 @@ const (
 	maxScryptP = 16
 	// scrypt's working set is 128 * N * r bytes. StandardScryptN with r=8 needs
 	// 256 MiB, so 1 GiB leaves generous headroom while still bounding the cost.
-	maxScryptMemory  = 1 << 30
-	maxPBKDF2Count   = 1 << 24
+	maxScryptMemory = 1 << 30
+	maxPBKDF2Count  = 1 << 24
+	// The decrypt paths read derivedKey[:16] for the AES key and derivedKey[16:32]
+	// for the MAC, so anything shorter than 32 is unusable. It does not panic today
+	// only because scrypt.Key and pbkdf2.Key happen to return a slice with cap 32
+	// even when dklen is 1, so the expression reads past len into the spare
+	// capacity. Requiring the V3 spec's 32 removes that reliance.
+	minDerivedKeyLen = 32
 	maxDerivedKeyLen = 1024
 )
 
@@ -391,7 +397,7 @@ func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	dkLen, err := kdfInt(cryptoJSON.KDFParams, "dklen", 1, maxDerivedKeyLen)
+	dkLen, err := kdfInt(cryptoJSON.KDFParams, "dklen", minDerivedKeyLen, maxDerivedKeyLen)
 	if err != nil {
 		return nil, err
 	}

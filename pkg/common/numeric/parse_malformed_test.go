@@ -1,6 +1,7 @@
 package numeric_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common/numeric"
@@ -25,6 +26,16 @@ func TestNewDecFromString_Malformed(t *testing.T) {
 		"1e5 ",
 		"--1",
 		"1.2.3",
+		// Pow negates a negative exponent; math.MinInt stays negative when
+		// negated, so this recursed until the stack overflowed. Large positive
+		// exponents build an astronomically large big.Int instead.
+		"1e-9223372036854775808",
+		"1e9223372036854775807",
+		"1e100000",
+		"1e-100000",
+		// 10^77 exceeds Dec's bit cap and panicked with "Int overflow".
+		"1e77",
+		"1e-77",
 	} {
 		t.Run(in, func(t *testing.T) {
 			require.NotPanics(t, func() {
@@ -41,6 +52,7 @@ func TestNewDecFromString_Valid(t *testing.T) {
 		want string
 	}{
 		{"1e5", "100000.000000000000000000"},
+		{"1e76", "1" + strings.Repeat("0", 76) + ".000000000000000000"},
 		{"2.5e3", "2500.000000000000000000"},
 		{".5", "0.500000000000000000"},
 		{"1", "1.000000000000000000"},

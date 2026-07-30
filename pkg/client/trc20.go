@@ -95,8 +95,12 @@ func (g *GrpcClient) TRC20CallCtx(ctx context.Context, from, contractAddress, da
 	if err != nil {
 		return nil, err
 	}
+	// Return nil rather than the rejection payload, matching triggerContract and
+	// DeployContractCtx. TRC20Send, TRC20Approve and TRC20TransferFrom return this
+	// value straight through, so handing back a rejected TransactionExtention lets
+	// a caller that checks the result before the error sign and broadcast it.
 	if result.GetResult().GetCode() > 0 {
-		return result, fmt.Errorf("%s", string(result.GetResult().GetMessage()))
+		return nil, fmt.Errorf("%s", string(result.GetResult().GetMessage()))
 	}
 	return result, nil
 

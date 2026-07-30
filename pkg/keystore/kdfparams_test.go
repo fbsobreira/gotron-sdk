@@ -76,6 +76,14 @@ func TestDecryptKey_MalformedKDFParams(t *testing.T) {
 		"r beyond limit":     {"scrypt", withKey(validScrypt(), "r", 1<<20)},
 		"p beyond limit":     {"scrypt", withKey(validScrypt(), "p", 1<<20)},
 		"dklen beyond limit": {"scrypt", withKey(validScrypt(), "dklen", 1<<30)},
+		// The decrypt paths read derivedKey[16:32]; anything below 32 is unusable
+		// and only avoids a panic because the KDFs return spare capacity.
+		"dklen below 32":      {"scrypt", withKey(validScrypt(), "dklen", 1)},
+		"dklen just below 32": {"scrypt", withKey(validScrypt(), "dklen", 31)},
+		"pbkdf2 dklen below 32": {"pbkdf2", map[string]interface{}{
+			"dklen": 16, "c": 262144, "prf": "hmac-sha256",
+			"salt": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		}},
 		"pbkdf2 c beyond limit": {"pbkdf2", map[string]interface{}{
 			"dklen": 32, "c": 1 << 40, "prf": "hmac-sha256",
 			"salt": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
