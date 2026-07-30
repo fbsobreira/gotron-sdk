@@ -36,6 +36,10 @@ func TestNewDecFromString_Malformed(t *testing.T) {
 		// 10^77 exceeds Dec's bit cap and panicked with "Int overflow".
 		"1e77",
 		"1e-77",
+		// The exponent bound alone is not enough: magnitude depends on the
+		// mantissa too, so these are inside [-76, 76] and still overflow.
+		"9e76",
+		"99e75",
 	} {
 		t.Run(in, func(t *testing.T) {
 			require.NotPanics(t, func() {
@@ -89,6 +93,11 @@ func TestNewDecFromHex_Malformed(t *testing.T) {
 		"-abcd",
 		"+abcd",
 		"0x-abcd",
+		// 64 hex chars is an ordinary ABI uint256 word and exceeds Dec's range;
+		// this panicked with "Int overflow".
+		strings.Repeat("f", 64),
+		strings.Repeat("f", 200),
+		"0x" + strings.Repeat("a", 64),
 	} {
 		t.Run(in, func(t *testing.T) {
 			require.NotPanics(t, func() {

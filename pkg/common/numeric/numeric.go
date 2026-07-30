@@ -653,7 +653,38 @@ var (
 // The bound is symmetric: an exponent below -76 cannot be represented either, and
 // silently collapsing such an input to zero is the same class of wrong-value bug
 // this parser is being hardened against.
+//
+// The bound is necessary but not sufficient — see recoverIntOverflow.
 const maxDecExponent = 76
+
+// ErrOutOfRange reports a value outside the range Dec can represent.
+var ErrOutOfRange = errors.New("value out of representable range")
+
+// recoverIntOverflow converts the "Int overflow" panic raised by Dec's
+// fixed-point operations into ErrOutOfRange, and re-raises anything else so real
+// bugs still surface.
+//
+// Dec's arithmetic panics instead of returning an error, and deciding in advance
+// whether a parsed value fits is unreliable: the exponent bound is necessary but
+// not sufficient, because the magnitude depends on the mantissa too — 1e76 is
+// representable while 9e76 is not — and on the hex path a 64-character string,
+// which is just an ABI uint256 word, overflows as well. Catching the documented
+// panic covers every arithmetic path exactly, where hand-derived bit arithmetic
+// would only approximate it.
+// It must be deferred directly — recover() only returns the panic value when
+// called by the deferred function itself, not by something that function calls.
+func recoverIntOverflow(dec *Dec, err *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if s, ok := r.(string); ok && s == "Int overflow" {
+		*dec = ZeroDec()
+		*err = ErrOutOfRange
+		return
+	}
+	panic(r)
+}
 
 // Pow calcs power of numeric with int
 func Pow(base Dec, exp int) Dec {
@@ -675,7 +706,8 @@ func Pow(base Dec, exp int) Dec {
 }
 
 // NewDecFromString from string to DEC
-func NewDecFromString(i string) (Dec, error) {
+func NewDecFromString(i string) (dec Dec, err error) {
+	defer recoverIntOverflow(&dec, &err)
 	if strings.HasPrefix(i, "-") {
 		return ZeroDec(), fmt.Errorf("can not be negative: %s", i)
 	}
@@ -709,7 +741,12 @@ func NewDecFromString(i string) (Dec, error) {
 // panicked, so no caller that works today changes behaviour. The signature
 // cannot report the condition; gaining an error return is queued as a breaking
 // change.
-func NewDecFromHex(str string) Dec {
+func NewDecFromHex(str string) (dec Dec) {
+	// A 64-character string — an ordinary ABI uint256 word — exceeds Dec's range,
+	// and the signature cannot report it, so it degrades to zero like other
+	// invalid input.
+	var err error
+	defer recoverIntOverflow(&dec, &err)
 	str = strings.TrimPrefix(str, "0x")
 	if str == "" {
 		return ZeroDec()
