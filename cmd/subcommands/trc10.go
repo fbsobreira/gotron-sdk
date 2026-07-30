@@ -189,7 +189,7 @@ func trc10SendCmd() *cobra.Command {
 						tokenDecimals = asset.Precision
 					}
 				} else {
-					return fmt.Errorf("TRC10 not found: %s", args[3])
+					return fmt.Errorf("TRC10 not found: %s", args[2])
 				}
 			}
 			if len(tokenID) == 0 {
@@ -199,10 +199,10 @@ func trc10SendCmd() *cobra.Command {
 						tokenID = asset.Id
 						tokenDecimals = asset.Precision
 					} else {
-						return fmt.Errorf("TRC10 not found: %s", args[3])
+						return fmt.Errorf("TRC10 not found: %s", args[2])
 					}
 				} else {
-					return fmt.Errorf("TRC10 not found: %s", args[3])
+					return fmt.Errorf("TRC10 not found: %s", args[2])
 				}
 			}
 
