@@ -299,7 +299,7 @@ func contractTriggerCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				tokenInt = int64(tAmount * math.Pow10(int(info.Precision)))
+				tokenInt = int64(tTokenAmount * math.Pow10(int(info.Precision)))
 			}
 
 			param := ""
@@ -335,8 +335,14 @@ func contractTriggerCmd() *cobra.Command {
 					"result":  estimate.Result.Result,
 				}
 
-				asJSON, _ := json.Marshal(result)
+				asJSON, err := json.Marshal(result)
+				if err != nil {
+					return err
+				}
 				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+				// --estimate is a dry run: never fall through to TriggerContract,
+				// which would sign and broadcast a real state-changing call.
+				return nil
 			}
 
 			tx, err := conn.TriggerContract(
@@ -402,7 +408,8 @@ func contractTriggerCmd() *cobra.Command {
 	cmd.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
 	cmd.Flags().StringVar(&tTokenID, "token", "", "token id")
 	cmd.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
-	cmd.Flags().BoolVar(&estimate, "estimate", false, "estimate energy required")
+	cmd.Flags().BoolVar(&estimate, "estimate", false,
+		"only estimate the energy required; do not sign or broadcast the call")
 	return cmd
 }
 
