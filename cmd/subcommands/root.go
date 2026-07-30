@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -141,6 +141,16 @@ var (
 	versionTagLink  = "https://api.github.com/repos/fbsobreira/gotron-sdk/git/ref/tags/"
 )
 
+const (
+	// versionCheckTimeout bounds the whole version check. getGitVersion runs from
+	// Execute on every command failure, so an unreachable or hung endpoint would
+	// otherwise delay the user's real error indefinitely — offline use included.
+	versionCheckTimeout = 3 * time.Second
+	// shortCommitLen is the abbreviation width used for the local commit, by both
+	// goreleaser's .ShortCommit and the build-info truncation in cmd/tronctl/main.go.
+	shortCommitLen = 7
+)
+
 // GitHubReleaseAssets json struct
 type GitHubReleaseAssets struct {
 	ID   json.Number `json:"id"`
@@ -164,58 +174,97 @@ type GitHubTag struct {
 	NodeID string `json:"node_id"`
 	URL    string `json:"url"`
 	DATA   struct {
-		SHA string `json:"sha"`
+		SHA  string `json:"sha"`
+		Type string `json:"type"`
 	} `json:"object"`
 }
 
-func getGitVersion() (string, error) {
-	resp, err := http.Get(versionLink)
+// fetchJSON performs a bounded GET and decodes a JSON body into out.
+func fetchJSON(ctx context.Context, url string, out any) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return "", err
+		return err
 	}
-
-	if resp != nil {
-		defer func() { _ = resp.Body.Close() }()
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
 	}
-	// if error, no op
-	if resp != nil && resp.StatusCode == 200 {
-		buf := new(bytes.Buffer)
-		_, err = buf.ReadFrom(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		release := &GitHubRelease{}
-		if err := json.Unmarshal(buf.Bytes(), release); err != nil {
-			return "", err
-		}
+	defer func() { _ = resp.Body.Close() }()
 
-		respTag, err := http.Get(versionTagLink + release.TagName)
-		if err != nil || respTag == nil {
-			return "", fmt.Errorf("failed to fetch tag: %w", err)
-		}
-		defer func() { _ = respTag.Body.Close() }()
-		if respTag.StatusCode == 200 {
-			buf.Reset()
-			_, err := buf.ReadFrom(respTag.Body)
-			if err != nil {
-				return "", err
-			}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("%s: unexpected status %s", url, resp.Status)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
 
-			releaseTag := &GitHubTag{}
-			if err := json.Unmarshal(buf.Bytes(), releaseTag); err != nil {
-				return "", err
-			}
-			commit := strings.Split(VersionWrapDump, "-")
-
-			if releaseTag.DATA.SHA[:8] != commit[1] {
-				warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
-				fmt.Fprintf(os.Stderr, "%s", color.RedString(warnMsg))
-				return release.TagName, fmt.Errorf("%s", warnMsg)
-			}
-			return release.TagName, nil
+func isHexString(s string) bool {
+	for _, r := range s {
+		if !strings.ContainsRune("0123456789abcdefABCDEF", r) {
+			return false
 		}
 	}
-	return "", fmt.Errorf("could not fetch version")
+	return true
+}
+
+// shortCommit returns the abbreviated commit hash that main appends to
+// VersionWrapDump as "<version>-<commit>", or "" when this build carries no
+// usable commit information.
+//
+// It scans back to front for the last hex field of at least shortCommitLen, so
+// it stays correct for every shape the build actually produces: "v0.26.0-abc1234"
+// from goreleaser, "v366-5484f0cc-dirty" from the Makefile, and prerelease tags
+// like "v0.27.0-rc1-abc1234" where a fixed field index would pick up "rc1".
+//
+// It never indexes blindly: getGitVersion runs while reporting an ordinary error,
+// so a panic here would replace the user's real message with a stack trace.
+func shortCommit(dump string) string {
+	fields := strings.Split(dump, "-")
+	for i := len(fields) - 1; i >= 1; i-- {
+		if len(fields[i]) >= shortCommitLen && isHexString(fields[i]) {
+			return fields[i]
+		}
+	}
+	return ""
+}
+
+func getGitVersion() (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), versionCheckTimeout)
+	defer cancel()
+
+	release := &GitHubRelease{}
+	if err := fetchJSON(ctx, versionLink, release); err != nil {
+		return "", fmt.Errorf("could not fetch version: %w", err)
+	}
+
+	releaseTag := &GitHubTag{}
+	if err := fetchJSON(ctx, versionTagLink+release.TagName, releaseTag); err != nil {
+		return "", fmt.Errorf("failed to fetch tag %s: %w", release.TagName, err)
+	}
+
+	// An annotated tag points at a tag object, not at a commit, so its sha is not
+	// comparable with this build's commit. Report the tag rather than claiming the
+	// build is outdated on a value that was never the commit. (Releases are tagged
+	// lightweight today; this guards the day one is annotated.)
+	if releaseTag.DATA.Type != "" && releaseTag.DATA.Type != "commit" {
+		return release.TagName, nil
+	}
+
+	// No commit recorded in this build, or none reported by the API: there is
+	// nothing to compare, so do not claim the build is outdated.
+	localCommit := shortCommit(VersionWrapDump)
+	if localCommit == "" || releaseTag.DATA.SHA == "" {
+		return release.TagName, nil
+	}
+
+	// The local commit is an abbreviation while the API returns the full 40-char
+	// sha, so compare by prefix. The previous sha[:8] != <7-char abbreviation>
+	// could never be equal, which made every release build report itself outdated.
+	if !strings.HasPrefix(releaseTag.DATA.SHA, localCommit) {
+		warnMsg := fmt.Sprintf("Warning: Using outdated version. Redownload to upgrade to %s\n", release.TagName)
+		fmt.Fprintf(os.Stderr, "%s", color.RedString(warnMsg))
+		return release.TagName, fmt.Errorf("%s", warnMsg)
+	}
+	return release.TagName, nil
 }
 
 // Execute kicks off the tronctl CLI
