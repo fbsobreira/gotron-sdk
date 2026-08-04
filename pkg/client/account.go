@@ -37,6 +37,11 @@ func (g *GrpcClient) GetAccountCtx(ctx context.Context, addr string) (*core.Acco
 	if err != nil {
 		return nil, err
 	}
+	// A substituted WalletClient can return (nil, nil); a real gRPC round trip
+	// always materialises a message. Check before field access.
+	if acc == nil {
+		return nil, fmt.Errorf("account not found")
+	}
 	if !bytes.Equal(acc.Address, account.Address) {
 		return nil, fmt.Errorf("account not found")
 	}

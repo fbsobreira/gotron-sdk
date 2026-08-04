@@ -233,22 +233,12 @@ func DecryptKey(keyjson []byte, auth string) (*Key, error) {
 	}, nil
 }
 
-// DecryptDataV3 ...
+// DecryptDataV3 decrypts Web3 Secret Storage v3 crypto fields.
 func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 	if cj.Cipher != "aes-128-ctr" {
 		return nil, fmt.Errorf("Cipher not supported: %v", cj.Cipher)
 	}
-	mac, err := hex.DecodeString(cj.MAC)
-	if err != nil {
-		return nil, err
-	}
-
-	iv, err := hex.DecodeString(cj.CipherParams.IV)
-	if err != nil {
-		return nil, err
-	}
-
-	cipherText, err := hex.DecodeString(cj.CipherText)
+	mac, iv, cipherText, err := decodeCipherFields(cj.MAC, cj.CipherParams.IV, cj.CipherText, false)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +260,53 @@ func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 	return plainText, err
 }
 
+// decodeCipherFields bounds and decodes MAC, IV and ciphertext hex before any KDF
+// work. CTR (v3) accepts any ciphertext length up to the ceiling; CBC (v1) also
+// requires a positive multiple of the AES block size so CryptBlocks cannot panic.
+func decodeCipherFields(macHex, ivHex, cipherHex string, cbc bool) (mac, iv, cipherText []byte, err error) {
+	if len(macHex) > macLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: mac hex length %d exceeds limit %d", len(macHex), macLen*2)
+	}
+	if len(ivHex) > aesIVLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: iv hex length %d exceeds limit %d", len(ivHex), aesIVLen*2)
+	}
+	if len(cipherHex) > maxCiphertextLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext hex length %d exceeds limit %d", len(cipherHex), maxCiphertextLen*2)
+	}
+
+	mac, err = hex.DecodeString(macHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(mac) != macLen {
+		return nil, nil, nil, fmt.Errorf("crypto: mac must be %d bytes, got %d", macLen, len(mac))
+	}
+
+	iv, err = hex.DecodeString(ivHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(iv) != aesIVLen {
+		return nil, nil, nil, fmt.Errorf("crypto: iv must be %d bytes, got %d", aesIVLen, len(iv))
+	}
+
+	cipherText, err = hex.DecodeString(cipherHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(cipherText) == 0 {
+		return nil, nil, nil, fmt.Errorf("crypto: empty ciphertext")
+	}
+	if len(cipherText) > maxCiphertextLen {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext length %d exceeds limit %d", len(cipherText), maxCiphertextLen)
+	}
+	if cbc && len(cipherText)%aes.BlockSize != 0 {
+		return nil, nil, nil, fmt.Errorf("crypto: cbc ciphertext length must be a multiple of %d, got %d",
+			aes.BlockSize, len(cipherText))
+	}
+	return mac, iv, cipherText, nil
+}
+
 func decryptKeyV3(keyProtected *encryptedKeyJSONV3, auth string) (keyBytes []byte, keyID []byte, err error) {
 	if keyProtected.Version != version {
 		return nil, nil, fmt.Errorf("Version not supported: %v", keyProtected.Version)
@@ -284,17 +321,12 @@ func decryptKeyV3(keyProtected *encryptedKeyJSONV3, auth string) (keyBytes []byt
 
 func decryptKeyV1(keyProtected *encryptedKeyJSONV1, auth string) (keyBytes []byte, keyID []byte, err error) {
 	keyID = uuid.Parse(keyProtected.ID)
-	mac, err := hex.DecodeString(keyProtected.Crypto.MAC)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	iv, err := hex.DecodeString(keyProtected.Crypto.CipherParams.IV)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cipherText, err := hex.DecodeString(keyProtected.Crypto.CipherText)
+	mac, iv, cipherText, err := decodeCipherFields(
+		keyProtected.Crypto.MAC,
+		keyProtected.Crypto.CipherParams.IV,
+		keyProtected.Crypto.CipherText,
+		true,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -342,6 +374,14 @@ const (
 	// amplifies PBKDF2/scrypt setup cost. Common wallets use 16–32 bytes; 64
 	// leaves headroom without allowing unbounded input.
 	maxSaltLen = 64
+	// Cipher-side fields are also unauthenticated until the MAC is checked.
+	// Keccak256 MACs are 32 bytes; AES-128 IVs are 16. Ciphertext is only a
+	// private key (32 bytes) for EncryptKey, but DecryptDataV3 is public — keep
+	// a modest ceiling so a multi-megabyte field cannot force decode+KDF+Keccak
+	// before rejection.
+	macLen           = 32
+	aesIVLen         = 16
+	maxCiphertextLen = 1024
 )
 
 // kdfString reads a string KDF parameter with a checked assertion. The params map

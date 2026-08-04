@@ -441,12 +441,19 @@ func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartCo
 		}
 		return nil, err
 	}
-
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
+	// A substituted WalletClient can return (nil, nil); treat that as empty.
+	if tx == nil {
+		return nil, fmt.Errorf("estimate energy: empty response from node")
+	}
+	if code := tx.GetResult().GetCode(); code != 0 {
+		msg := string(tx.GetResult().GetMessage())
+		if msg == "" {
+			return nil, fmt.Errorf("estimate energy: node rejected request: code=%v", code)
+		}
+		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return tx, err
+	return tx, nil
 }
 
 // DeployContract deploys a new smart contract and returns the unsigned transaction.

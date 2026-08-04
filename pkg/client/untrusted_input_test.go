@@ -346,6 +346,46 @@ func TestGetTransactionInfoByID_NilResponse(t *testing.T) {
 	})
 }
 
+// nilAccountWalletClient returns a literal nil Account with a nil error.
+type nilAccountWalletClient struct{ api.WalletClient }
+
+func (nilAccountWalletClient) GetAccount(
+	context.Context, *core.Account, ...grpc.CallOption,
+) (*core.Account, error) {
+	return nil, nil
+}
+
+// A nil Account previously reached acc.Address and panicked.
+func TestGetAccount_NilResponse(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+	c.Client = nilAccountWalletClient{}
+
+	require.NotPanics(t, func() {
+		_, err := c.GetAccount(testAddrA)
+		require.ErrorContains(t, err, "account not found")
+	})
+}
+
+// nilEstimateWalletClient returns a literal nil EstimateEnergyMessage.
+type nilEstimateWalletClient struct{ api.WalletClient }
+
+func (nilEstimateWalletClient) EstimateEnergy(
+	context.Context, *core.TriggerSmartContract, ...grpc.CallOption,
+) (*api.EstimateEnergyMessage, error) {
+	return nil, nil
+}
+
+func TestEstimateEnergy_NilResponse(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{})
+	c.Client = nilEstimateWalletClient{}
+
+	require.NotPanics(t, func() {
+		_, err := c.EstimateEnergy(testAddrA, testContract, "transfer(address,uint256)",
+			`[{"address": "`+testAddrB+`"},{"uint256": "1"}]`, 0, "", 0)
+		require.ErrorContains(t, err, "empty response")
+	})
+}
+
 // An empty (non-nil) response is the shape a real gRPC round trip produces.
 func TestGetTransactionInfoByID_EmptyResponse(t *testing.T) {
 	c := newMockClient(t, &mockWalletServer{

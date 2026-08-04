@@ -19,8 +19,15 @@ func requireTxExtension(tx *api.TransactionExtention, op string) error {
 	if tx == nil || proto.Size(tx) == 0 {
 		return fmt.Errorf("bad transaction")
 	}
-	if tx.GetResult().GetCode() != 0 {
-		return fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
+	if code := tx.GetResult().GetCode(); code != 0 {
+		msg := string(tx.GetResult().GetMessage())
+		if msg == "" {
+			if op == "" {
+				return fmt.Errorf("node rejected request: code=%v", code)
+			}
+			return fmt.Errorf("%s: node rejected request: code=%v", op, code)
+		}
+		return fmt.Errorf("%s", msg)
 	}
 	if tx.GetTransaction().GetRawData() == nil {
 		if op == "" {
