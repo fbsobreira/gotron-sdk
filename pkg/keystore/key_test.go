@@ -231,6 +231,25 @@ func TestEncryptDataV3(t *testing.T) {
 		_, err = DecryptDataV3(cj, "wrong-password")
 		assert.Error(t, err)
 	})
+
+	// Encrypt and Decrypt share maxCiphertextLen so oversized payloads cannot
+	// encrypt into a CryptoJSON this package refuses to decrypt.
+	t.Run("plaintext at ciphertext limit encrypts and decrypts", func(t *testing.T) {
+		data := make([]byte, 1024)
+		auth := []byte("limit-pass")
+		cj, err := EncryptDataV3(data, auth, LightScryptN, LightScryptP)
+		require.NoError(t, err)
+		got, err := DecryptDataV3(cj, string(auth))
+		require.NoError(t, err)
+		assert.Equal(t, data, got)
+	})
+
+	t.Run("plaintext over ciphertext limit is rejected before KDF", func(t *testing.T) {
+		data := make([]byte, 1025)
+		_, err := EncryptDataV3(data, []byte("limit-pass"), LightScryptN, LightScryptP)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds limit")
+	})
 }
 
 // ---------- writeTemporaryKeyFile ----------

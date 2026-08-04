@@ -19,6 +19,15 @@ func requireTxExtension(tx *api.TransactionExtention, op string) error {
 	if tx == nil || proto.Size(tx) == 0 {
 		return fmt.Errorf("bad transaction")
 	}
+	// GetCode() on a nil *Return returns SUCCESS (proto zero value). That is a
+	// client default, not a node-reported success: full nodes always set Result.
+	// Reject an absent Result so a response with only RawData cannot pass.
+	if tx.GetResult() == nil {
+		if op == "" {
+			return fmt.Errorf("node returned no result")
+		}
+		return fmt.Errorf("%s: node returned no result", op)
+	}
 	if code := tx.GetResult().GetCode(); code != 0 {
 		msg := string(tx.GetResult().GetMessage())
 		if msg == "" {

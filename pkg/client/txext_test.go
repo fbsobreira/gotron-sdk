@@ -84,4 +84,25 @@ func TestRequireTxExtension(t *testing.T) {
 		}
 		require.NoError(t, requireTxExtension(tx, "transfer"))
 	})
+
+	// GetCode() on a nil *Return returns SUCCESS, so RawData alone previously
+	// passed validation. Full nodes always set Result; reject the hollow shape.
+	t.Run("nil result with raw data", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Transaction: &core.Transaction{
+				RawData: &core.TransactionRaw{},
+			},
+		}
+		err := requireTxExtension(tx, "transfer")
+		require.ErrorContains(t, err, "node returned no result")
+	})
+
+	t.Run("nil result with raw data empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Transaction: &core.Transaction{
+				RawData: &core.TransactionRaw{},
+			},
+		}
+		require.EqualError(t, requireTxExtension(tx, ""), "node returned no result")
+	})
 }

@@ -135,7 +135,14 @@ func (ks keyStorePassphrase) JoinPath(filename string) string {
 }
 
 // EncryptDataV3 encrypts the data given as 'data' with the password 'auth'.
+//
+// Plaintext longer than maxCiphertextLen (1024 bytes) is rejected so the
+// ciphertext stays within the same bound DecryptDataV3 enforces. EncryptKey
+// only encrypts a 32-byte private key and is unaffected.
 func EncryptDataV3(data, auth []byte, scryptN, scryptP int) (CryptoJSON, error) {
+	if len(data) > maxCiphertextLen {
+		return CryptoJSON{}, fmt.Errorf("crypto: plaintext length %d exceeds limit %d", len(data), maxCiphertextLen)
+	}
 
 	salt := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
