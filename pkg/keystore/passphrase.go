@@ -337,6 +337,11 @@ const (
 	// capacity. Requiring the V3 spec's 32 removes that reliance.
 	minDerivedKeyLen = 32
 	maxDerivedKeyLen = 1024
+	// Salt is unauthenticated and feeds both scrypt and pbkdf2 before the MAC is
+	// checked. A multi-megabyte salt hex-decodes into a large allocation and
+	// amplifies PBKDF2/scrypt setup cost. Common wallets use 16–32 bytes; 64
+	// leaves headroom without allowing unbounded input.
+	maxSaltLen = 64
 )
 
 // kdfString reads a string KDF parameter with a checked assertion. The params map
@@ -393,9 +398,16 @@ func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Bound before decode so a multi-megabyte hex string is not materialised.
+	if len(saltHex) > maxSaltLen*2 {
+		return nil, fmt.Errorf("kdf params: salt hex length %d exceeds limit %d", len(saltHex), maxSaltLen*2)
+	}
 	salt, err := hex.DecodeString(saltHex)
 	if err != nil {
 		return nil, err
+	}
+	if len(salt) > maxSaltLen {
+		return nil, fmt.Errorf("kdf params: salt length %d exceeds limit %d", len(salt), maxSaltLen)
 	}
 	dkLen, err := kdfInt(cryptoJSON.KDFParams, "dklen", minDerivedKeyLen, maxDerivedKeyLen)
 	if err != nil {

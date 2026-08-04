@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // GetAccountResource from BASE58 address
@@ -207,16 +205,8 @@ func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, r
 		return nil, err
 
 	}
-	if proto.Size(response) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if response.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
-	}
-	// A success code does not guarantee a transaction: guard before callers
-	// sign or read RawData (same shape as triggerContract / DeployContractCtx).
-	if response.GetTransaction().GetRawData() == nil {
-		return nil, fmt.Errorf("delegate resource: node returned no transaction")
+	if err := requireTxExtension(response, "delegate resource"); err != nil {
+		return nil, err
 	}
 
 	return response, nil
@@ -255,14 +245,8 @@ func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver 
 		return nil, err
 
 	}
-	if proto.Size(response) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if response.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
-	}
-	if response.GetTransaction().GetRawData() == nil {
-		return nil, fmt.Errorf("undelegate resource: node returned no transaction")
+	if err := requireTxExtension(response, "undelegate resource"); err != nil {
+		return nil, err
 	}
 
 	return response, nil

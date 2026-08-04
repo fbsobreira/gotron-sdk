@@ -8,7 +8,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // ExchangeList of bancor TRC10, use page -1 to list all
@@ -97,11 +96,8 @@ func (g *GrpcClient) ExchangeCreateCtx(
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "exchange create"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -143,11 +139,8 @@ func (g *GrpcClient) ExchangeInjectCtx(
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "exchange inject"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -189,11 +182,8 @@ func (g *GrpcClient) ExchangeWithdrawCtx(
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "exchange withdraw"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -238,11 +228,8 @@ func (g *GrpcClient) ExchangeTradeCtx(
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "exchange trade"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

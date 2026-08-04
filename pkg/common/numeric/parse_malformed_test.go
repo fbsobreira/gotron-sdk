@@ -40,6 +40,12 @@ func TestNewDecFromString_Malformed(t *testing.T) {
 		// mantissa too, so these are inside [-76, 76] and still overflow.
 		"9e76",
 		"99e75",
+		// Plain (non-scientific) path must enforce the same bit cap; previously
+		// a huge integer string built a Dec that later Mul/Add panicked on.
+		"9" + strings.Repeat("0", 80),
+		// Fixed-point underflow: nonzero mantissa collapses to zero at 18 digits.
+		"1e-19",
+		"5e-20",
 	} {
 		t.Run(in, func(t *testing.T) {
 			require.NotPanics(t, func() {
@@ -48,6 +54,19 @@ func TestNewDecFromString_Malformed(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestNewDecFromString_UnderflowAndOverflowErrors(t *testing.T) {
+	_, err := numeric.NewDecFromString("1e-19")
+	require.ErrorContains(t, err, "underflows")
+
+	_, err = numeric.NewDecFromString("9" + strings.Repeat("0", 80))
+	require.ErrorIs(t, err, numeric.ErrOutOfRange)
+
+	// Smallest positive unit at 18-digit precision is still representable.
+	d, err := numeric.NewDecFromString("1e-18")
+	require.NoError(t, err)
+	require.False(t, d.IsZero())
 }
 
 func TestNewDecFromString_Valid(t *testing.T) {

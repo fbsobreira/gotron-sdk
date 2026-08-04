@@ -9,7 +9,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // GetAssetIssueByAccount list asset issued by account
@@ -170,11 +169,8 @@ func (g *GrpcClient) AssetIssueCtx(ctx context.Context, from, name, description,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "asset issue"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -207,11 +203,8 @@ func (g *GrpcClient) UpdateAssetIssueCtx(ctx context.Context, from, description,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update asset issue"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -244,11 +237,8 @@ func (g *GrpcClient) TransferAssetCtx(ctx context.Context, from, toAddress,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "transfer asset"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -281,11 +271,8 @@ func (g *GrpcClient) ParticipateAssetIssueCtx(ctx context.Context, from, issuerA
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "participate asset issue"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -311,11 +298,8 @@ func (g *GrpcClient) UnfreezeAssetCtx(ctx context.Context, from string) (*api.Tr
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "unfreeze asset"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

@@ -2,6 +2,7 @@ package keystore_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -90,6 +91,8 @@ func TestDecryptKey_MalformedKDFParams(t *testing.T) {
 		}},
 		// Within the individual limits, but 128*N*r would be ~34 GiB.
 		"scrypt memory beyond limit": {"scrypt", withKey(withKey(validScrypt(), "n", 1<<22), "r", 64)},
+		// Salt amplifies pre-MAC KDF cost and allocates on hex decode.
+		"salt beyond limit": {"scrypt", withKey(validScrypt(), "salt", strings.Repeat("aa", 65))},
 	}
 
 	for name, tt := range tests {

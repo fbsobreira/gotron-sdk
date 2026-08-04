@@ -7,7 +7,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // FreezeBalance from base58 address
@@ -45,11 +44,8 @@ func (g *GrpcClient) FreezeBalanceCtx(ctx context.Context, from, delegateTo stri
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "freeze balance"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -85,11 +81,8 @@ func (g *GrpcClient) FreezeBalanceV2Ctx(ctx context.Context, from string,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "freeze balance v2"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -124,11 +117,8 @@ func (g *GrpcClient) UnfreezeBalanceCtx(ctx context.Context, from, delegateTo st
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "unfreeze balance"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -162,11 +152,8 @@ func (g *GrpcClient) UnfreezeBalanceV2Ctx(ctx context.Context, from string, reso
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "unfreeze balance v2"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -246,16 +233,8 @@ func (g *GrpcClient) WithdrawExpireUnfreezeCtx(ctx context.Context, from string,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
-	}
-	// A success code does not guarantee a transaction: guard before callers
-	// sign or read RawData (same shape as triggerContract / DeployContractCtx).
-	if tx.GetTransaction().GetRawData() == nil {
-		return nil, fmt.Errorf("withdraw expire unfreeze: node returned no transaction")
+	if err := requireTxExtension(tx, "withdraw expire unfreeze"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

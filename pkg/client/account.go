@@ -13,7 +13,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // GetAccount from BASE58 address
@@ -111,11 +110,8 @@ func (g *GrpcClient) CreateAccountCtx(ctx context.Context, from, addr string) (*
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "create account"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -141,11 +137,8 @@ func (g *GrpcClient) UpdateAccountCtx(ctx context.Context, from, accountName str
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update account"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -361,11 +354,8 @@ func (g *GrpcClient) WithdrawBalanceCtx(ctx context.Context, from string) (*api.
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "withdraw balance"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -554,11 +544,8 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update account permission"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

@@ -179,6 +179,11 @@ func NewDecFromStr(str string) (d Dec, err error) {
 	if !ok {
 		return d, fmt.Errorf("bad string to integer conversion, combinedStr: %v", combinedStr)
 	}
+	// Same bit cap as Mul/Add/etc. Without this, a large plain decimal builds a
+	// Dec that later arithmetic panics on ("Int overflow").
+	if combined.BitLen() > 255+DecimalPrecisionBits {
+		return ZeroDec(), ErrOutOfRange
+	}
 	if neg {
 		combined = new(big.Int).Neg(combined)
 	}
@@ -724,7 +729,14 @@ func NewDecFromString(i string) (dec Dec, err error) {
 		if b > maxDecExponent || b < -maxDecExponent {
 			return ZeroDec(), fmt.Errorf("exponent %d in %q outside [-%d, %d]", b, i, maxDecExponent, maxDecExponent)
 		}
-		return a.Mul(Pow(NewDec(10), b)), nil
+		result := a.Mul(Pow(NewDec(10), b))
+		// Negative exponents can collapse a nonzero mantissa to zero at 18-digit
+		// fixed-point precision (e.g. 1e-19). That is a silent wrong value, not a
+		// valid zero — reject it the same way overflow is rejected.
+		if !a.IsZero() && result.IsZero() {
+			return ZeroDec(), fmt.Errorf("value underflows fixed-point precision: %q", i)
+		}
+		return result, nil
 	}
 	if strings.HasPrefix(i, ".") {
 		i = "0" + i
