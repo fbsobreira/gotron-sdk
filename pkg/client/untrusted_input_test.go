@@ -153,11 +153,20 @@ func rejectedTx() *api.TransactionExtention {
 	}
 }
 
+// successNoTx is a success-shaped TransactionExtention with no Transaction body.
+// A node (or a custom WalletClient) can return this; callers that only check the
+// result code would otherwise nil-dereference when signing or reading RawData.
+func successNoTx() *api.TransactionExtention {
+	return &api.TransactionExtention{
+		Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
+	}
+}
+
 // These builders previously returned the rejection as an apparently valid
 // TransactionExtention, so the failure surfaced only after signing and
-// broadcast — or not at all.
+// broadcast — or not at all. They must also reject success-with-no-tx.
 func TestBuilders_SurfaceNodeRejection(t *testing.T) {
-	t.Run("WithdrawExpireUnfreeze", func(t *testing.T) {
+	t.Run("WithdrawExpireUnfreeze/non-zero code", func(t *testing.T) {
 		c := newMockClient(t, &mockWalletServer{
 			WithdrawExpireUnfreezeFunc: func(_ context.Context, _ *core.WithdrawExpireUnfreezeContract) (*api.TransactionExtention, error) {
 				return rejectedTx(), nil
@@ -166,8 +175,19 @@ func TestBuilders_SurfaceNodeRejection(t *testing.T) {
 		_, err := c.WithdrawExpireUnfreeze(testAddrA, 1700000000000)
 		require.ErrorContains(t, err, "node refused the request")
 	})
+	t.Run("WithdrawExpireUnfreeze/success no transaction", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			WithdrawExpireUnfreezeFunc: func(_ context.Context, _ *core.WithdrawExpireUnfreezeContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.WithdrawExpireUnfreeze(testAddrA, 1700000000000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
 
-	t.Run("DelegateResource", func(t *testing.T) {
+	t.Run("DelegateResource/non-zero code", func(t *testing.T) {
 		c := newMockClient(t, &mockWalletServer{
 			DelegateResourceFunc: func(_ context.Context, _ *core.DelegateResourceContract) (*api.TransactionExtention, error) {
 				return rejectedTx(), nil
@@ -176,8 +196,19 @@ func TestBuilders_SurfaceNodeRejection(t *testing.T) {
 		_, err := c.DelegateResource(testAddrA, testAddrB, core.ResourceCode_BANDWIDTH, 1_000_000, false, 0)
 		require.ErrorContains(t, err, "node refused the request")
 	})
+	t.Run("DelegateResource/success no transaction", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			DelegateResourceFunc: func(_ context.Context, _ *core.DelegateResourceContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.DelegateResource(testAddrA, testAddrB, core.ResourceCode_BANDWIDTH, 1_000_000, false, 0)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
 
-	t.Run("UnDelegateResource", func(t *testing.T) {
+	t.Run("UnDelegateResource/non-zero code", func(t *testing.T) {
 		c := newMockClient(t, &mockWalletServer{
 			UnDelegateResourceFunc: func(_ context.Context, _ *core.UnDelegateResourceContract) (*api.TransactionExtention, error) {
 				return rejectedTx(), nil
@@ -185,6 +216,17 @@ func TestBuilders_SurfaceNodeRejection(t *testing.T) {
 		})
 		_, err := c.UnDelegateResource(testAddrA, testAddrB, core.ResourceCode_BANDWIDTH, 1_000_000)
 		require.ErrorContains(t, err, "node refused the request")
+	})
+	t.Run("UnDelegateResource/success no transaction", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UnDelegateResourceFunc: func(_ context.Context, _ *core.UnDelegateResourceContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UnDelegateResource(testAddrA, testAddrB, core.ResourceCode_BANDWIDTH, 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
 	})
 }
 
@@ -206,14 +248,70 @@ func TestDeployContract_NodeRejection(t *testing.T) {
 	t.Run("success code but no transaction", func(t *testing.T) {
 		c := newMockClient(t, &mockWalletServer{
 			DeployContractFunc: func(_ context.Context, _ *core.CreateSmartContract) (*api.TransactionExtention, error) {
-				return &api.TransactionExtention{
-					Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
-				}, nil
+				return successNoTx(), nil
 			},
 		})
 		require.NotPanics(t, func() {
 			_, err := c.DeployContract(testAddrA, "Test", &core.SmartContract_ABI{}, "6080", 100, 50, 10000)
-			require.Error(t, err)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+}
+
+// triggerContract (and TRC20 writes that go through it) must surface node
+// rejection and success-with-no-RawData as errors, never as a signable tx.
+func TestTriggerContract_NodeRejection(t *testing.T) {
+	t.Run("TRC20Send/non-zero result code", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+				return rejectedTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			tx, err := c.TRC20Send(testAddrA, testAddrB, testContract, big.NewInt(1), 100)
+			require.ErrorContains(t, err, "node refused the request")
+			require.Nil(t, tx)
+		})
+	})
+
+	t.Run("TRC20Send/success no transaction", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			tx, err := c.TRC20Send(testAddrA, testAddrB, testContract, big.NewInt(1), 100)
+			require.ErrorContains(t, err, "node returned no transaction")
+			require.Nil(t, tx)
+		})
+	})
+
+	t.Run("TriggerContract/non-zero result code", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+				return rejectedTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			tx, err := c.TriggerContract(testAddrA, testContract, "transfer(address,uint256)",
+				`[{"address": "`+testAddrB+`"},{"uint256": "1"}]`, 100, 0, "", 0)
+			require.ErrorContains(t, err, "node refused the request")
+			require.Nil(t, tx)
+		})
+	})
+
+	t.Run("TriggerContract/success no transaction", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			TriggerContractFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			tx, err := c.TriggerContract(testAddrA, testContract, "transfer(address,uint256)",
+				`[{"address": "`+testAddrB+`"},{"uint256": "1"}]`, 100, 0, "", 0)
+			require.ErrorContains(t, err, "node returned no transaction")
+			require.Nil(t, tx)
 		})
 	})
 }

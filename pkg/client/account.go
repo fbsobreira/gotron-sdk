@@ -436,7 +436,6 @@ func (g *GrpcClient) UpdateAccountPermission(from string, owner, witness map[str
 	return g.UpdateAccountPermissionCtx(ctx, from, owner, witness, actives)
 }
 
-// UpdateAccountPermissionCtx is the context-aware version of UpdateAccountPermission.
 // permField reads one field from a caller-supplied permission map with a checked
 // assertion. The public API takes map[string]interface{}, so a missing key — or a
 // plain int where int64 was meant — would otherwise panic part-way through a
@@ -454,6 +453,7 @@ func permField[T any](m map[string]interface{}, scope, key string) (T, error) {
 	return t, nil
 }
 
+// UpdateAccountPermissionCtx is the context-aware version of UpdateAccountPermission.
 func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string, owner, witness map[string]interface{}, actives []map[string]interface{}) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
 

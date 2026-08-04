@@ -94,7 +94,7 @@ func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, con
 		return nil, err
 	}
 
-	if tx.GetResult().GetCode() > 0 {
+	if tx.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 
@@ -133,7 +133,7 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 		return nil, err
 	}
 
-	if tx.GetResult().GetCode() > 0 {
+	if tx.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 
@@ -248,7 +248,7 @@ func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartC
 		return nil, err
 	}
 
-	if tx.GetResult().GetCode() > 0 {
+	if tx.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 	// A success code does not guarantee a transaction: guard before assigning
@@ -451,7 +451,7 @@ func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartCo
 		return nil, err
 	}
 
-	if tx.GetResult().GetCode() > 0 {
+	if tx.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", string(tx.GetResult().GetMessage()))
 	}
 

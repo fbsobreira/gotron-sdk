@@ -213,6 +213,11 @@ func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, r
 	if response.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
 	}
+	// A success code does not guarantee a transaction: guard before callers
+	// sign or read RawData (same shape as triggerContract / DeployContractCtx).
+	if response.GetTransaction().GetRawData() == nil {
+		return nil, fmt.Errorf("delegate resource: node returned no transaction")
+	}
 
 	return response, nil
 }
@@ -255,6 +260,9 @@ func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver 
 	}
 	if response.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", response.GetResult().GetMessage())
+	}
+	if response.GetTransaction().GetRawData() == nil {
+		return nil, fmt.Errorf("undelegate resource: node returned no transaction")
 	}
 
 	return response, nil

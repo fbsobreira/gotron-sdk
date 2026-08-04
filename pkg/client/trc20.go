@@ -95,11 +95,16 @@ func (g *GrpcClient) TRC20CallCtx(ctx context.Context, from, contractAddress, da
 	if err != nil {
 		return nil, err
 	}
-	// Return nil rather than the rejection payload, matching triggerContract and
-	// DeployContractCtx. TRC20Send, TRC20Approve and TRC20TransferFrom return this
-	// value straight through, so handing back a rejected TransactionExtention lets
-	// a caller that checks the result before the error sign and broadcast it.
-	if result.GetResult().GetCode() > 0 {
+	// Write path: triggerContract already rejects non-zero codes and requires
+	// RawData, so a rejected extension never reaches callers. Constant path:
+	// some nodes omit Result or set Result=false while still returning a
+	// well-formed constant_result. Accept that (GetCode on a nil Result is 0)
+	// and only reject a non-zero code; constantResultHex validates the payload.
+	// That is deliberately weaker than callForAddress, which requires
+	// Result != nil && Result && Code == 0 because it returns "" on any
+	// failure rather than propagating an error. TRC20Send/Approve/TransferFrom
+	// pass this value straight through, so never return a rejected extension.
+	if result.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", string(result.GetResult().GetMessage()))
 	}
 	return result, nil

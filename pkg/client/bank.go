@@ -252,5 +252,10 @@ func (g *GrpcClient) WithdrawExpireUnfreezeCtx(ctx context.Context, from string,
 	if tx.GetResult().GetCode() != 0 {
 		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
 	}
+	// A success code does not guarantee a transaction: guard before callers
+	// sign or read RawData (same shape as triggerContract / DeployContractCtx).
+	if tx.GetTransaction().GetRawData() == nil {
+		return nil, fmt.Errorf("withdraw expire unfreeze: node returned no transaction")
+	}
 	return tx, nil
 }
