@@ -125,9 +125,25 @@ func TestUpdateAccountPermission_MalformedMaps(t *testing.T) {
 				"name": "active", "threshold": int64(1), "keys": map[string]int64{testAddrA: 1},
 			}},
 		},
+		"active threshold wrong type": {
+			owner: validOwner,
+			actives: []map[string]interface{}{{
+				"name": "active", "threshold": 1, "operations": map[string]bool{}, "keys": map[string]int64{testAddrA: 1},
+			}},
+		},
+		"active keys wrong type": {
+			owner: validOwner,
+			actives: []map[string]interface{}{{
+				"name": "active", "threshold": int64(1), "operations": map[string]bool{}, "keys": "nope",
+			}},
+		},
 		"witness missing keys": {
 			owner:   validOwner,
 			witness: map[string]interface{}{"threshold": int64(1)},
+		},
+		"witness threshold wrong type": {
+			owner:   validOwner,
+			witness: map[string]interface{}{"threshold": 1, "keys": map[string]int64{testAddrA: 1}},
 		},
 	}
 
@@ -383,6 +399,240 @@ func TestEstimateEnergy_NilResponse(t *testing.T) {
 		_, err := c.EstimateEnergy(testAddrA, testContract, "transfer(address,uint256)",
 			`[{"address": "`+testAddrB+`"},{"uint256": "1"}]`, 0, "", 0)
 		require.ErrorContains(t, err, "empty response")
+	})
+}
+
+func TestEstimateEnergy_NodeRejection(t *testing.T) {
+	params := `[{"address": "` + testAddrB + `"},{"uint256": "1"}]`
+
+	t.Run("non-zero code with message", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			EstimateEnergyFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
+				return &api.EstimateEnergyMessage{
+					Result: &api.Return{
+						Result:  false,
+						Code:    api.Return_CONTRACT_VALIDATE_ERROR,
+						Message: []byte("out of energy estimate"),
+					},
+				}, nil
+			},
+		})
+		_, err := c.EstimateEnergy(testAddrA, testContract, "transfer(address,uint256)", params, 0, "", 0)
+		require.ErrorContains(t, err, "out of energy estimate")
+	})
+
+	t.Run("non-zero code empty message", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			EstimateEnergyFunc: func(_ context.Context, _ *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
+				return &api.EstimateEnergyMessage{
+					Result: &api.Return{
+						Result: false,
+						Code:   api.Return_CONTRACT_VALIDATE_ERROR,
+					},
+				}, nil
+			},
+		})
+		_, err := c.EstimateEnergy(testAddrA, testContract, "transfer(address,uint256)", params, 0, "", 0)
+		require.ErrorContains(t, err, "node rejected request")
+	})
+}
+
+// More write builders must surface SUCCESS-without-transaction through requireTxExtension.
+func TestBuilders_SuccessNoTransaction(t *testing.T) {
+	t.Run("Transfer", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			CreateTransaction2Func: func(_ context.Context, _ *core.TransferContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.Transfer(testAddrA, testAddrB, 1)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UpdateAccount", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UpdateAccount2Func: func(_ context.Context, _ *core.AccountUpdateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UpdateAccount(testAddrA, "name")
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("FreezeBalanceV2", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			FreezeBalanceV2Func: func(_ context.Context, _ *core.FreezeBalanceV2Contract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.FreezeBalanceV2(testAddrA, core.ResourceCode_BANDWIDTH, 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UpdateEnergyLimitContract", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UpdateEnergyLimitFunc: func(_ context.Context, _ *core.UpdateEnergyLimitContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UpdateEnergyLimitContract(testAddrA, testContract, 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UpdateSettingContract", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UpdateSettingFunc: func(_ context.Context, _ *core.UpdateSettingContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UpdateSettingContract(testAddrA, testContract, 50)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("CreateWitness", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			CreateWitness2Func: func(_ context.Context, _ *core.WitnessCreateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.CreateWitness(testAddrA, "https://example.com")
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ProposalCreate", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ProposalCreateFunc: func(_ context.Context, _ *core.ProposalCreateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ProposalCreate(testAddrA, map[int64]int64{1: 2})
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ExchangeCreate", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ExchangeCreateFunc: func(_ context.Context, _ *core.ExchangeCreateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ExchangeCreate(testAddrA, "_", 1_000_000, "_", 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UnfreezeBalance", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UnfreezeBalance2Func: func(_ context.Context, _ *core.UnfreezeBalanceContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UnfreezeBalance(testAddrA, "", core.ResourceCode_BANDWIDTH)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UnfreezeBalanceV2", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UnfreezeBalanceV2Func: func(_ context.Context, _ *core.UnfreezeBalanceV2Contract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UnfreezeBalanceV2(testAddrA, core.ResourceCode_BANDWIDTH, 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ProposalApprove", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ProposalApproveFunc: func(_ context.Context, _ *core.ProposalApproveContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ProposalApprove(testAddrA, 1, true)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UpdateWitness", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			UpdateWitness2Func: func(_ context.Context, _ *core.WitnessUpdateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.UpdateWitness(testAddrA, "https://example.com")
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("UpdateAccountPermission", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			AccountPermissionUpdateFunc: func(_ context.Context, _ *core.AccountPermissionUpdateContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		owner := map[string]interface{}{
+			"threshold": int64(1),
+			"keys":      map[string]int64{testAddrA: 1},
+		}
+		require.NotPanics(t, func() {
+			_, err := c.UpdateAccountPermission(testAddrA, owner, nil, nil)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ExchangeInject", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ExchangeInjectFunc: func(_ context.Context, _ *core.ExchangeInjectContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ExchangeInject(testAddrA, 1, "_", 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ExchangeWithdraw", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ExchangeWithdrawFunc: func(_ context.Context, _ *core.ExchangeWithdrawContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ExchangeWithdraw(testAddrA, 1, "_", 1_000_000)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
+	})
+
+	t.Run("ExchangeTrade", func(t *testing.T) {
+		c := newMockClient(t, &mockWalletServer{
+			ExchangeTransactionFunc: func(_ context.Context, _ *core.ExchangeTransactionContract) (*api.TransactionExtention, error) {
+				return successNoTx(), nil
+			},
+		})
+		require.NotPanics(t, func() {
+			_, err := c.ExchangeTrade(testAddrA, 1, "_", 100, 1)
+			require.ErrorContains(t, err, "node returned no transaction")
+		})
 	})
 }
 

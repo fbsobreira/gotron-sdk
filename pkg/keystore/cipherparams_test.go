@@ -91,6 +91,35 @@ func TestDecryptKey_MalformedCipherFields(t *testing.T) {
 	}
 }
 
+func TestDecryptKey_InvalidHexCipherFields(t *testing.T) {
+	tests := map[string]func() map[string]interface{}{
+		"mac not hex": func() map[string]interface{} {
+			c := validCrypto()
+			c["mac"] = "zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz"
+			return c
+		},
+		"iv not hex": func() map[string]interface{} {
+			c := validCrypto()
+			c["cipherparams"] = map[string]interface{}{"iv": "gggggggggggggggggggggggggggggggg"}
+			return c
+		},
+		"ciphertext not hex": func() map[string]interface{} {
+			c := validCrypto()
+			c["ciphertext"] = "not-valid-hex!!!"
+			return c
+		},
+	}
+	for name, build := range tests {
+		t.Run(name, func(t *testing.T) {
+			doc := keystoreWithCrypto(t, build())
+			require.NotPanics(t, func() {
+				_, err := keystore.DecryptKey(doc, "passphrase")
+				require.Error(t, err)
+			})
+		})
+	}
+}
+
 // V1 CBC decrypt previously panicked in CryptBlocks when ciphertext was not a
 // multiple of the AES block size, even after a successful MAC check.
 func TestDecryptKey_V1CiphertextNotBlockAligned(t *testing.T) {

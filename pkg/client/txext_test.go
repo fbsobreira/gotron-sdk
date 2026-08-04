@@ -41,6 +41,23 @@ func TestRequireTxExtension(t *testing.T) {
 		require.ErrorContains(t, err, "CONTRACT_VALIDATE_ERROR")
 	})
 
+	t.Run("non-zero code empty message empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: false, Code: api.Return_CONTRACT_VALIDATE_ERROR},
+		}
+		err := requireTxExtension(tx, "")
+		require.ErrorContains(t, err, "node rejected request")
+		require.NotContains(t, err.Error(), ": node rejected")
+	})
+
+	t.Run("success without transaction empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
+		}
+		err := requireTxExtension(tx, "")
+		require.EqualError(t, err, "node returned no transaction")
+	})
+
 	t.Run("success without transaction", func(t *testing.T) {
 		tx := &api.TransactionExtention{
 			Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
