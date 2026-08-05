@@ -204,7 +204,19 @@ func (C *Controller) GetRawData() ([]byte, error) {
 	if C.tx == nil {
 		return nil, errors.New("transaction is nil")
 	}
-	return proto.Marshal(C.tx.GetRawData())
+	rawTransaction := C.tx.GetRawData()
+	if rawTransaction == nil {
+		return nil, errors.New("transaction raw data is nil")
+	}
+	rawData, err := proto.Marshal(rawTransaction)
+	if err != nil {
+		return nil, err
+	}
+	// Empty wire encoding is not a valid TRON payload to hash or sign.
+	if len(rawData) == 0 {
+		return nil, errors.New("transaction raw data is empty")
+	}
+	return rawData, nil
 }
 
 func (C *Controller) sendSignedTx() {

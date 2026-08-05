@@ -313,15 +313,14 @@ func TestTransactionHashDeterministic(t *testing.T) {
 }
 
 func TestTransactionHashNilRawData(t *testing.T) {
+	// Previously hashed empty marshal output silently; now rejected as invalid.
 	tx := &core.Transaction{}
 	ctrl := NewController(nil, nil, nil, tx)
 
 	hash, err := ctrl.TransactionHash()
-	require.NoError(t, err, "unexpected error for nil raw data")
-	// SHA256 of empty bytes (proto.Marshal of nil RawData returns empty slice)
-	emptyHash := sha256.Sum256(nil)
-	want := common.BytesToHexString(emptyHash[:])
-	assert.Equal(t, want, hash, "nil raw data hash mismatch")
+	require.Error(t, err, "nil raw data must not produce a hash")
+	assert.Empty(t, hash)
+	assert.Contains(t, err.Error(), "transaction raw data is nil")
 }
 
 func TestTransactionHashHexFormat(t *testing.T) {
@@ -421,6 +420,36 @@ func TestGetRawData_NilTransaction(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, raw)
 	assert.Contains(t, err.Error(), "transaction is nil")
+}
+
+func TestGetRawData_NilRawData(t *testing.T) {
+	// Non-nil tx with missing RawData used to marshal to empty bytes with no error,
+	// which hardwareSignTxForSending would then feed to ledger.SignTx.
+	ctrl := NewController(nil, nil, nil, &core.Transaction{})
+	raw, err := ctrl.GetRawData()
+	require.Error(t, err)
+	assert.Nil(t, raw)
+	assert.Contains(t, err.Error(), "transaction raw data is nil")
+}
+
+func TestGetRawData_EmptyRawData(t *testing.T) {
+	ctrl := NewController(nil, nil, nil, &core.Transaction{
+		RawData: &core.TransactionRaw{},
+	})
+	raw, err := ctrl.GetRawData()
+	require.Error(t, err)
+	assert.Nil(t, raw)
+	assert.Contains(t, err.Error(), "transaction raw data is empty")
+}
+
+func TestHardwareSignTxForSending_EmptyTransaction(t *testing.T) {
+	ctrl := NewController(nil, nil, nil, &core.Transaction{})
+
+	ctrl.hardwareSignTxForSending()
+
+	require.Error(t, ctrl.executionError, "expected executionError for empty transaction")
+	assert.ErrorContains(t, ctrl.executionError, "get raw data for ledger signing")
+	assert.ErrorContains(t, ctrl.executionError, "transaction raw data is nil")
 }
 
 func TestTransactionHash_NilTransaction(t *testing.T) {
