@@ -371,6 +371,28 @@ func TestRecoverPubkey(t *testing.T) {
 		assert.Equal(t, expectedAddr, recovered)
 	})
 
+	t.Run("does not mutate caller's signature (W55)", func(t *testing.T) {
+		privKey, err := ecdsa.GenerateKey(crypto.S256(), rand.Reader)
+		require.NoError(t, err)
+
+		hash := make([]byte, 32)
+		_, err = rand.Read(hash)
+		require.NoError(t, err)
+
+		sig, err := crypto.Sign(hash, privKey)
+		require.NoError(t, err)
+
+		// Ethereum-style V: force normalization path (v -= 27).
+		sig[64] += 27
+		original := make([]byte, 65)
+		copy(original, sig)
+
+		_, err = RecoverPubkey(hash, sig)
+		require.NoError(t, err)
+
+		assert.Equal(t, original, sig, "RecoverPubkey must not mutate the caller's signature slice")
+	})
+
 	t.Run("invalid signature bytes returns error", func(t *testing.T) {
 		hash := make([]byte, 32)
 		_, err := rand.Read(hash)

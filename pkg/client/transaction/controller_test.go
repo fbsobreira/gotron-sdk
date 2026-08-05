@@ -388,6 +388,50 @@ func TestSignTxForSending_UnlockedSuccess(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// 2b. hardwareSignTxForSending / GetRawData error propagation (W50)
+// ---------------------------------------------------------------------------
+
+func TestHardwareSignTxForSending_SkipsOnExecutionError(t *testing.T) {
+	tx := newTestTransaction()
+	ctrl := NewController(nil, nil, nil, tx)
+	ctrl.executionError = errors.New("prior error")
+
+	ctrl.hardwareSignTxForSending()
+
+	assert.Empty(t, ctrl.tx.GetSignature(), "expected no signature when executionError is set")
+	assert.Equal(t, "prior error", ctrl.executionError.Error(), "executionError changed")
+}
+
+func TestHardwareSignTxForSending_PropagatesGetRawDataError(t *testing.T) {
+	// nil transaction makes GetRawData fail; previously the error was discarded
+	// and ledger.SignTx was called with a nil payload.
+	ctrl := NewController(nil, nil, nil, nil)
+
+	ctrl.hardwareSignTxForSending()
+
+	require.Error(t, ctrl.executionError, "expected executionError when GetRawData fails")
+	assert.ErrorContains(t, ctrl.executionError, "get raw data for ledger signing")
+	assert.ErrorContains(t, ctrl.executionError, "transaction is nil")
+	assert.Nil(t, ctrl.tx, "must not invent a transaction after GetRawData failure")
+}
+
+func TestGetRawData_NilTransaction(t *testing.T) {
+	ctrl := NewController(nil, nil, nil, nil)
+	raw, err := ctrl.GetRawData()
+	require.Error(t, err)
+	assert.Nil(t, raw)
+	assert.Contains(t, err.Error(), "transaction is nil")
+}
+
+func TestTransactionHash_NilTransaction(t *testing.T) {
+	ctrl := NewController(nil, nil, nil, nil)
+	hash, err := ctrl.TransactionHash()
+	require.Error(t, err)
+	assert.Empty(t, hash)
+	assert.Contains(t, err.Error(), "transaction is nil")
+}
+
+// ---------------------------------------------------------------------------
 // 3. sendSignedTx
 // ---------------------------------------------------------------------------
 
@@ -716,6 +760,22 @@ func TestTxConfirmation_FailedResultSetsResultError(t *testing.T) {
 	require.NoError(t, ctrl.executionError, "unexpected executionError")
 	require.Error(t, ctrl.resultError, "expected resultError for failed result")
 	assert.Contains(t, ctrl.resultError.Error(), "out of energy")
+}
+
+func TestTxConfirmation_HashErrorIsWrapped(t *testing.T) {
+	// W50: previously the cause was replaced with a fixed string, losing the root error.
+	ctrl := NewController(nil, nil, nil, nil)
+	ctrl.Behavior.ConfirmationWaitTime = 1
+
+	ctrl.txConfirmation()
+
+	require.Error(t, ctrl.executionError, "expected executionError when hash computation fails")
+	assert.ErrorContains(t, ctrl.executionError, "could not get tx hash")
+	assert.ErrorContains(t, ctrl.executionError, "transaction is nil")
+	// %w must preserve the cause for errors.Unwrap / fmt %+v consumers.
+	cause := errors.Unwrap(ctrl.executionError)
+	require.Error(t, cause, "expected wrapped cause, got bare string error")
+	assert.ErrorContains(t, cause, "transaction is nil")
 }
 
 // ---------------------------------------------------------------------------
