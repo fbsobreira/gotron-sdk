@@ -135,7 +135,14 @@ func (ks keyStorePassphrase) JoinPath(filename string) string {
 }
 
 // EncryptDataV3 encrypts the data given as 'data' with the password 'auth'.
+//
+// Plaintext longer than maxCiphertextLen (1024 bytes) is rejected so the
+// ciphertext stays within the same bound DecryptDataV3 enforces. EncryptKey
+// only encrypts a 32-byte private key and is unaffected.
 func EncryptDataV3(data, auth []byte, scryptN, scryptP int) (CryptoJSON, error) {
+	if len(data) > maxCiphertextLen {
+		return CryptoJSON{}, fmt.Errorf("crypto: plaintext length %d exceeds limit %d", len(data), maxCiphertextLen)
+	}
 
 	salt := make([]byte, 32)
 	if _, err := io.ReadFull(rand.Reader, salt); err != nil {
@@ -233,22 +240,12 @@ func DecryptKey(keyjson []byte, auth string) (*Key, error) {
 	}, nil
 }
 
-// DecryptDataV3 ...
+// DecryptDataV3 decrypts Web3 Secret Storage v3 crypto fields.
 func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 	if cj.Cipher != "aes-128-ctr" {
 		return nil, fmt.Errorf("Cipher not supported: %v", cj.Cipher)
 	}
-	mac, err := hex.DecodeString(cj.MAC)
-	if err != nil {
-		return nil, err
-	}
-
-	iv, err := hex.DecodeString(cj.CipherParams.IV)
-	if err != nil {
-		return nil, err
-	}
-
-	cipherText, err := hex.DecodeString(cj.CipherText)
+	mac, iv, cipherText, err := decodeCipherFields(cj.MAC, cj.CipherParams.IV, cj.CipherText, false)
 	if err != nil {
 		return nil, err
 	}
@@ -270,6 +267,53 @@ func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 	return plainText, err
 }
 
+// decodeCipherFields bounds and decodes MAC, IV and ciphertext hex before any KDF
+// work. CTR (v3) accepts any ciphertext length up to the ceiling; CBC (v1) also
+// requires a positive multiple of the AES block size so CryptBlocks cannot panic.
+func decodeCipherFields(macHex, ivHex, cipherHex string, cbc bool) (mac, iv, cipherText []byte, err error) {
+	if len(macHex) > macLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: mac hex length %d exceeds limit %d", len(macHex), macLen*2)
+	}
+	if len(ivHex) > aesIVLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: iv hex length %d exceeds limit %d", len(ivHex), aesIVLen*2)
+	}
+	if len(cipherHex) > maxCiphertextLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext hex length %d exceeds limit %d", len(cipherHex), maxCiphertextLen*2)
+	}
+
+	mac, err = hex.DecodeString(macHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(mac) != macLen {
+		return nil, nil, nil, fmt.Errorf("crypto: mac must be %d bytes, got %d", macLen, len(mac))
+	}
+
+	iv, err = hex.DecodeString(ivHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(iv) != aesIVLen {
+		return nil, nil, nil, fmt.Errorf("crypto: iv must be %d bytes, got %d", aesIVLen, len(iv))
+	}
+
+	cipherText, err = hex.DecodeString(cipherHex)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if len(cipherText) == 0 {
+		return nil, nil, nil, fmt.Errorf("crypto: empty ciphertext")
+	}
+	if len(cipherText) > maxCiphertextLen {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext length %d exceeds limit %d", len(cipherText), maxCiphertextLen)
+	}
+	if cbc && len(cipherText)%aes.BlockSize != 0 {
+		return nil, nil, nil, fmt.Errorf("crypto: cbc ciphertext length must be a multiple of %d, got %d",
+			aes.BlockSize, len(cipherText))
+	}
+	return mac, iv, cipherText, nil
+}
+
 func decryptKeyV3(keyProtected *encryptedKeyJSONV3, auth string) (keyBytes []byte, keyID []byte, err error) {
 	if keyProtected.Version != version {
 		return nil, nil, fmt.Errorf("Version not supported: %v", keyProtected.Version)
@@ -284,17 +328,12 @@ func decryptKeyV3(keyProtected *encryptedKeyJSONV3, auth string) (keyBytes []byt
 
 func decryptKeyV1(keyProtected *encryptedKeyJSONV1, auth string) (keyBytes []byte, keyID []byte, err error) {
 	keyID = uuid.Parse(keyProtected.ID)
-	mac, err := hex.DecodeString(keyProtected.Crypto.MAC)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	iv, err := hex.DecodeString(keyProtected.Crypto.CipherParams.IV)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cipherText, err := hex.DecodeString(keyProtected.Crypto.CipherText)
+	mac, iv, cipherText, err := decodeCipherFields(
+		keyProtected.Crypto.MAC,
+		keyProtected.Crypto.CipherParams.IV,
+		keyProtected.Crypto.CipherText,
+		true,
+	)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -316,23 +355,139 @@ func decryptKeyV1(keyProtected *encryptedKeyJSONV1, auth string) (keyBytes []byt
 	return plainText, keyID, err
 }
 
+// KDF parameter limits.
+//
+// getKDFKey consumes these values *before* the MAC is verified, so they are
+// unauthenticated attacker-controlled input. Without upper bounds a crafted
+// keystore file forces an arbitrarily expensive derivation — memory and CPU
+// exhaustion — before anything establishes that the file is even genuine.
+const (
+	maxScryptN = 1 << 22
+	maxScryptR = 64
+	maxScryptP = 16
+	// scrypt's working set is 128 * N * r bytes. StandardScryptN with r=8 needs
+	// 256 MiB, so 1 GiB leaves generous headroom while still bounding the cost.
+	maxScryptMemory = 1 << 30
+	maxPBKDF2Count  = 1 << 24
+	// The decrypt paths read derivedKey[:16] for the AES key and derivedKey[16:32]
+	// for the MAC, so anything shorter than 32 is unusable. It does not panic today
+	// only because scrypt.Key and pbkdf2.Key happen to return a slice with cap 32
+	// even when dklen is 1, so the expression reads past len into the spare
+	// capacity. Requiring the V3 spec's 32 removes that reliance.
+	minDerivedKeyLen = 32
+	maxDerivedKeyLen = 1024
+	// Salt is unauthenticated and feeds both scrypt and pbkdf2 before the MAC is
+	// checked. A multi-megabyte salt hex-decodes into a large allocation and
+	// amplifies PBKDF2/scrypt setup cost. Common wallets use 16–32 bytes; 64
+	// leaves headroom without allowing unbounded input.
+	maxSaltLen = 64
+	// Cipher-side fields are also unauthenticated until the MAC is checked.
+	// Keccak256 MACs are 32 bytes; AES-128 IVs are 16. Ciphertext is only a
+	// private key (32 bytes) for EncryptKey, but DecryptDataV3 is public — keep
+	// a modest ceiling so a multi-megabyte field cannot force decode+KDF+Keccak
+	// before rejection.
+	macLen           = 32
+	aesIVLen         = 16
+	maxCiphertextLen = 1024
+)
+
+// kdfString reads a string KDF parameter with a checked assertion. The params map
+// is decoded from caller-supplied JSON, so a missing key yields nil and an
+// unchecked assertion would panic.
+func kdfString(params map[string]interface{}, key string) (string, error) {
+	v, ok := params[key]
+	if !ok {
+		return "", fmt.Errorf("kdf params: missing %q", key)
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", fmt.Errorf("kdf params: %q must be a string, got %T", key, v)
+	}
+	return s, nil
+}
+
+// kdfInt reads a numeric KDF parameter and enforces [minv, maxv]. It replaces
+// ensureInt, which asserted straight to float64 with no comma-ok and panicked on
+// a missing key or any other type.
+func kdfInt(params map[string]interface{}, key string, minv, maxv int) (int, error) {
+	v, ok := params[key]
+	if !ok {
+		return 0, fmt.Errorf("kdf params: missing %q", key)
+	}
+	var n int
+	switch t := v.(type) {
+	case int:
+		n = t
+	case int64:
+		n = int(t)
+	case float64:
+		// encoding/json decodes every JSON number into float64. Range-check before
+		// converting: converting an out-of-range float to int is undefined in Go.
+		if t < float64(minv) || t > float64(maxv) {
+			return 0, fmt.Errorf("kdf params: %q must be in [%d, %d], got %v", key, minv, maxv, t)
+		}
+		n = int(t)
+		if float64(n) != t {
+			return 0, fmt.Errorf("kdf params: %q must be a whole number, got %v", key, t)
+		}
+	default:
+		return 0, fmt.Errorf("kdf params: %q must be a number, got %T", key, v)
+	}
+	if n < minv || n > maxv {
+		return 0, fmt.Errorf("kdf params: %q must be in [%d, %d], got %d", key, minv, maxv, n)
+	}
+	return n, nil
+}
+
 func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 	authArray := []byte(auth)
-	salt, err := hex.DecodeString(cryptoJSON.KDFParams["salt"].(string))
+	saltHex, err := kdfString(cryptoJSON.KDFParams, "salt")
 	if err != nil {
 		return nil, err
 	}
-	dkLen := ensureInt(cryptoJSON.KDFParams["dklen"])
+	// Bound before decode so a multi-megabyte hex string is not materialised.
+	if len(saltHex) > maxSaltLen*2 {
+		return nil, fmt.Errorf("kdf params: salt hex length %d exceeds limit %d", len(saltHex), maxSaltLen*2)
+	}
+	salt, err := hex.DecodeString(saltHex)
+	if err != nil {
+		return nil, err
+	}
+	if len(salt) > maxSaltLen {
+		return nil, fmt.Errorf("kdf params: salt length %d exceeds limit %d", len(salt), maxSaltLen)
+	}
+	dkLen, err := kdfInt(cryptoJSON.KDFParams, "dklen", minDerivedKeyLen, maxDerivedKeyLen)
+	if err != nil {
+		return nil, err
+	}
 
 	switch cryptoJSON.KDF {
 	case keyHeaderKDF:
-		n := ensureInt(cryptoJSON.KDFParams["n"])
-		r := ensureInt(cryptoJSON.KDFParams["r"])
-		p := ensureInt(cryptoJSON.KDFParams["p"])
+		n, err := kdfInt(cryptoJSON.KDFParams, "n", 2, maxScryptN)
+		if err != nil {
+			return nil, err
+		}
+		r, err := kdfInt(cryptoJSON.KDFParams, "r", 1, maxScryptR)
+		if err != nil {
+			return nil, err
+		}
+		p, err := kdfInt(cryptoJSON.KDFParams, "p", 1, maxScryptP)
+		if err != nil {
+			return nil, err
+		}
+		if mem := 128 * int64(n) * int64(r); mem > maxScryptMemory {
+			return nil, fmt.Errorf("kdf params: scrypt would allocate %d bytes, limit is %d", mem, maxScryptMemory)
+		}
 		return scrypt.Key(authArray, salt, n, r, p, dkLen)
 	case "pbkdf2":
-		c := ensureInt(cryptoJSON.KDFParams["c"])
-		prf := cryptoJSON.KDFParams["prf"].(string)
+		c, err := kdfInt(cryptoJSON.KDFParams, "c", 1, maxPBKDF2Count)
+		if err != nil {
+			return nil, err
+		}
+		prf, err := kdfString(cryptoJSON.KDFParams, "prf")
+		if err != nil {
+			return nil, err
+		}
 		if prf != "hmac-sha256" {
 			return nil, fmt.Errorf("Unsupported PBKDF2 PRF: %s", prf)
 		}
@@ -341,15 +496,4 @@ func getKDFKey(cryptoJSON CryptoJSON, auth string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("Unsupported KDF: %s", cryptoJSON.KDF)
 	}
-}
-
-// TODO: can we do without this when unmarshalling dynamic JSON?
-// why do integers in KDF params end up as float64 and not int after
-// unmarshal?
-func ensureInt(x interface{}) int {
-	res, ok := x.(int)
-	if !ok {
-		res = int(x.(float64))
-	}
-	return res
 }

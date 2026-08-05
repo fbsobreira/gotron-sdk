@@ -179,6 +179,11 @@ func NewDecFromStr(str string) (d Dec, err error) {
 	if !ok {
 		return d, fmt.Errorf("bad string to integer conversion, combinedStr: %v", combinedStr)
 	}
+	// Same bit cap as Mul/Add/etc. Without this, a large plain decimal builds a
+	// Dec that later arithmetic panics on ("Int overflow").
+	if combined.BitLen() > 255+DecimalPrecisionBits {
+		return ZeroDec(), ErrOutOfRange
+	}
 	if neg {
 		combined = new(big.Int).Neg(combined)
 	}
@@ -634,8 +639,57 @@ func MaxDec(d1, d2 Dec) Dec {
 }
 
 var (
-	pattern, _ = regexp.Compile(`[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+`)
+	// Anchored: an unanchored pattern also matches inside malformed input such as
+	// "1e5x", which then parsed as 1 with a nil error.
+	pattern = regexp.MustCompile(`^[0-9]+\.{0,1}[0-9]*e-{0,1}[0-9]+$`)
 )
+
+// maxDecExponent bounds the scientific-notation exponent accepted by
+// NewDecFromString. The regex allows any number of digits and Atoi accepts the
+// whole int range, so without this a short string reaches Pow with an arbitrary
+// exponent, where two things go wrong:
+//
+//   - Dec is capped at 255+DecimalPrecisionBits bits over an 18-decimal scale, so
+//     Pow(10, e) panics with "Int overflow" once e exceeds 76 (verified: 10^76 is
+//     representable, 10^77 panics).
+//   - Pow negates a negative exponent, and for math.MinInt the negation stays
+//     negative, so it recurses until the stack overflows.
+//
+// The bound is symmetric: an exponent below -76 cannot be represented either, and
+// silently collapsing such an input to zero is the same class of wrong-value bug
+// this parser is being hardened against.
+//
+// The bound is necessary but not sufficient — see recoverIntOverflow.
+const maxDecExponent = 76
+
+// ErrOutOfRange reports a value outside the range Dec can represent.
+var ErrOutOfRange = errors.New("value out of representable range")
+
+// recoverIntOverflow converts the "Int overflow" panic raised by Dec's
+// fixed-point operations into ErrOutOfRange, and re-raises anything else so real
+// bugs still surface.
+//
+// Dec's arithmetic panics instead of returning an error, and deciding in advance
+// whether a parsed value fits is unreliable: the exponent bound is necessary but
+// not sufficient, because the magnitude depends on the mantissa too — 1e76 is
+// representable while 9e76 is not — and on the hex path a 64-character string,
+// which is just an ABI uint256 word, overflows as well. Catching the documented
+// panic covers every arithmetic path exactly, where hand-derived bit arithmetic
+// would only approximate it.
+// It must be deferred directly — recover() only returns the panic value when
+// called by the deferred function itself, not by something that function calls.
+func recoverIntOverflow(dec *Dec, err *error) {
+	r := recover()
+	if r == nil {
+		return
+	}
+	if s, ok := r.(string); ok && s == "Int overflow" {
+		*dec = ZeroDec()
+		*err = ErrOutOfRange
+		return
+	}
+	panic(r)
+}
 
 // Pow calcs power of numeric with int
 func Pow(base Dec, exp int) Dec {
@@ -657,15 +711,32 @@ func Pow(base Dec, exp int) Dec {
 }
 
 // NewDecFromString from string to DEC
-func NewDecFromString(i string) (Dec, error) {
+func NewDecFromString(i string) (dec Dec, err error) {
+	defer recoverIntOverflow(&dec, &err)
 	if strings.HasPrefix(i, "-") {
 		return ZeroDec(), fmt.Errorf("can not be negative: %s", i)
 	}
-	if pattern.FindString(i) != "" {
+	if pattern.MatchString(i) {
 		tokens := strings.Split(i, "e")
-		a, _ := NewDecFromStr(tokens[0])
-		b, _ := strconv.Atoi(tokens[1])
-		return a.Mul(Pow(NewDec(10), b)), nil
+		a, err := NewDecFromStr(tokens[0])
+		if err != nil {
+			return ZeroDec(), fmt.Errorf("invalid mantissa %q in %q: %w", tokens[0], i, err)
+		}
+		b, err := strconv.Atoi(tokens[1])
+		if err != nil {
+			return ZeroDec(), fmt.Errorf("invalid exponent %q in %q: %w", tokens[1], i, err)
+		}
+		if b > maxDecExponent || b < -maxDecExponent {
+			return ZeroDec(), fmt.Errorf("exponent %d in %q outside [-%d, %d]", b, i, maxDecExponent, maxDecExponent)
+		}
+		result := a.Mul(Pow(NewDec(10), b))
+		// Negative exponents can collapse a nonzero mantissa to zero at 18-digit
+		// fixed-point precision (e.g. 1e-19). That is a silent wrong value, not a
+		// valid zero — reject it the same way overflow is rejected.
+		if !a.IsZero() && result.IsZero() {
+			return ZeroDec(), fmt.Errorf("value underflows fixed-point precision: %q", i)
+		}
+		return result, nil
 	}
 	if strings.HasPrefix(i, ".") {
 		i = "0" + i
@@ -676,16 +747,41 @@ func NewDecFromString(i string) (Dec, error) {
 
 // NewDecFromHex Assumes Hex string input
 // Split into 2 64 bit integers to guarantee 128 bit precision
-func NewDecFromHex(str string) Dec {
+//
+// Invalid hex — the empty string, non-hex digits, or a sign — returns ZeroDec.
+// It previously let a nil *big.Int from SetString reach big.Int.Mul, which
+// panicked, so no caller that works today changes behaviour. The signature
+// cannot report the condition; gaining an error return is queued as a breaking
+// change.
+func NewDecFromHex(str string) (dec Dec) {
+	// A 64-character string — an ordinary ABI uint256 word — exceeds Dec's range,
+	// and the signature cannot report it, so it degrades to zero like other
+	// invalid input.
+	var err error
+	defer recoverIntOverflow(&dec, &err)
 	str = strings.TrimPrefix(str, "0x")
+	if str == "" {
+		return ZeroDec()
+	}
+	// big.Int.SetString accepts a leading sign, so "-abc" would split into a
+	// negative left half and yield a negative Dec from a hex parser.
+	if strings.ContainsAny(str, "+-") {
+		return ZeroDec()
+	}
 	half := len(str) / 2
 	right := str[half:]
-	r, _ := big.NewInt(0).SetString(right, 16)
+	r, ok := big.NewInt(0).SetString(right, 16)
+	if !ok {
+		return ZeroDec()
+	}
 	if half == 0 {
 		return NewDecFromBigInt(r)
 	}
 	left := str[:half]
-	l, _ := big.NewInt(0).SetString(left, 16)
+	l, ok := big.NewInt(0).SetString(left, 16)
+	if !ok {
+		return ZeroDec()
+	}
 	return NewDecFromBigInt(l).Mul(
 		Pow(NewDec(16), len(right)),
 	).Add(NewDecFromBigInt(r))

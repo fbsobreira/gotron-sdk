@@ -13,7 +13,6 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // GetAccount from BASE58 address
@@ -37,6 +36,11 @@ func (g *GrpcClient) GetAccountCtx(ctx context.Context, addr string) (*core.Acco
 	acc, err := g.Client.GetAccount(ctx, account)
 	if err != nil {
 		return nil, err
+	}
+	// A substituted WalletClient can return (nil, nil); a real gRPC round trip
+	// always materialises a message. Check before field access.
+	if acc == nil {
+		return nil, fmt.Errorf("account not found")
 	}
 	if !bytes.Equal(acc.Address, account.Address) {
 		return nil, fmt.Errorf("account not found")
@@ -111,11 +115,8 @@ func (g *GrpcClient) CreateAccountCtx(ctx context.Context, from, addr string) (*
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "create account"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -141,11 +142,8 @@ func (g *GrpcClient) UpdateAccountCtx(ctx context.Context, from, accountName str
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update account"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -361,11 +359,8 @@ func (g *GrpcClient) WithdrawBalanceCtx(ctx context.Context, from string) (*api.
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "withdraw balance"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -436,6 +431,23 @@ func (g *GrpcClient) UpdateAccountPermission(from string, owner, witness map[str
 	return g.UpdateAccountPermissionCtx(ctx, from, owner, witness, actives)
 }
 
+// permField reads one field from a caller-supplied permission map with a checked
+// assertion. The public API takes map[string]interface{}, so a missing key — or a
+// plain int where int64 was meant — would otherwise panic part-way through a
+// multisig permission update rather than returning an error.
+func permField[T any](m map[string]interface{}, scope, key string) (T, error) {
+	var zero T
+	v, ok := m[key]
+	if !ok {
+		return zero, fmt.Errorf("%s permission: missing %q", scope, key)
+	}
+	t, ok := v.(T)
+	if !ok {
+		return zero, fmt.Errorf("%s permission: %q must be %T, got %T", scope, key, zero, v)
+	}
+	return t, nil
+}
+
 // UpdateAccountPermissionCtx is the context-aware version of UpdateAccountPermission.
 func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string, owner, witness map[string]interface{}, actives []map[string]interface{}) (*api.TransactionExtention, error) {
 	ctx = g.withAPIKey(ctx)
@@ -447,13 +459,21 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 	if owner == nil {
 		return nil, fmt.Errorf("owner is mandatory")
 	}
+	ownerThreshold, err := permField[int64](owner, "owner", "threshold")
+	if err != nil {
+		return nil, err
+	}
+	ownerKeys, err := permField[map[string]int64](owner, "owner", "keys")
+	if err != nil {
+		return nil, err
+	}
 	ownerPermission, err := makePermission(
 		"owner",
 		core.Permission_Owner,
 		0,
-		owner["threshold"].(int64),
+		ownerThreshold,
 		nil,
-		owner["keys"].(map[string]int64),
+		ownerKeys,
 	)
 	if err != nil {
 		return nil, err
@@ -469,13 +489,30 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 	if actives != nil {
 		activesPermission := make([]*core.Permission, 0)
 		for i, active := range actives {
+			scope := fmt.Sprintf("active[%d]", i)
+			activeName, err := permField[string](active, scope, "name")
+			if err != nil {
+				return nil, err
+			}
+			activeThreshold, err := permField[int64](active, scope, "threshold")
+			if err != nil {
+				return nil, err
+			}
+			activeOps, err := permField[map[string]bool](active, scope, "operations")
+			if err != nil {
+				return nil, err
+			}
+			activeKeys, err := permField[map[string]int64](active, scope, "keys")
+			if err != nil {
+				return nil, err
+			}
 			activeP, err := makePermission(
-				active["name"].(string),
+				activeName,
 				core.Permission_Active,
 				int32(2+i),
-				active["threshold"].(int64),
-				active["operations"].(map[string]bool),
-				active["keys"].(map[string]int64),
+				activeThreshold,
+				activeOps,
+				activeKeys,
 			)
 			if err != nil {
 				return nil, err
@@ -486,13 +523,21 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 	}
 
 	if witness != nil {
+		witnessThreshold, err := permField[int64](witness, "witness", "threshold")
+		if err != nil {
+			return nil, err
+		}
+		witnessKeys, err := permField[map[string]int64](witness, "witness", "keys")
+		if err != nil {
+			return nil, err
+		}
 		witnessPermission, err := makePermission(
 			"witness",
 			core.Permission_Witness,
 			1,
-			witness["threshold"].(int64),
+			witnessThreshold,
 			nil,
-			witness["keys"].(map[string]int64),
+			witnessKeys,
 		)
 		if err != nil {
 			return nil, err
@@ -504,11 +549,8 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update account permission"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

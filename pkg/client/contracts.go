@@ -93,12 +93,10 @@ func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, con
 	if err != nil {
 		return nil, err
 	}
-
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if err := requireTxExtension(tx, "update energy limit"); err != nil {
+		return nil, err
 	}
-
-	return tx, err
+	return tx, nil
 }
 
 // UpdateSettingContract changes the user resource consumption ratio of a deployed contract.
@@ -132,12 +130,10 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 	if err != nil {
 		return nil, err
 	}
-
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if err := requireTxExtension(tx, "update setting"); err != nil {
+		return nil, err
 	}
-
-	return tx, err
+	return tx, nil
 }
 
 // TriggerConstantContract executes a read-only smart contract call and returns the result.
@@ -248,8 +244,8 @@ func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartC
 		return nil, err
 	}
 
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	if err := requireTxExtension(tx, "trigger contract"); err != nil {
+		return nil, err
 	}
 	if feeLimit > 0 {
 		tx.Transaction.RawData.FeeLimit = feeLimit
@@ -445,12 +441,19 @@ func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartCo
 		}
 		return nil, err
 	}
-
-	if tx.Result.Code > 0 {
-		return nil, fmt.Errorf("%s", string(tx.Result.Message))
+	// A substituted WalletClient can return (nil, nil); treat that as empty.
+	if tx == nil {
+		return nil, fmt.Errorf("estimate energy: empty response from node")
+	}
+	if code := tx.GetResult().GetCode(); code != 0 {
+		msg := string(tx.GetResult().GetMessage())
+		if msg == "" {
+			return nil, fmt.Errorf("estimate energy: node rejected request: code=%v", code)
+		}
+		return nil, fmt.Errorf("%s", msg)
 	}
 
-	return tx, err
+	return tx, nil
 }
 
 // DeployContract deploys a new smart contract and returns the unsigned transaction.
@@ -503,6 +506,12 @@ func (g *GrpcClient) DeployContractCtx(ctx context.Context, from, contractName s
 
 	tx, err := g.Client.DeployContract(ctx, ct)
 	if err != nil {
+		return nil, err
+	}
+	// A rejected deployment comes back with a nil gRPC error, a non-zero result
+	// code and no Transaction, so the fee-limit assignment below would panic
+	// instead of surfacing the node's reason for the rejection.
+	if err := requireTxExtension(tx, "deploy contract"); err != nil {
 		return nil, err
 	}
 	if feeLimit > 0 {

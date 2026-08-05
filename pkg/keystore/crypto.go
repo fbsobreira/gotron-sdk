@@ -3,10 +3,14 @@ package keystore
 import (
 	"crypto/aes"
 	"crypto/cipher"
+	"fmt"
 )
 
 func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 	// AES-128 is selected due to size of encryptKey.
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("aes-128-ctr: iv must be %d bytes, got %d", aes.BlockSize, len(iv))
+	}
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
@@ -18,6 +22,14 @@ func aesCTRXOR(key, inText, iv []byte) ([]byte, error) {
 }
 
 func aesCBCDecrypt(key, cipherText, iv []byte) ([]byte, error) {
+	if len(iv) != aes.BlockSize {
+		return nil, fmt.Errorf("aes-128-cbc: iv must be %d bytes, got %d", aes.BlockSize, len(iv))
+	}
+	// CryptBlocks panics when the input length is not a multiple of the block size.
+	if len(cipherText) == 0 || len(cipherText)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("aes-128-cbc: ciphertext length must be a positive multiple of %d, got %d",
+			aes.BlockSize, len(cipherText))
+	}
 	aesBlock, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err

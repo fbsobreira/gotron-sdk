@@ -205,6 +205,9 @@ func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, r
 		return nil, err
 
 	}
+	if err := requireTxExtension(response, "delegate resource"); err != nil {
+		return nil, err
+	}
 
 	return response, nil
 }
@@ -241,6 +244,9 @@ func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver 
 	if err != nil {
 		return nil, err
 
+	}
+	if err := requireTxExtension(response, "undelegate resource"); err != nil {
+		return nil, err
 	}
 
 	return response, nil

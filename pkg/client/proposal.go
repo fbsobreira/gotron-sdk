@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // ProposalsList return all network proposals
@@ -47,11 +45,8 @@ func (g *GrpcClient) ProposalCreateCtx(ctx context.Context, from string, paramet
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "proposal create"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -81,11 +76,8 @@ func (g *GrpcClient) ProposalApproveCtx(ctx context.Context, from string, id int
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "proposal approve"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -114,11 +106,8 @@ func (g *GrpcClient) ProposalWithdrawCtx(ctx context.Context, from string, id in
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "proposal withdraw"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

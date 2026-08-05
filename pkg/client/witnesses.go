@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // ListWitnesses return all witnesses
@@ -65,11 +63,8 @@ func (g *GrpcClient) CreateWitnessCtx(ctx context.Context, from, urlStr string) 
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "create witness"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -97,11 +92,8 @@ func (g *GrpcClient) UpdateWitnessCtx(ctx context.Context, from, urlStr string) 
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update witness"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -143,11 +135,8 @@ func (g *GrpcClient) VoteWitnessAccountCtx(ctx context.Context, from string,
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "vote witness account"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
@@ -199,11 +188,8 @@ func (g *GrpcClient) UpdateBrokerageCtx(ctx context.Context, from string, commis
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "update brokerage"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }

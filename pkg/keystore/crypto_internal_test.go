@@ -205,6 +205,23 @@ func TestAesCBCDecrypt(t *testing.T) {
 		_, err := aesCBCDecrypt([]byte("short"), make([]byte, 16), make([]byte, 16))
 		assert.Error(t, err)
 	})
+
+	t.Run("wrong IV length returns error", func(t *testing.T) {
+		_, err := aesCBCDecrypt(make([]byte, 16), make([]byte, 16), make([]byte, 8))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "iv must be")
+	})
+
+	t.Run("ciphertext not block aligned returns error", func(t *testing.T) {
+		_, err := aesCBCDecrypt(make([]byte, 16), make([]byte, 15), make([]byte, 16))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "multiple of")
+	})
+
+	t.Run("empty ciphertext returns error", func(t *testing.T) {
+		_, err := aesCBCDecrypt(make([]byte, 16), nil, make([]byte, 16))
+		require.Error(t, err)
+	})
 }
 
 // ---------- aesCTRXOR ----------
@@ -290,6 +307,12 @@ func TestAesCTRXOR(t *testing.T) {
 	t.Run("invalid key size returns error", func(t *testing.T) {
 		_, err := aesCTRXOR([]byte("bad"), []byte("data"), make([]byte, 16))
 		assert.Error(t, err)
+	})
+
+	t.Run("wrong IV length returns error", func(t *testing.T) {
+		_, err := aesCTRXOR(make([]byte, 16), []byte("data"), make([]byte, 8))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "iv must be")
 	})
 }
 

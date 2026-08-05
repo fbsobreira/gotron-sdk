@@ -12,6 +12,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/standards/trc20enc"
 )
 
 // TRC20Option configures optional behaviour on TRC20 write methods
@@ -94,11 +95,40 @@ func (g *GrpcClient) TRC20CallCtx(ctx context.Context, from, contractAddress, da
 	if err != nil {
 		return nil, err
 	}
-	if result.Result.Code > 0 {
-		return result, fmt.Errorf("%s", string(result.Result.Message))
+	// Write path: triggerContract already rejects non-zero codes and requires
+	// RawData, so a rejected extension never reaches callers. Constant path:
+	// some nodes omit Result or set Result=false while still returning a
+	// well-formed constant_result. Accept that (GetCode on a nil Result is 0)
+	// and only reject a non-zero code; constantResultHex validates the payload.
+	// That is deliberately weaker than callForAddress, which requires
+	// Result != nil && Result && Code == 0 because it returns "" on any
+	// failure rather than propagating an error. TRC20Send/Approve/TransferFrom
+	// pass this value straight through, so never return a rejected extension.
+	if result.GetResult().GetCode() != 0 {
+		return nil, fmt.Errorf("%s", string(result.GetResult().GetMessage()))
 	}
 	return result, nil
 
+}
+
+// constantResultHex returns the first constant_result entry of a read-only call
+// as a hex string.
+//
+// The node controls this slice, and a response can carry a success code while
+// still containing no entries, so it is length-checked before indexing. The
+// entry must also hold at least one full ABI word: every constant result is
+// 32-byte aligned, so a shorter one is malformed, and rejecting it here gives a
+// clear error instead of a confusing parse failure further down. This mirrors
+// the guard in callForAddress (contracts.go).
+func constantResultHex(result *api.TransactionExtention) (string, error) {
+	if len(result.GetConstantResult()) == 0 {
+		return "", fmt.Errorf("node returned no constant result")
+	}
+	if len(result.GetConstantResult()[0]) < 32 {
+		return "", fmt.Errorf("node returned a %d-byte constant result, expected at least 32",
+			len(result.GetConstantResult()[0]))
+	}
+	return common.BytesToHexString(result.GetConstantResult()[0]), nil
 }
 
 // TRC20GetName returns the name of a TRC20 token contract.
@@ -116,7 +146,10 @@ func (g *GrpcClient) TRC20GetNameCtx(ctx context.Context, contractAddress string
 	if err != nil {
 		return "", err
 	}
-	data := common.BytesToHexString(result.GetConstantResult()[0])
+	data, err := constantResultHex(result)
+	if err != nil {
+		return "", err
+	}
 	return g.ParseTRC20StringProperty(data)
 }
 
@@ -135,7 +168,10 @@ func (g *GrpcClient) TRC20GetSymbolCtx(ctx context.Context, contractAddress stri
 	if err != nil {
 		return "", err
 	}
-	data := common.BytesToHexString(result.GetConstantResult()[0])
+	data, err := constantResultHex(result)
+	if err != nil {
+		return "", err
+	}
 	return g.ParseTRC20StringProperty(data)
 }
 
@@ -154,7 +190,10 @@ func (g *GrpcClient) TRC20GetDecimalsCtx(ctx context.Context, contractAddress st
 	if err != nil {
 		return nil, err
 	}
-	data := common.BytesToHexString(result.GetConstantResult()[0])
+	data, err := constantResultHex(result)
+	if err != nil {
+		return nil, err
+	}
 	return g.ParseTRC20NumericProperty(data)
 }
 
@@ -185,9 +224,14 @@ func (g *GrpcClient) ParseTRC20StringProperty(data string) (string, error) {
 	}
 	if len(data) > 128 {
 		n, _ := g.ParseTRC20NumericProperty(data[64:128])
-		if n != nil {
+		// l is the ABI string length, taken from contract-controlled return data.
+		// Reject anything that does not fit in a uint64 — Uint64 would silently
+		// return the low 64 bits — then bound it by division rather than by
+		// comparing 2*l. The original 2*int(l) overflowed to a negative value for
+		// l >= 2^62, passing the check and panicking on the slice below.
+		if n != nil && n.IsUint64() {
 			l := n.Uint64()
-			if 2*int(l) <= len(data)-128 {
+			if l <= uint64(len(data)-128)/2 {
 				b, err := hex.DecodeString(data[128 : 128+2*l])
 				if err == nil {
 					return string(b), nil
@@ -232,7 +276,10 @@ func (g *GrpcClient) TRC20ContractBalanceCtx(ctx context.Context, addr, contract
 	if err != nil {
 		return nil, err
 	}
-	data := common.BytesToHexString(result.GetConstantResult()[0])
+	data, err := constantResultHex(result)
+	if err != nil {
+		return nil, err
+	}
 	r, err := g.ParseTRC20NumericProperty(data)
 	if err != nil {
 		return nil, fmt.Errorf("contract address %s: %v", contractAddress, err)
@@ -259,7 +306,10 @@ func (g *GrpcClient) TRC20SendCtx(ctx context.Context, from, to, contract string
 	if err != nil {
 		return nil, err
 	}
-	ab := common.LeftPadBytes(amount.Bytes(), 32)
+	ab, err := trc20enc.PadUint256(amount)
+	if err != nil {
+		return nil, fmt.Errorf("invalid amount: %w", err)
+	}
 	req := trc20TransferMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
 	return g.TRC20CallCtx(ctx, from, contract, req, cfg.estimate, feeLimit)
@@ -288,7 +338,10 @@ func (g *GrpcClient) TRC20TransferFromCtx(ctx context.Context, owner, from, to, 
 	if err != nil {
 		return nil, err
 	}
-	ab := common.LeftPadBytes(amount.Bytes(), 32)
+	ab, err := trc20enc.PadUint256(amount)
+	if err != nil {
+		return nil, fmt.Errorf("invalid amount: %w", err)
+	}
 	req := "0x23b872dd" +
 		"0000000000000000000000000000000000000000000000000000000000000000"[len(addrA.Hex())-4:] + addrA.Hex()[4:] +
 		"0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
@@ -312,7 +365,10 @@ func (g *GrpcClient) TRC20ApproveCtx(ctx context.Context, from, to, contract str
 	if err != nil {
 		return nil, err
 	}
-	ab := common.LeftPadBytes(amount.Bytes(), 32)
+	ab, err := trc20enc.PadUint256(amount)
+	if err != nil {
+		return nil, fmt.Errorf("invalid amount: %w", err)
+	}
 	req := trc20ApproveMethodSignature + "0000000000000000000000000000000000000000000000000000000000000000"[len(addrB.Hex())-4:] + addrB.Hex()[4:]
 	req += common.Bytes2Hex(ab)
 	return g.TRC20CallCtx(ctx, from, contract, req, cfg.estimate, feeLimit)

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	client "github.com/fbsobreira/gotron-sdk/pkg/client"
@@ -312,6 +313,41 @@ func TestParseTRC20StringProperty(t *testing.T) {
 	t.Run("empty data", func(t *testing.T) {
 		_, err := c.ParseTRC20StringProperty("")
 		require.Error(t, err)
+	})
+
+	// A hostile token contract controls the declared string length, which reaches
+	// here from TRC20GetName and TRC20GetSymbol. Each length below broke the old
+	// bounds check in one of two ways, both verified against the original code:
+	//
+	//	panic         2*int(l) overflowed to a negative value, so the check passed
+	//	              and the slice then ran with a huge upper bound.
+	//	silent empty  Uint64 truncated a >64-bit length to its low bits, or 2*l
+	//	              wrapped to exactly 0, yielding "" with a nil error.
+	//
+	// Both are now rejected: IsUint64 catches the truncation, and the bound is a
+	// division so no multiplication can overflow.
+	t.Run("hostile declared length", func(t *testing.T) {
+		lengthWord := func(v string) string { return strings.Repeat("0", 64-len(v)) + v }
+		for _, tc := range []struct {
+			name, length, oldBehaviour string
+		}{
+			{"2^62", lengthWord("4000000000000000"), "panic"},
+			{"2^63", lengthWord("8000000000000000"), "silent empty"},
+			{"max uint64", lengthWord("ffffffffffffffff"), "panic"},
+			{"2^254", "4" + strings.Repeat("0", 63), "silent empty"},
+			{"max uint256", strings.Repeat("f", 64), "panic"},
+			{"exceeds payload", lengthWord("40"), "correctly rejected"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				data := "0000000000000000000000000000000000000000000000000000000000000020" +
+					tc.length +
+					"48656c6c6f000000000000000000000000000000000000000000000000000000"
+				require.NotPanics(t, func() {
+					_, err := c.ParseTRC20StringProperty(data)
+					require.Error(t, err, "old behaviour here was: %s", tc.oldBehaviour)
+				})
+			})
+		}
 	})
 }
 

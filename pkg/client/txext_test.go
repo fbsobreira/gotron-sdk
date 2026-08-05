@@ -1,0 +1,108 @@
+package client
+
+import (
+	"testing"
+
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/stretchr/testify/require"
+)
+
+func TestRequireTxExtension(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		require.ErrorContains(t, requireTxExtension(nil, "op"), "bad transaction")
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		require.ErrorContains(t, requireTxExtension(&api.TransactionExtention{}, "op"), "bad transaction")
+	})
+
+	t.Run("non-zero code", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{
+				Result:  false,
+				Code:    api.Return_CONTRACT_VALIDATE_ERROR,
+				Message: []byte("node refused the request"),
+			},
+		}
+		err := requireTxExtension(tx, "delegate resource")
+		require.ErrorContains(t, err, "node refused the request")
+	})
+
+	t.Run("non-zero code empty message", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{
+				Result: false,
+				Code:   api.Return_CONTRACT_VALIDATE_ERROR,
+			},
+		}
+		err := requireTxExtension(tx, "transfer")
+		require.ErrorContains(t, err, "node rejected request")
+		require.ErrorContains(t, err, "CONTRACT_VALIDATE_ERROR")
+	})
+
+	t.Run("non-zero code empty message empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: false, Code: api.Return_CONTRACT_VALIDATE_ERROR},
+		}
+		err := requireTxExtension(tx, "")
+		require.ErrorContains(t, err, "node rejected request")
+		require.NotContains(t, err.Error(), ": node rejected")
+	})
+
+	t.Run("success without transaction empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
+		}
+		err := requireTxExtension(tx, "")
+		require.EqualError(t, err, "node returned no transaction")
+	})
+
+	t.Run("success without transaction", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
+		}
+		err := requireTxExtension(tx, "delegate resource")
+		require.ErrorContains(t, err, "delegate resource: node returned no transaction")
+	})
+
+	t.Run("success without raw data", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result:      &api.Return{Result: true, Code: api.Return_SUCCESS},
+			Transaction: &core.Transaction{},
+		}
+		err := requireTxExtension(tx, "transfer")
+		require.ErrorContains(t, err, "transfer: node returned no transaction")
+	})
+
+	t.Run("success with raw data", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Result: &api.Return{Result: true, Code: api.Return_SUCCESS},
+			Transaction: &core.Transaction{
+				RawData: &core.TransactionRaw{},
+			},
+		}
+		require.NoError(t, requireTxExtension(tx, "transfer"))
+	})
+
+	// GetCode() on a nil *Return returns SUCCESS, so RawData alone previously
+	// passed validation. Full nodes always set Result; reject the hollow shape.
+	t.Run("nil result with raw data", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Transaction: &core.Transaction{
+				RawData: &core.TransactionRaw{},
+			},
+		}
+		err := requireTxExtension(tx, "transfer")
+		require.ErrorContains(t, err, "node returned no result")
+	})
+
+	t.Run("nil result with raw data empty op", func(t *testing.T) {
+		tx := &api.TransactionExtention{
+			Transaction: &core.Transaction{
+				RawData: &core.TransactionRaw{},
+			},
+		}
+		require.EqualError(t, requireTxExtension(tx, ""), "node returned no result")
+	})
+}

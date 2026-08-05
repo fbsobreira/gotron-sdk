@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
-	"google.golang.org/protobuf/proto"
 )
 
 // Transfer from to base58 address
@@ -35,11 +33,8 @@ func (g *GrpcClient) TransferCtx(ctx context.Context, from, toAddress string, am
 	if err != nil {
 		return nil, err
 	}
-	if proto.Size(tx) == 0 {
-		return nil, fmt.Errorf("bad transaction")
-	}
-	if tx.GetResult().GetCode() != 0 {
-		return nil, fmt.Errorf("%s", tx.GetResult().GetMessage())
+	if err := requireTxExtension(tx, "transfer"); err != nil {
+		return nil, err
 	}
 	return tx, nil
 }
