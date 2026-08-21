@@ -12,15 +12,21 @@ import (
 )
 
 // RecoverPubkey recovers the TRON address from a message hash and its ECDSA signature.
+// The caller's signature slice is never modified; V-byte normalization
+// (Ethereum-style v >= 27), if needed, is applied to an internal copy.
 func RecoverPubkey(hash []byte, signature []byte) (address.Address, error) {
 	if len(signature) != 65 {
 		return nil, fmt.Errorf("invalid signature length: %d/65", len(signature))
 	}
-	if signature[64] >= 27 {
-		signature[64] -= 27
+	// Always copy so callers can re-verify, serialize, or broadcast the original
+	// signature without observing a mutated V byte.
+	sig := make([]byte, 65)
+	copy(sig, signature)
+	if sig[64] >= 27 {
+		sig[64] -= 27
 	}
 
-	sigPublicKey, err := crypto.Ecrecover(hash, signature)
+	sigPublicKey, err := crypto.Ecrecover(hash, sig)
 	if err != nil {
 		return nil, err
 	}

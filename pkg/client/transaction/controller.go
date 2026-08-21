@@ -112,7 +112,13 @@ func (C *Controller) hardwareSignTxForSending() {
 	if C.executionError != nil {
 		return
 	}
-	data, _ := C.GetRawData()
+	data, err := C.GetRawData()
+	if err != nil {
+		// Do not sign a nil/empty payload when GetRawData fails — that would
+		// produce a signature over something other than the approved transaction.
+		C.executionError = fmt.Errorf("get raw data for ledger signing: %w", err)
+		return
+	}
 	signature, err := ledger.SignTx(data)
 	if err != nil {
 		C.executionError = err
@@ -142,7 +148,7 @@ func (C *Controller) txConfirmation() {
 	if C.Behavior.ConfirmationWaitTime > 0 {
 		txHash, err := C.TransactionHash()
 		if err != nil {
-			C.executionError = fmt.Errorf("could not get tx hash")
+			C.executionError = fmt.Errorf("could not get tx hash: %w", err)
 			return
 		}
 		//fmt.Printf("TX hash: %s\nWaiting for confirmation....", txHash)
@@ -195,7 +201,22 @@ func (C *Controller) ExecuteTransaction() error {
 
 // GetRawData Byes from Transaction
 func (C *Controller) GetRawData() ([]byte, error) {
-	return proto.Marshal(C.tx.GetRawData())
+	if C.tx == nil {
+		return nil, errors.New("transaction is nil")
+	}
+	rawTransaction := C.tx.GetRawData()
+	if rawTransaction == nil {
+		return nil, errors.New("transaction raw data is nil")
+	}
+	rawData, err := proto.Marshal(rawTransaction)
+	if err != nil {
+		return nil, err
+	}
+	// Empty wire encoding is not a valid TRON payload to hash or sign.
+	if len(rawData) == 0 {
+		return nil, errors.New("transaction raw data is empty")
+	}
+	return rawData, nil
 }
 
 func (C *Controller) sendSignedTx() {
