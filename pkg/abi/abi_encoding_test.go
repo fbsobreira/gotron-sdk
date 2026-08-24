@@ -218,3 +218,33 @@ func asByteArray(v interface{}, size int) ([]byte, bool) {
 	reflect.Copy(reflect.ValueOf(out), rv)
 	return out, true
 }
+
+func TestLoadFromJSON_RejectsTrailingData(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"valid", `[{"uint256": 1}]`, false},
+		{"trailing whitespace", `[{"uint256": 1}]   `, false},
+		{"trailing newline", "[{\"uint256\": 1}]\n", false},
+		{"trailing garbage", `[{"uint256": 1}] garbage`, true},
+		{"trailing json array", `[{"uint256": 1}] [{"uint256": 2}]`, true},
+		{"trailing json object", `[{"uint256": 1}] {"uint256": 2}`, true},
+		{"trailing null", `[{"uint256": 1}]null`, true},
+		{"trailing number", `[{"uint256": 1}] 42`, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			params, err := LoadFromJSON(tc.input)
+			if tc.wantErr {
+				require.Error(t, err, "trailing data must be rejected")
+				assert.Nil(t, params)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, params, 1)
+		})
+	}
+}

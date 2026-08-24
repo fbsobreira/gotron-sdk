@@ -6,7 +6,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"strconv"
@@ -34,6 +36,12 @@ func LoadFromJSON(jString string) ([]Param, error) {
 	var data []Param
 	if err := dec.Decode(&data); err != nil {
 		return nil, err
+	}
+	// Decode stops at the first complete JSON value, so require EOF to reject
+	// trailing data the way json.Unmarshal does.
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("unexpected trailing data after JSON parameter array")
 	}
 	for _, p := range data {
 		for k, v := range p {
