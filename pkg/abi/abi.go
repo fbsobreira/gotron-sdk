@@ -6,11 +6,14 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"reflect"
 	"strconv"
 	"strings"
+	"unicode"
 
 	eABI "github.com/ethereum/go-ethereum/accounts/abi"
 	eCommon "github.com/ethereum/go-ethereum/common"
@@ -28,10 +31,22 @@ func LoadFromJSON(jString string) ([]Param, error) {
 	if len(jString) == 0 {
 		return nil, nil
 	}
-	data := []Param{}
-	err := json.Unmarshal([]byte(jString), &data)
-	if err != nil {
+	dec := json.NewDecoder(bytes.NewReader([]byte(jString)))
+	dec.UseNumber()
+	var data []Param
+	if err := dec.Decode(&data); err != nil {
 		return nil, err
+	}
+	// Decode stops at the first complete JSON value, so require EOF to reject
+	// trailing data the way json.Unmarshal does.
+	var trailing json.RawMessage
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		return nil, fmt.Errorf("unexpected trailing data after JSON parameter array")
+	}
+	for _, p := range data {
+		for k, v := range p {
+			p[k] = normalizeJSONNumbers(v)
+		}
 	}
 	return data, nil
 }
@@ -193,12 +208,22 @@ func firstNonSpace(b []byte) byte {
 }
 
 // Signature returns the 4-byte Keccak-256 function selector for the given method signature.
+// Whitespace is stripped so "transfer(address, uint256)" hashes as the canonical
+// "transfer(address,uint256)".
 func Signature(method string) []byte {
-	// hash method
 	hasher := sha3.NewLegacyKeccak256()
-	hasher.Write([]byte(method))
+	hasher.Write([]byte(canonicalMethodSignature(method)))
 	b := hasher.Sum(nil)
 	return b[:4]
+}
+
+func canonicalMethodSignature(method string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsSpace(r) {
+			return -1
+		}
+		return r
+	}, method)
 }
 
 func convetToAddress(v interface{}) (eCommon.Address, error) {
@@ -214,53 +239,133 @@ func convetToAddress(v interface{}) (eCommon.Address, error) {
 }
 
 func convertToInt(ty eABI.Type, v interface{}) (interface{}, error) {
-	s, ok := v.(string)
+	n, err := toBigInt(v)
+	if err != nil {
+		return nil, wrapIntParseError(ty, v, err)
+	}
+	if err := checkIntRange(ty, n); err != nil {
+		return nil, wrapIntParseError(ty, v, err)
+	}
+	return toNativeInt(ty, n), nil
+}
+
+func toBigInt(v interface{}) (*big.Int, error) {
+	switch x := v.(type) {
+	case string:
+		return parseIntString(x)
+	case json.Number:
+		return parseIntString(string(x))
+	case *big.Int:
+		if x == nil {
+			return nil, fmt.Errorf("nil big.Int")
+		}
+		return new(big.Int).Set(x), nil
+	case big.Int:
+		return new(big.Int).Set(&x), nil
+	}
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return big.NewInt(rv.Int()), nil
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return new(big.Int).SetUint64(rv.Uint()), nil
+	}
+	return nil, fmt.Errorf("expected integer, got %T", v)
+}
+
+func parseIntString(s string) (*big.Int, error) {
+	var n *big.Int
+	var ok bool
+	switch {
+	case strings.HasPrefix(s, "0x"):
+		n, ok = new(big.Int).SetString(s[2:], 16)
+	case strings.HasPrefix(s, "0X"):
+		n, ok = new(big.Int).SetString(s[2:], 16)
+	default:
+		n, ok = new(big.Int).SetString(s, 10)
+	}
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", v)
+		return nil, fmt.Errorf("cannot parse %q as big.Int", s)
 	}
-	if ty.T == eABI.IntTy && (ty.Size == 8 || ty.Size == 16 || ty.Size == 32 || ty.Size == 64) {
-		tmp, err := strconv.ParseInt(s, 10, ty.Size)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse %q as int%d: %w", s, ty.Size, err)
+	return n, nil
+}
+
+func checkIntRange(ty eABI.Type, n *big.Int) error {
+	if ty.Size <= 0 {
+		return fmt.Errorf("invalid integer bit size %d", ty.Size)
+	}
+	if ty.T == eABI.UintTy {
+		if n.Sign() < 0 {
+			return fmt.Errorf("out of range")
 		}
+		max := new(big.Int).Lsh(big.NewInt(1), uint(ty.Size))
+		if n.Cmp(max) >= 0 {
+			return fmt.Errorf("out of range")
+		}
+		return nil
+	}
+	lim := new(big.Int).Lsh(big.NewInt(1), uint(ty.Size-1))
+	min := new(big.Int).Neg(lim)
+	if n.Cmp(min) < 0 || n.Cmp(lim) >= 0 {
+		return fmt.Errorf("out of range")
+	}
+	return nil
+}
+
+func toNativeInt(ty eABI.Type, n *big.Int) interface{} {
+	if ty.T == eABI.UintTy {
 		switch ty.Size {
 		case 8:
-			v = int8(tmp)
+			return uint8(n.Uint64())
 		case 16:
-			v = int16(tmp)
+			return uint16(n.Uint64())
 		case 32:
-			v = int32(tmp)
+			return uint32(n.Uint64())
 		case 64:
-			v = int64(tmp)
-		}
-	} else if ty.T == eABI.UintTy && (ty.Size == 8 || ty.Size == 16 || ty.Size == 32 || ty.Size == 64) {
-		tmp, err := strconv.ParseUint(s, 10, ty.Size)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse %q as uint%d: %w", s, ty.Size, err)
-		}
-		switch ty.Size {
-		case 8:
-			v = uint8(tmp)
-		case 16:
-			v = uint16(tmp)
-		case 32:
-			v = uint32(tmp)
-		case 64:
-			v = uint64(tmp)
-		}
-	} else {
-		// check for hex char
-		var ok bool
-		if strings.HasPrefix(s, "0x") {
-			v, ok = new(big.Int).SetString(s[2:], 16)
-		} else {
-			v, ok = new(big.Int).SetString(s, 10)
-		}
-		if !ok {
-			return nil, fmt.Errorf("cannot parse %q as big.Int", s)
+			return n.Uint64()
 		}
 	}
-	return v, nil
+	if ty.T == eABI.IntTy {
+		switch ty.Size {
+		case 8:
+			return int8(n.Int64())
+		case 16:
+			return int16(n.Int64())
+		case 32:
+			return int32(n.Int64())
+		case 64:
+			return n.Int64()
+		}
+	}
+	return n
+}
+
+func formatIntInput(v interface{}) string {
+	switch x := v.(type) {
+	case string:
+		return x
+	case json.Number:
+		return x.String()
+	case *big.Int:
+		if x == nil {
+			return "<nil>"
+		}
+		return x.String()
+	default:
+		return fmt.Sprint(v)
+	}
+}
+
+func wrapIntParseError(ty eABI.Type, v interface{}, err error) error {
+	return fmt.Errorf("cannot parse %q as %s: %w", formatIntInput(v), intTypeName(ty), err)
+}
+
+func intTypeName(ty eABI.Type) string {
+	kind := "int"
+	if ty.T == eABI.UintTy {
+		kind = "uint"
+	}
+	return fmt.Sprintf("%s%d", kind, ty.Size)
 }
 
 // GetPaddedParam ABI-encodes a slice of Param into padded bytes suitable for contract calls.
@@ -309,15 +414,14 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 					if ty.Elem.Size > 64 {
 						tmp := make([]*big.Int, len(strs))
 						for i, s := range strs {
-							var ok bool
-							if strings.HasPrefix(s, "0x") {
-								tmp[i], ok = new(big.Int).SetString(s[2:], 16)
-							} else {
-								tmp[i], ok = new(big.Int).SetString(s, 10)
-							}
-							if !ok {
+							n, err := parseIntString(s)
+							if err != nil {
 								return nil, fmt.Errorf("element %d: cannot parse %q as big.Int", i, s)
 							}
+							if err := checkIntRange(*ty.Elem, n); err != nil {
+								return nil, fmt.Errorf("element %d: cannot parse %q as %s: %w", i, s, intTypeName(*ty.Elem), err)
+							}
+							tmp[i] = n
 						}
 						v = tmp
 					} else {
@@ -350,11 +454,9 @@ func GetPaddedParam(param []Param) ([]byte, error) {
 				}
 			}
 			if ty.T == eABI.IntTy || ty.T == eABI.UintTy {
-				if _, ok := v.(string); ok {
-					v, err = convertToInt(ty, v)
-					if err != nil {
-						return nil, err
-					}
+				v, err = convertToInt(ty, v)
+				if err != nil {
+					return nil, err
 				}
 			}
 
@@ -478,9 +580,12 @@ func convertSmallIntSlice(elemTy eABI.Type, strs []string) (interface{}, error) 
 	default:
 		out := make([]*big.Int, len(strs))
 		for i, s := range strs {
-			val, ok := new(big.Int).SetString(s, 10)
-			if !ok {
+			val, err := parseIntString(s)
+			if err != nil {
 				return nil, fmt.Errorf("element %d: cannot parse %q as big.Int", i, s)
+			}
+			if err := checkIntRange(elemTy, val); err != nil {
+				return nil, fmt.Errorf("element %d: cannot parse %q as %s: %w", i, s, intTypeName(elemTy), err)
 			}
 			out[i] = val
 		}
@@ -507,28 +612,9 @@ func convertToBytes(ty eABI.Type, v interface{}) (interface{}, error) {
 		if len(dataBytes) != ty.Size {
 			return nil, fmt.Errorf("invalid size: %d/%d", ty.Size, len(dataBytes))
 		}
-		switch ty.Size {
-		case 1:
-			value := [1]byte{}
-			copy(value[:], dataBytes[:1])
-			return value, nil
-		case 2:
-			value := [2]byte{}
-			copy(value[:], dataBytes[:2])
-			return value, nil
-		case 8:
-			value := [8]byte{}
-			copy(value[:], dataBytes[:8])
-			return value, nil
-		case 16:
-			value := [16]byte{}
-			copy(value[:], dataBytes[:16])
-			return value, nil
-		case 32:
-			value := [32]byte{}
-			copy(value[:], dataBytes[:32])
-			return value, nil
-		}
+		arr := reflect.New(reflect.ArrayOf(ty.Size, reflect.TypeOf(byte(0)))).Elem()
+		reflect.Copy(arr, reflect.ValueOf(dataBytes))
+		return arr.Interface(), nil
 	}
 	return v, nil
 }
