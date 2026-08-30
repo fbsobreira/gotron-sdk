@@ -143,8 +143,10 @@ func isAllDigits(s string) bool {
 }
 
 // FormatAmount renders an integer number of base units as a canonical
-// decimal string at the given scale. It is the inverse of ParseAmount:
-// ParseAmount(FormatAmount(v, d), d) returns v.
+// decimal string at the given scale. It is the inverse of ParseAmount: for
+// non-negative units and 0 <= decimals <= MaxAmountDecimals,
+// ParseAmount(FormatAmount(v, d), d) returns v. Negative units format with a
+// leading "-", which ParseAmount rejects.
 //
 // Trailing fractional zeros are trimmed and the result is always a valid
 // JSON number literal — never ".5" or "5." — so callers can emit it as a

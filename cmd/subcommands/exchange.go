@@ -27,7 +27,10 @@ func parseExchangeTokenAmount(tokenID, amount, argName string) (string, int64, e
 		id = "_"
 	} else {
 		asset, err := conn.GetAssetIssueByID(tokenID)
-		if err != nil || asset == nil {
+		if err != nil {
+			return "", 0, fmt.Errorf("get TRC10 %s: %w", tokenID, err)
+		}
+		if asset == nil {
 			return "", 0, fmt.Errorf("TRC10 not found: %s", tokenID)
 		}
 		decimals = int(asset.GetPrecision())
@@ -49,9 +52,6 @@ func exchangeCreateCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 
-			if args[0] == args[2] {
-				return fmt.Errorf("token ID cannot be the same")
-			}
 			tokenID1, tokenValue1, err := parseExchangeTokenAmount(args[0], args[1], "AMOUNT1")
 			if err != nil {
 				return err
@@ -59,6 +59,10 @@ func exchangeCreateCmd() *cobra.Command {
 			tokenID2, tokenValue2, err := parseExchangeTokenAmount(args[2], args[3], "AMOUNT2")
 			if err != nil {
 				return err
+			}
+			// Compare after normalization: "TRX" and "0" both map to "_".
+			if tokenID1 == tokenID2 {
+				return fmt.Errorf("token ID cannot be the same")
 			}
 			if tokenValue1 <= 0 || tokenValue2 <= 0 {
 				return fmt.Errorf("invalid token amount")
@@ -352,7 +356,10 @@ func exchangeTradeCmd() *cobra.Command {
 				tokenDecimal := common.AmountDecimalPoint
 				if outID != "_" {
 					asset, err := conn.GetAssetIssueByID(outID)
-					if err != nil || asset == nil {
+					if err != nil {
+						return fmt.Errorf("get TRC10 %s: %w", outID, err)
+					}
+					if asset == nil {
 						return fmt.Errorf("TRC10 not found: %s", outID)
 					}
 					tokenDecimal = int(asset.GetPrecision())
