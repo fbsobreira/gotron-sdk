@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -36,8 +35,6 @@ func trc10IssueCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 
-			var trxNum int64
-			tokenNum := int64(1)
 			t, err := dateparse.ParseAny(issueStartDate)
 			if err != nil {
 				return err
@@ -48,30 +45,9 @@ func trc10IssueCmd() *cobra.Command {
 			if issueDecimals > 6 || issueDecimals < 0 {
 				return fmt.Errorf("decimals should be >= 0 &&  <= 6, found %d", issueDecimals)
 			}
-			if colon := strings.Index(args[5], ":"); colon > -1 {
-				if trxNum, err = strconv.ParseInt(args[5][:colon], 10, 32); err != nil {
-					return err
-				}
-				if tokenNum, err = strconv.ParseInt(args[5][colon+1:], 10, 32); err != nil {
-					return err
-				}
-			} else {
-				// use as float
-				ratio, err := strconv.ParseFloat(args[5], 32)
-				if err != nil {
-					return err
-				}
-				// round up to 6 decimals
-				p := math.Pow10(6)
-				ratio = float64(int(ratio*p)) / p
-				for float64(int64(ratio)) != ratio && tokenNum <= int64(math.Pow10(6)) {
-					ratio *= 10
-					tokenNum *= 10
-				}
-				if tokenNum > int64(math.Pow10(6)) {
-					return fmt.Errorf("invalid ratio")
-				}
-				trxNum = int64(ratio)
+			trxNum, tokenNum, err := parseIssueRatio(args[5])
+			if err != nil {
+				return err
 			}
 
 			frozenSupply := make(map[string]string)
@@ -83,23 +59,17 @@ func trc10IssueCmd() *cobra.Command {
 				if len(frozenSupply[frozenSupplyKeyValue[0]]) > 0 {
 					return fmt.Errorf("frozen supply date collision %s:%s -> %s", frozenSupplyKeyValue[0], frozenSupply[frozenSupplyKeyValue[0]], value)
 				}
-				// update frozen supply with decimals
-				fSupply := ""
-				if s, err := strconv.ParseFloat(frozenSupplyKeyValue[1], 64); err == nil {
-					s *= math.Pow10(int(issueDecimals))
-					fSupply = strconv.FormatInt(int64(s), 10)
-				} else {
-					return fmt.Errorf("invalid frozen supply: %s", value)
+				amount, err := parseAmountArg(frozenSupplyKeyValue[1], "frozen supply", int(issueDecimals))
+				if err != nil {
+					return fmt.Errorf("invalid frozen supply: %s: %w", value, err)
 				}
-				frozenSupply[frozenSupplyKeyValue[0]] = fSupply
+				frozenSupply[frozenSupplyKeyValue[0]] = strconv.FormatInt(amount, 10)
 			}
 
-			totalSupply, err := strconv.ParseInt(args[4], 10, 64)
+			totalSupply, err := parseAmountArg(args[4], "TOTAL_SUPPLY", int(issueDecimals))
 			if err != nil {
 				return err
 			}
-			// update total supply with decimals
-			totalSupply = int64(float64(totalSupply) * math.Pow10(int(issueDecimals)))
 			tx, err := conn.AssetIssue(signerAddress.String(),
 				args[0], // Name
 				args[1], // Description
@@ -110,8 +80,8 @@ func trc10IssueCmd() *cobra.Command {
 				t.UTC().Unix()*1000,
 				t.Add(time.Duration(issueDuration)*time.Hour*24).UTC().Unix()*1000,
 				0, 0, //AssetLimit
-				int32(trxNum),
-				int32(tokenNum),
+				trxNum,
+				tokenNum,
 				0,            // Vote scores
 				frozenSupply, // Frozen list
 			)
@@ -172,21 +142,15 @@ func trc10SendCmd() *cobra.Command {
 			if signerAddress.String() == "" {
 				return fmt.Errorf("no signer specified")
 			}
-			// get amount
-			value, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return err
-			}
-
 			// Get asset information
 			// check if possible id
 			tokenID := ""
 			tokenDecimals := int32(0)
 			if _, err := strconv.Atoi(args[2]); err == nil {
 				if asset, err := conn.GetAssetIssueByID(args[2]); err == nil {
-					if asset.Id == args[2] {
+					if asset.GetId() == args[2] {
 						tokenID = args[2]
-						tokenDecimals = asset.Precision
+						tokenDecimals = asset.GetPrecision()
 					}
 				} else {
 					return fmt.Errorf("TRC10 not found: %s", args[2])
@@ -195,9 +159,9 @@ func trc10SendCmd() *cobra.Command {
 			if len(tokenID) == 0 {
 				// try by name
 				if asset, err := conn.GetAssetIssueByName(args[2]); err == nil {
-					if string(asset.Name) == args[2] {
-						tokenID = asset.Id
-						tokenDecimals = asset.Precision
+					if string(asset.GetName()) == args[2] {
+						tokenID = asset.GetId()
+						tokenDecimals = asset.GetPrecision()
 					} else {
 						return fmt.Errorf("TRC10 not found: %s", args[2])
 					}
@@ -206,8 +170,11 @@ func trc10SendCmd() *cobra.Command {
 				}
 			}
 
-			value = value * math.Pow10(int(tokenDecimals))
-			tx, err := conn.TransferAsset(signerAddress.String(), addr.String(), tokenID, int64(value))
+			valueInt, err := parseAmountArg(args[1], "AMOUNT", int(tokenDecimals))
+			if err != nil {
+				return err
+			}
+			tx, err := conn.TransferAsset(signerAddress.String(), addr.String(), tokenID, valueInt)
 			if err != nil {
 				return err
 			}
@@ -258,23 +225,15 @@ func trc10ICOCmd() *cobra.Command {
 			if signerAddress.String() == "" {
 				return fmt.Errorf("no signer specified")
 			}
-			// get amount
-			value, err := strconv.ParseFloat(args[1], 64)
-			if err != nil {
-				return err
-			}
-
 			// Get asset information
 			// check if possible id
 			tokenID := ""
 			issuerAddress := ""
 			price := float64(0)
-			//tokenDecimals := int32(0)
 			if _, err := strconv.Atoi(args[0]); err == nil {
 				if asset, err := conn.GetAssetIssueByID(args[0]); err == nil {
-					if asset.Id == args[0] {
+					if asset.GetId() == args[0] {
 						tokenID = args[0]
-						//tokenDecimals = asset.Precision
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
 						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					}
@@ -285,9 +244,8 @@ func trc10ICOCmd() *cobra.Command {
 			if len(tokenID) == 0 {
 				// try by name
 				if asset, err := conn.GetAssetIssueByName(args[0]); err == nil {
-					if string(asset.Name) == args[0] {
-						tokenID = asset.Id
-						//tokenDecimals = asset.Precision
+					if string(asset.GetName()) == args[0] {
+						tokenID = asset.GetId()
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
 						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
 					} else {
@@ -298,9 +256,10 @@ func trc10ICOCmd() *cobra.Command {
 				}
 			}
 
-			// participate amount is TRX value
-			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
-			valueInt := int64(math.Round(value * math.Pow10(6)))
+			valueInt, err := parseTRXArg(args[1], "AMOUNT")
+			if err != nil {
+				return err
+			}
 			tx, err := conn.ParticipateAssetIssue(signerAddress.String(), issuerAddress, tokenID, valueInt)
 			if err != nil {
 				return err
@@ -335,7 +294,7 @@ func trc10ICOCmd() *cobra.Command {
 				"netFee":      ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":    ctrlr.Receipt.Receipt.NetUsage,
 				"price":       price,
-				"cost":        value,
+				"cost":        json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint)),
 				"tokenAmount": float64(valueInt) * price,
 			}
 
