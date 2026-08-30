@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -146,12 +145,10 @@ func accountSendCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 			// get amount
-			value, err := strconv.ParseFloat(args[1], 64)
+			valueInt, err := parseTRXArg(args[1], "AMOUNT")
 			if err != nil {
 				return err
 			}
-			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
-			valueInt := int64(math.Round(value * math.Pow10(6)))
 			tx, err := conn.Transfer(signerAddress.String(), addr.String(), valueInt)
 			if err != nil {
 				return err
@@ -180,7 +177,7 @@ func accountSendCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["to"] = addr.String()
-			result["amount"] = value
+			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
@@ -319,12 +316,10 @@ func accountFreezeCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 			// get amount
-			value, err := strconv.ParseFloat(args[0], 64)
+			valueInt, err := parseTRXArg(args[0], "AMOUNT")
 			if err != nil {
 				return err
 			}
-			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
-			valueInt := int64(math.Round(value * math.Pow10(6)))
 
 			delegateTo := ""
 			if len(resourcesDelegate) > 0 {
@@ -376,7 +371,7 @@ func accountFreezeCmd() *cobra.Command {
 			result["from"] = signerAddress.String()
 			result["Type"] = rType.String()
 			result["Delegate"] = resourcesDelegate
-			result["amount"] = value
+			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
@@ -661,12 +656,10 @@ func accountFreezeV2Cmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 			// get amount
-			value, err := strconv.ParseFloat(args[0], 64)
+			valueInt, err := parseTRXArg(args[0], "AMOUNT")
 			if err != nil {
 				return err
 			}
-			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
-			valueInt := int64(math.Round(value * math.Pow10(6)))
 
 			rType := core.ResourceCode_BANDWIDTH
 			if resourcesType == 1 {
@@ -707,7 +700,7 @@ func accountFreezeV2Cmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["Type"] = rType.String()
-			result["amount"] = value
+			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)
@@ -737,12 +730,10 @@ func accountUnfreezeV2Cmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 			// get amount
-			value, err := strconv.ParseFloat(args[0], 64)
+			valueInt, err := parseTRXArg(args[0], "AMOUNT")
 			if err != nil {
 				return err
 			}
-			// math.Round avoids float-to-int truncation (e.g. 1.1 * 1e6 = 1099999.999… → 1099999).
-			valueInt := int64(math.Round(value * math.Pow10(6)))
 
 			rType := core.ResourceCode_BANDWIDTH
 			if resourcesType == 1 {
@@ -783,7 +774,7 @@ func accountUnfreezeV2Cmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["Type"] = rType.String()
-			result["amount"] = value
+			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
 			result["message"] = string(ctrlr.Result.Message)

@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"math/big"
 	"os"
 	"strings"
@@ -28,9 +27,9 @@ var (
 	feeLimit          int64
 	curPercent        int64
 	oeLimit           int64
-	tAmount           float64
+	tAmount           string
 	tTokenID          string
-	tTokenAmount      float64
+	tTokenAmount      string
 	estimate          bool
 	constructorParams string
 )
@@ -287,19 +286,23 @@ func contractTriggerCmd() *cobra.Command {
 			if signerAddress.String() == "" {
 				return fmt.Errorf("no signer specified")
 			}
-			// get amount
-			valueInt := int64(0)
-			if tAmount > 0 {
-				valueInt = int64(tAmount * math.Pow10(6))
+			valueInt, err := parseTRXArg(tAmount, "--value")
+			if err != nil {
+				return err
 			}
 			tokenInt := int64(0)
-			if tTokenAmount > 0 {
-				// get token info
+			if tTokenAmount != "" && !isDecimalZero(tTokenAmount) {
 				info, err := conn.GetAssetIssueByID(tTokenID)
 				if err != nil {
 					return err
 				}
-				tokenInt = int64(tTokenAmount * math.Pow10(int(info.Precision)))
+				if info == nil {
+					return fmt.Errorf("TRC10 not found: %s", tTokenID)
+				}
+				tokenInt, err = parseAmountArg(tTokenAmount, "--tokenValue", int(info.GetPrecision()))
+				if err != nil {
+					return err
+				}
 			}
 
 			param := ""
@@ -405,9 +408,9 @@ func contractTriggerCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
-	cmd.Flags().Float64Var(&tAmount, "value", 0, "trx amount")
+	cmd.Flags().StringVar(&tAmount, "value", "0", "trx amount")
 	cmd.Flags().StringVar(&tTokenID, "token", "", "token id")
-	cmd.Flags().Float64Var(&tTokenAmount, "tokenValue", 0, "token amount")
+	cmd.Flags().StringVar(&tTokenAmount, "tokenValue", "0", "token amount")
 	cmd.Flags().BoolVar(&estimate, "estimate", false,
 		"only estimate the energy required; do not sign or broadcast the call")
 	return cmd

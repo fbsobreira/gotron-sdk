@@ -3,7 +3,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"time"
 
@@ -16,8 +15,32 @@ import (
 )
 
 var (
-	expectedAmount float64
+	expectedAmount string
 )
+
+// parseExchangeTokenAmount scales a TRX or TRC10 amount into base units.
+// "TRX" and "0" are normalized to the exchange's "_" token id.
+func parseExchangeTokenAmount(tokenID, amount, argName string) (string, int64, error) {
+	decimals := common.AmountDecimalPoint
+	id := tokenID
+	if tokenID == "TRX" || tokenID == "0" {
+		id = "_"
+	} else {
+		asset, err := conn.GetAssetIssueByID(tokenID)
+		if err != nil {
+			return "", 0, fmt.Errorf("get TRC10 %s: %w", tokenID, err)
+		}
+		if asset == nil {
+			return "", 0, fmt.Errorf("TRC10 not found: %s", tokenID)
+		}
+		decimals = int(asset.GetPrecision())
+	}
+	v, err := parseAmountArg(amount, argName, decimals)
+	if err != nil {
+		return "", 0, err
+	}
+	return id, v, nil
+}
 
 func exchangeCreateCmd() *cobra.Command {
 	return &cobra.Command{
@@ -29,18 +52,15 @@ func exchangeCreateCmd() *cobra.Command {
 				return fmt.Errorf("no signer specified")
 			}
 
-			tokenID1 := args[0]
-			// get amount
-			tokenValue1, err := strconv.ParseFloat(args[1], 64)
+			tokenID1, tokenValue1, err := parseExchangeTokenAmount(args[0], args[1], "AMOUNT1")
 			if err != nil {
 				return err
 			}
-			tokenID2 := args[2]
-			// get amount
-			tokenValue2, err := strconv.ParseFloat(args[3], 64)
+			tokenID2, tokenValue2, err := parseExchangeTokenAmount(args[2], args[3], "AMOUNT2")
 			if err != nil {
 				return err
 			}
+			// Compare after normalization: "TRX" and "0" both map to "_".
 			if tokenID1 == tokenID2 {
 				return fmt.Errorf("token ID cannot be the same")
 			}
@@ -48,38 +68,12 @@ func exchangeCreateCmd() *cobra.Command {
 				return fmt.Errorf("invalid token amount")
 			}
 
-			if tokenID1 == "TRX" || tokenID1 == "0" {
-				tokenID1 = "_"
-				tokenValue1 = tokenValue1 * math.Pow10(6)
-			}
-			if tokenID2 == "TRX" || tokenID2 == "0" {
-				tokenID2 = "_"
-				tokenValue2 = tokenValue2 * math.Pow10(6)
-			}
-
-			// Get asset information
-			// check if possible id
-			if tokenID1 != "_" {
-				if asset, err := conn.GetAssetIssueByID(tokenID1); err == nil {
-					tokenValue1 = tokenValue1 * math.Pow10(int(asset.Precision))
-				} else {
-					return fmt.Errorf("TRC10 not found: %s", tokenID1)
-				}
-			}
-			if tokenID2 != "_" {
-				if asset, err := conn.GetAssetIssueByID(tokenID2); err == nil {
-					tokenValue2 = tokenValue2 * math.Pow10(int(asset.Precision))
-				} else {
-					return fmt.Errorf("TRC10 not found: %s", tokenID2)
-				}
-			}
-
 			tx, err := conn.ExchangeCreate(
 				signerAddress.String(),
 				tokenID1,
-				int64(tokenValue1),
+				tokenValue1,
 				tokenID2,
-				int64(tokenValue2),
+				tokenValue2,
 			)
 			if err != nil {
 				return err
@@ -137,9 +131,7 @@ func exchangeInjectCmd() *cobra.Command {
 				return err
 			}
 
-			tokenID1 := args[1]
-			// get amount
-			tokenValue1, err := strconv.ParseFloat(args[2], 64)
+			tokenID1, tokenValue1, err := parseExchangeTokenAmount(args[1], args[2], "AMOUNT")
 			if err != nil {
 				return err
 			}
@@ -147,25 +139,11 @@ func exchangeInjectCmd() *cobra.Command {
 				return fmt.Errorf("invalid token amount")
 			}
 
-			if tokenID1 == "TRX" || tokenID1 == "0" {
-				tokenID1 = "_"
-				tokenValue1 = tokenValue1 * math.Pow10(6)
-			}
-			// Get asset information
-			// check if possible id
-			if tokenID1 != "_" {
-				if asset, err := conn.GetAssetIssueByID(tokenID1); err == nil {
-					tokenValue1 = tokenValue1 * math.Pow10(int(asset.Precision))
-				} else {
-					return fmt.Errorf("TRC10 not found: %s", tokenID1)
-				}
-			}
-
 			tx, err := conn.ExchangeInject(
 				signerAddress.String(),
 				exchangeID,
 				tokenID1,
-				int64(tokenValue1),
+				tokenValue1,
 			)
 			if err != nil {
 				return err
@@ -199,7 +177,7 @@ func exchangeInjectCmd() *cobra.Command {
 				"fee":          ctrlr.Receipt.Fee,
 				"netFee":       ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":     ctrlr.Receipt.Receipt.NetUsage,
-				"TokenAmount1": int64(tokenValue1),
+				"TokenAmount1": tokenValue1,
 				"TokenAmount2": ctrlr.Receipt.ExchangeInjectAnotherAmount,
 			}
 
@@ -225,9 +203,7 @@ func exchangeWithdrawCmd() *cobra.Command {
 				return err
 			}
 
-			tokenID1 := args[1]
-			// get amount
-			tokenValue1, err := strconv.ParseFloat(args[2], 64)
+			tokenID1, tokenValue1, err := parseExchangeTokenAmount(args[1], args[2], "AMOUNT")
 			if err != nil {
 				return err
 			}
@@ -235,25 +211,11 @@ func exchangeWithdrawCmd() *cobra.Command {
 				return fmt.Errorf("invalid token amount")
 			}
 
-			if tokenID1 == "TRX" || tokenID1 == "0" {
-				tokenID1 = "_"
-				tokenValue1 = tokenValue1 * math.Pow10(6)
-			}
-			// Get asset information
-			// check if possible id
-			if tokenID1 != "_" {
-				if asset, err := conn.GetAssetIssueByID(tokenID1); err == nil {
-					tokenValue1 = tokenValue1 * math.Pow10(int(asset.Precision))
-				} else {
-					return fmt.Errorf("TRC10 not found: %s", tokenID1)
-				}
-			}
-
 			tx, err := conn.ExchangeWithdraw(
 				signerAddress.String(),
 				exchangeID,
 				tokenID1,
-				int64(tokenValue1),
+				tokenValue1,
 			)
 			if err != nil {
 				return err
@@ -287,7 +249,7 @@ func exchangeWithdrawCmd() *cobra.Command {
 				"fee":          ctrlr.Receipt.Fee,
 				"netFee":       ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":     ctrlr.Receipt.Receipt.NetUsage,
-				"TokenAmount1": int64(tokenValue1),
+				"TokenAmount1": tokenValue1,
 				"TokenAmount2": ctrlr.Receipt.ExchangeWithdrawAnotherAmount,
 			}
 
@@ -353,9 +315,7 @@ func exchangeTradeCmd() *cobra.Command {
 				return err
 			}
 
-			tokenID1 := args[1]
-			// get amount
-			tokenValue1, err := strconv.ParseFloat(args[2], 64)
+			tokenID1, tokenValue1, err := parseExchangeTokenAmount(args[1], args[2], "AMOUNT")
 			if err != nil {
 				return err
 			}
@@ -363,61 +323,64 @@ func exchangeTradeCmd() *cobra.Command {
 				return fmt.Errorf("invalid token amount")
 			}
 
-			if tokenID1 == "TRX" || tokenID1 == "0" {
-				tokenID1 = "_"
-				tokenValue1 = tokenValue1 * math.Pow10(6)
+			e, err := conn.ExchangeByID(exchangeID)
+			if err != nil {
+				return fmt.Errorf("Cannot fetch exchange info: %+v", err)
 			}
-			// Get asset information
-			// check if possible id
-			if tokenID1 != "_" {
-				if asset, err := conn.GetAssetIssueByID(tokenID1); err == nil {
-					tokenValue1 = tokenValue1 * math.Pow10(int(asset.Precision))
-				} else {
-					return fmt.Errorf("TRC10 not found: %s", tokenID1)
-				}
+			if e == nil {
+				return fmt.Errorf("Cannot fetch exchange info: empty response")
+			}
+			T1 := string(e.GetFirstTokenId())
+			T2 := string(e.GetSecondTokenId())
+			var reserveIn, reserveOut int64
+			// outID is the token received; only its precision can scale --expected.
+			outID := ""
+			switch tokenID1 {
+			case T1:
+				outID = T2
+				reserveIn = e.GetFirstTokenBalance()
+				reserveOut = e.GetSecondTokenBalance()
+			case T2:
+				outID = T1
+				reserveIn = e.GetSecondTokenBalance()
+				reserveOut = e.GetFirstTokenBalance()
+			default:
+				return fmt.Errorf("Token ID provided does not match exchange %s/%s", T1, T2)
 			}
 
-			// compute expected amount
-			if e, err := conn.ExchangeByID(exchangeID); err == nil {
-				tokenDecimal := 6
-				T1 := string(e.FirstTokenId)
-				T2 := string(e.SecondTokenId)
-				ratio := float64(0)
-				switch tokenID1 {
-				case T1:
-					if T2 != "_" {
-						// get other token decimals
-						if asset, err := conn.GetAssetIssueByID(T2); err == nil {
-							tokenDecimal = int(asset.Precision)
-						}
+			var expectedInt int64
+			if expectedAmount != "" && !isDecimalZero(expectedAmount) {
+				// Resolve the received token's precision only when an explicit
+				// --expected has to be scaled; the auto-quote below is already
+				// in base units and must not depend on this lookup.
+				tokenDecimal := common.AmountDecimalPoint
+				if outID != "_" {
+					asset, err := conn.GetAssetIssueByID(outID)
+					if err != nil {
+						return fmt.Errorf("get TRC10 %s: %w", outID, err)
 					}
-					ratio = (float64(e.FirstTokenBalance) + tokenValue1) / float64(e.SecondTokenBalance)
-				case T2:
-					if T1 != "_" {
-						// get other token decimals
-						if asset, err := conn.GetAssetIssueByID(T1); err == nil {
-							tokenDecimal = int(asset.Precision)
-						}
+					if asset == nil {
+						return fmt.Errorf("TRC10 not found: %s", outID)
 					}
-					ratio = (float64(e.SecondTokenBalance) + tokenValue1) / float64(e.FirstTokenBalance)
-				default:
-					return fmt.Errorf("Token ID provided does not match exchange %s/%s", T1, T2)
+					tokenDecimal = int(asset.GetPrecision())
 				}
-				if expectedAmount != 0 {
-					expectedAmount = expectedAmount * math.Pow10(tokenDecimal)
-				} else {
-					expectedAmount = math.Floor(tokenValue1/ratio + 0.5)
+				expectedInt, err = parseAmountArg(expectedAmount, "--expected", tokenDecimal)
+				if err != nil {
+					return err
 				}
 			} else {
-				return fmt.Errorf("Cannot fetch exchange info: %+v", err)
+				expectedInt, err = roundBancorQuote(tokenValue1, reserveIn, reserveOut)
+				if err != nil {
+					return err
+				}
 			}
 
 			tx, err := conn.ExchangeTrade(
 				signerAddress.String(),
 				exchangeID,
 				tokenID1,
-				int64(tokenValue1),
-				int64(expectedAmount),
+				tokenValue1,
+				expectedInt,
 			)
 			if err != nil {
 				return err
@@ -451,9 +414,9 @@ func exchangeTradeCmd() *cobra.Command {
 				"fee":           ctrlr.Receipt.Fee,
 				"netFee":        ctrlr.Receipt.Receipt.NetFee,
 				"netUsage":      ctrlr.Receipt.Receipt.NetUsage,
-				"TokenAmount1":  int64(tokenValue1),
+				"TokenAmount1":  tokenValue1,
 				"TokenAmount2":  ctrlr.Receipt.ExchangeReceivedAmount,
-				"TokenExpected": int64(expectedAmount),
+				"TokenExpected": expectedInt,
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -461,7 +424,7 @@ func exchangeTradeCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().Float64VarP(&expectedAmount, "expected", "x", 0, "specify expected amount in return")
+	cmd.Flags().StringVarP(&expectedAmount, "expected", "x", "0", "specify expected amount in return")
 	return cmd
 }
 
