@@ -14,6 +14,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// tokenDecimalsFlag overrides the contract's decimals() lookup for the
+// trc20 send command. Negative means "query the contract".
+var tokenDecimalsFlag int64
+
 func trc20SendCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "send <ADDRESS_TO> <AMOUNT> <CONTRACT_ADDRESS>",
@@ -35,13 +39,23 @@ func trc20SendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// get contract decimals if any
-			tokenDecimals, err := conn.TRC20GetDecimals(contract.String())
-			if err != nil {
-				tokenDecimals = big.NewInt(0)
+			// Resolve token decimals. A wrong scale silently moves the wrong
+			// amount, so a failed lookup is fatal unless --decimals is given.
+			tokenDecimals := big.NewInt(tokenDecimalsFlag)
+			if tokenDecimalsFlag < 0 {
+				tokenDecimals, err = conn.TRC20GetDecimals(contract.String())
+				if err != nil {
+					return fmt.Errorf("cannot read decimals() for %s: %w "+
+						"(pass --decimals to override for non-standard tokens)",
+						contract.String(), err)
+				}
 			}
 
-			amount, _ := decimals.ApplyDecimals(value, tokenDecimals.Int64())
+			amount, accuracy := decimals.ApplyDecimals(value, tokenDecimals.Int64())
+			if accuracy != big.Exact {
+				return fmt.Errorf("AMOUNT %q is not representable with %d decimals",
+					args[1], tokenDecimals.Int64())
+			}
 			tx, err := conn.TRC20Send(signerAddress.String(), addr.String(), contract.String(), amount, feeLimit)
 			if err != nil {
 				return err
@@ -92,6 +106,8 @@ func trc20SendCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
+	cmd.Flags().Int64Var(&tokenDecimalsFlag, "decimals", -1,
+		"token decimals override; default queries the contract's decimals()")
 	return cmd
 }
 

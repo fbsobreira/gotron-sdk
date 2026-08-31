@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"math"
 	"strings"
 	"testing"
 
@@ -103,5 +104,59 @@ func TestIsDecimalZero(t *testing.T) {
 		if isDecimalZero(s) {
 			t.Errorf("isDecimalZero(%q) = true, want false", s)
 		}
+	}
+}
+
+// W61: trc10 ico reported tokenAmount = spent * (trxNum/num), inverting the
+// rate. Per java-tron's ParticipateAssetIssueActuator the tokens received are
+// floor(spent * num / trxNum).
+func TestIcoTokensReceived(t *testing.T) {
+	tests := []struct {
+		name     string
+		spentSUN int64
+		trxNum   int32
+		num      int32
+		want     int64
+	}{
+		{"one to one", 1_000_000, 1, 1, 1_000_000},
+		{"ten tokens per sun", 1_000_000, 1, 10, 10_000_000},
+		{"one token per ten sun", 1_000_000, 10, 1, 100_000},
+		{"issue ratio 1.5 (15:10)", 1_000_000, 15, 10, 666_666},
+		{"floors, does not round", 7, 2, 1, 3},
+		{"zero spend", 0, 1, 1, 0},
+		{"no int64 overflow at scale", 90_000_000_000_000_000, 1, 100, 9_000_000_000_000_000_000},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := icoTokensReceived(tc.spentSUN, tc.trxNum, tc.num)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Errorf("icoTokensReceived(%d, %d, %d) = %d, want %d",
+					tc.spentSUN, tc.trxNum, tc.num, got, tc.want)
+			}
+		})
+	}
+}
+
+// A zero or negative rate must error rather than divide by zero. The old code
+// produced +Inf here, which json.Marshal refuses to encode — and the marshal
+// error is discarded, so the command printed nothing (see issue #301).
+func TestIcoTokensReceived_RejectsBadRate(t *testing.T) {
+	for _, tc := range []struct{ trxNum, num int32 }{
+		{0, 1}, {1, 0}, {0, 0}, {-1, 1}, {1, -1},
+	} {
+		if _, err := icoTokensReceived(1_000_000, tc.trxNum, tc.num); err == nil {
+			t.Errorf("icoTokensReceived(_, %d, %d) = nil error, want error", tc.trxNum, tc.num)
+		}
+	}
+}
+
+// Overflow must be reported, not silently truncated.
+func TestIcoTokensReceived_Overflow(t *testing.T) {
+	if _, err := icoTokensReceived(math.MaxInt64, 1, 1000); err == nil {
+		t.Error("expected overflow error, got nil")
 	}
 }
