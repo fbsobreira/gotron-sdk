@@ -265,6 +265,14 @@ func trc10ICOCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// Tokens received, per java-tron's ParticipateAssetIssueActuator:
+			//   base units = floor(spent_SUN * num / trx_num)
+			// Computed before submitting so a purchase the chain would reject
+			// (overflowing product, zero tokens) fails without spending fees.
+			tokenBaseUnits, err := icoTokensReceived(valueInt, trxNum, icoNum)
+			if err != nil {
+				return err
+			}
 			tx, err := conn.ParticipateAssetIssue(signerAddress.String(), issuerAddress, tokenID, valueInt)
 			if err != nil {
 				return err
@@ -290,13 +298,6 @@ func trc10ICOCmd() *cobra.Command {
 				return nil
 			}
 
-			// Tokens received, per java-tron's ParticipateAssetIssueActuator:
-			//   base units = floor(spent_SUN * num / trx_num)
-			// The previous code multiplied by trx_num/num, inverting the rate.
-			tokenBaseUnits, err := icoTokensReceived(valueInt, trxNum, icoNum)
-			if err != nil {
-				return err
-			}
 			// Unchanged field: the raw trx_num/num rate. icoTokensReceived has
 			// already rejected a zero num, so this cannot produce Inf (which
 			// json.Marshal refuses to encode).

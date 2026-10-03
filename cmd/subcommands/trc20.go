@@ -18,6 +18,29 @@ import (
 // trc20 send command. Negative means "query the contract".
 var tokenDecimalsFlag int64
 
+// resolveTRC20Amount scales amount into token base units. A non-negative
+// override is used as the token's decimals; otherwise lookup queries the
+// contract. A wrong scale silently moves the wrong amount, so a failed lookup
+// is fatal and points the user at --decimals.
+func resolveTRC20Amount(amount string, override int64, lookup func() (*big.Int, error)) (*big.Int, error) {
+	tokenDecimals := big.NewInt(override)
+	if override < 0 {
+		var err error
+		tokenDecimals, err = lookup()
+		if err != nil {
+			return nil, fmt.Errorf("%w (pass --decimals to override for non-standard tokens)", err)
+		}
+	}
+	if !tokenDecimals.IsInt64() || tokenDecimals.Sign() < 0 || tokenDecimals.Int64() > common.MaxTokenDecimals {
+		return nil, fmt.Errorf("token decimals %s out of range 0..%d", tokenDecimals, common.MaxTokenDecimals)
+	}
+	n, err := common.ParseAmountBig(amount, int(tokenDecimals.Int64()))
+	if err != nil {
+		return nil, fmt.Errorf("AMOUNT: %w", err)
+	}
+	return n, nil
+}
+
 func trc20SendCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "send <ADDRESS_TO> <AMOUNT> <CONTRACT_ADDRESS>",
@@ -39,24 +62,15 @@ func trc20SendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			// Resolve token decimals. A wrong scale silently moves the wrong
-			// amount, so a failed lookup is fatal unless --decimals is given.
-			tokenDecimals := big.NewInt(tokenDecimalsFlag)
-			if tokenDecimalsFlag < 0 {
-				tokenDecimals, err = conn.TRC20GetDecimals(contract.String())
+			amount, err := resolveTRC20Amount(args[1], tokenDecimalsFlag, func() (*big.Int, error) {
+				d, err := conn.TRC20GetDecimals(contract.String())
 				if err != nil {
-					return fmt.Errorf("cannot read decimals() for %s: %w "+
-						"(pass --decimals to override for non-standard tokens)",
-						contract.String(), err)
+					return nil, fmt.Errorf("cannot read decimals() for %s: %w", contract.String(), err)
 				}
-			}
-
-			if !tokenDecimals.IsInt64() {
-				return fmt.Errorf("token decimals %s out of range", tokenDecimals)
-			}
-			amount, err := common.ParseAmountBig(args[1], int(tokenDecimals.Int64()))
+				return d, nil
+			})
 			if err != nil {
-				return fmt.Errorf("AMOUNT: %w", err)
+				return err
 			}
 			tx, err := conn.TRC20Send(signerAddress.String(), addr.String(), contract.String(), amount, feeLimit)
 			if err != nil {

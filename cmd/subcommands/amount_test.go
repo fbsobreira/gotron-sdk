@@ -123,8 +123,8 @@ func TestIcoTokensReceived(t *testing.T) {
 		{"one token per ten sun", 1_000_000, 10, 1, 100_000},
 		{"issue ratio 1.5 (15:10)", 1_000_000, 15, 10, 666_666},
 		{"floors, does not round", 7, 2, 1, 3},
-		{"zero spend", 0, 1, 1, 0},
-		{"no int64 overflow at scale", 90_000_000_000_000_000, 1, 100, 9_000_000_000_000_000_000},
+		{"product near int64 max", 90_000_000_000_000_000, 1, 100, 9_000_000_000_000_000_000},
+		{"product exactly int64 max", math.MaxInt64, 1, 1, math.MaxInt64},
 	}
 
 	for _, tc := range tests {
@@ -154,9 +154,43 @@ func TestIcoTokensReceived_RejectsBadRate(t *testing.T) {
 	}
 }
 
-// Overflow must be reported, not silently truncated.
+// java-tron computes spent*num with multiplyExact, so an overflowing product
+// is rejected on chain even when the final quotient would fit. The helper
+// must reject it too, before the purchase is submitted.
 func TestIcoTokensReceived_Overflow(t *testing.T) {
-	if _, err := icoTokensReceived(math.MaxInt64, 1, 1000); err == nil {
-		t.Error("expected overflow error, got nil")
+	for _, tc := range []struct {
+		name     string
+		spentSUN int64
+		trxNum   int32
+		num      int32
+	}{
+		{"result overflows", math.MaxInt64, 1, 1000},
+		{"product overflows, quotient fits", 5_000_000_000_000, 2_000_000, 2_000_000},
+		{"one past int64 max", math.MaxInt64/2 + 1, 1, 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := icoTokensReceived(tc.spentSUN, tc.trxNum, tc.num)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "overflows int64")
+		})
+	}
+}
+
+// java-tron rejects a purchase whose token amount floors to zero.
+func TestIcoTokensReceived_RejectsZeroTokens(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		spentSUN int64
+		trxNum   int32
+		num      int32
+	}{
+		{"zero spend", 0, 1, 1},
+		{"spend below one token unit", 9, 10, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := icoTokensReceived(tc.spentSUN, tc.trxNum, tc.num)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "buys no tokens")
+		})
 	}
 }
