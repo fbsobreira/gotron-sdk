@@ -28,10 +28,10 @@ func trc20SendCmd() *cobra.Command {
 			if signerAddress.String() == "" {
 				return fmt.Errorf("no signer specified")
 			}
-			// get amount
-			value, ok := decimals.FromString(args[1])
-			if !ok {
-				return fmt.Errorf("cannot parse value %s", args[1])
+			// Validate the amount syntax before any RPC; it is scaled exactly
+			// once the token's decimals are known.
+			if _, err := common.ParseAmountBig(args[1], common.MaxTokenDecimals); err != nil {
+				return fmt.Errorf("AMOUNT: %w", err)
 			}
 
 			// get contract address
@@ -51,10 +51,12 @@ func trc20SendCmd() *cobra.Command {
 				}
 			}
 
-			amount, accuracy := decimals.ApplyDecimals(value, tokenDecimals.Int64())
-			if accuracy != big.Exact {
-				return fmt.Errorf("AMOUNT %q is not representable with %d decimals",
-					args[1], tokenDecimals.Int64())
+			if !tokenDecimals.IsInt64() {
+				return fmt.Errorf("token decimals %s out of range", tokenDecimals)
+			}
+			amount, err := common.ParseAmountBig(args[1], int(tokenDecimals.Int64()))
+			if err != nil {
+				return fmt.Errorf("AMOUNT: %w", err)
 			}
 			tx, err := conn.TRC20Send(signerAddress.String(), addr.String(), contract.String(), amount, feeLimit)
 			if err != nil {
