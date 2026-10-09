@@ -11,6 +11,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates git make pkg-config libusb-1.0-0-dev libudev-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Make the Go toolchain available in login shells too (they reset PATH).
+RUN ln -s /usr/local/go/bin/* /usr/local/bin/
+
 # scanner contract: the checkout lives inside the image, at /src
 COPY . /src
 WORKDIR /src
