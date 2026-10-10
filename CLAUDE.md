@@ -94,7 +94,7 @@ Reference docs live in `docs/` (`cli-usage.md`, `sdk-usage.md`, `api-reference.m
 - **Several `cmd/subcommands` flag variables are package-level globals** (e.g. `feeLimit`) shared
   across commands. Re-registering one in a new command changes the default for the others.
 - **`./gen-proto.sh` applies `proto/patches/*.patch`** to the upstream submodule before protoc
-  (TIP-899 PQ types come from the Nile fork this way). Use protoc 29.3 — other versions rewrite
+  (TIP-899 PQ types come from the Nile fork this way). Use protoc 34.1 — other versions rewrite
   the header of every generated file. Delete a patch once upstream merges it.
 - **`pkg/common/hexutils.go` `LeftPadBytes` returns the input unchanged** when it already exceeds the
   target length — it does not truncate. Validate widths before padding.

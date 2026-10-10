@@ -30,7 +30,7 @@ fi
 
 # The committed pkg/proto was generated with this protoc; any other version
 # rewrites the version header of every generated file.
-PROTOC_EXPECTED="libprotoc 29.3"
+PROTOC_EXPECTED="libprotoc 34.1"
 if [ "$(protoc --version)" != "$PROTOC_EXPECTED" ]; then
     print_warn "⚠️  $(protoc --version) found, pkg/proto was generated with $PROTOC_EXPECTED — expect header-only churn."
 fi
