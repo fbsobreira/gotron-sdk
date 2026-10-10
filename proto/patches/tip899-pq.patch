@@ -8,18 +8,24 @@ Nile testnet fork. Vendored, additive-only, from:
   sha:  f58fdd634947038923ff4b04bb609f3a94db2156
   path: protocol/src/main/protos/{core/Tron.proto,api/api.proto}
 
+Schema is identical to the source; the only local addition is an
+"Experimental:" comment on each declaration, which surfaces in the
+generated Go docs.
+
 gen-proto.sh applies this to proto/tron before protoc and restores the
 submodule afterwards. Delete this file once upstream merges TIP-899.
 
 diff --color -ru a/api/api.proto b/api/api.proto
 --- a/api/api.proto
 +++ b/api/api.proto
-@@ -1116,6 +1116,9 @@
+@@ -1116,6 +1116,11 @@
  message CanDelegatedMaxSizeRequestMessage {
    int32 type = 1;
    bytes owner_address = 2;
 +  // Optional. When set to a registered scheme, the BANDWIDTH estimate
 +  // reserves room for the PQAuthSig wire size instead of an ECDSA signature
++  //
++  // Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +  PQScheme pq_scheme = 3;
  }
  message CanDelegatedMaxSizeResponseMessage {
@@ -27,7 +33,7 @@ diff --color -ru a/api/api.proto b/api/api.proto
 diff --color -ru a/core/Tron.proto b/core/Tron.proto
 --- a/core/Tron.proto
 +++ b/core/Tron.proto
-@@ -17,6 +17,16 @@
+@@ -17,6 +17,18 @@
    Contract = 2;
  }
  
@@ -35,6 +41,8 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
 +// 0 = proto3 default, never registered.
 +// Values 3..15 are unassigned; allocation requires a TIP + governance proposal.
 +// proto3 `reserved` is deliberately not used here — it would block future allocation.
++//
++// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +enum PQScheme {
 +  UNKNOWN_PQ_SCHEME = 0;
 +  FN_DSA_512 = 1;
@@ -44,7 +52,7 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
  // AccountId, (name, address) use name, (null, address) use address, (name, null) use name,
  message AccountId {
    bytes name = 1;
-@@ -245,6 +255,16 @@
+@@ -245,6 +257,18 @@
    int64 weight = 2;
  }
  
@@ -52,6 +60,8 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
 +// The signing public key is carried in-band; node verifies binding via
 +//   derived_addr = 0x41 ‖ deriveHash(scheme, public_key)[12..32]
 +// and matches against Permission.keys[].address.
++//
++// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +message PQAuthSig {
 +  PQScheme scheme     = 1;
 +  bytes    public_key = 2;
@@ -61,7 +71,7 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
  message DelegatedResource {
    bytes from = 1;
    bytes to = 2;
-@@ -449,6 +469,12 @@
+@@ -449,6 +473,14 @@
    // only support size = 1,  repeated list here for muti-sig extension
    repeated bytes signature = 2;
    repeated Result ret = 5;
@@ -70,11 +80,13 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
 +  // ECDSA signatures (`signature` above) and PQAuthSig entries may co-exist
 +  // on multi-sig transactions, contributing weight independently to the
 +  // permission's threshold.
++  //
++  // Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +  repeated PQAuthSig pq_auth_sig = 6;
  }
  
  message TransactionInfo {
-@@ -515,6 +541,12 @@
+@@ -515,6 +547,14 @@
    }
    raw raw_data = 1;
    bytes witness_signature = 2;
@@ -83,11 +95,13 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
 +  // Permission set witness_signature; SRs whose Witness Permission carries a
 +  // PQ-derived Key set pq_auth_sig instead. The verifier dispatches by which
 +  // field is populated.
++  //
++  // Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +  PQAuthSig pq_auth_sig = 3;
  }
  
  // block
-@@ -624,10 +656,18 @@
+@@ -624,10 +664,20 @@
    BlockId solidBlockId = 5;
    BlockId headBlockId = 6;
    bytes address = 7;
@@ -102,6 +116,8 @@ diff --color -ru a/core/Tron.proto b/core/Tron.proto
 +  // `signature` when the local witness is PQ-only. Verifier only accepts this
 +  // field after the proposal for the entry's scheme is activated on chain
 +  // (ALLOW_FN_DSA_512 for FN_DSA_512, ALLOW_ML_DSA_44 for ML_DSA_44).
++  //
++  // Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 +  PQAuthSig pq_auth_sig = 12;
  }
  

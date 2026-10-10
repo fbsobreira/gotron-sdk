@@ -75,6 +75,8 @@ func (AccountType) EnumDescriptor() ([]byte, []int) {
 // 0 = proto3 default, never registered.
 // Values 3..15 are unassigned; allocation requires a TIP + governance proposal.
 // proto3 `reserved` is deliberately not used here — it would block future allocation.
+//
+// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 type PQScheme int32
 
 const (
@@ -2291,6 +2293,8 @@ func (x *Key) GetWeight() int64 {
 //	derived_addr = 0x41 ‖ deriveHash(scheme, public_key)[12..32]
 //
 // and matches against Permission.keys[].address.
+//
+// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 type PQAuthSig struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Scheme        PQScheme               `protobuf:"varint,1,opt,name=scheme,proto3,enum=protocol.PQScheme" json:"scheme,omitempty"`
@@ -3076,6 +3080,8 @@ type Transaction struct {
 	// ECDSA signatures (`signature` above) and PQAuthSig entries may co-exist
 	// on multi-sig transactions, contributing weight independently to the
 	// permission's threshold.
+	//
+	// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 	PqAuthSig     []*PQAuthSig `protobuf:"bytes,6,rep,name=pq_auth_sig,json=pqAuthSig,proto3" json:"pq_auth_sig,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3480,6 +3486,8 @@ type BlockHeader struct {
 	// Permission set witness_signature; SRs whose Witness Permission carries a
 	// PQ-derived Key set pq_auth_sig instead. The verifier dispatches by which
 	// field is populated.
+	//
+	// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 	PqAuthSig     *PQAuthSig `protobuf:"bytes,3,opt,name=pq_auth_sig,json=pqAuthSig,proto3" json:"pq_auth_sig,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3923,6 +3931,8 @@ type HelloMessage struct {
 	// `signature` when the local witness is PQ-only. Verifier only accepts this
 	// field after the proposal for the entry's scheme is activated on chain
 	// (ALLOW_FN_DSA_512 for FN_DSA_512, ALLOW_ML_DSA_44 for ML_DSA_44).
+	//
+	// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 	PqAuthSig     *PQAuthSig `protobuf:"bytes,12,opt,name=pq_auth_sig,json=pqAuthSig,proto3" json:"pq_auth_sig,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

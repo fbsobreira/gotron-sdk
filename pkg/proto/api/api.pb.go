@@ -825,6 +825,8 @@ type CanDelegatedMaxSizeRequestMessage struct {
 	OwnerAddress []byte                 `protobuf:"bytes,2,opt,name=owner_address,json=ownerAddress,proto3" json:"owner_address,omitempty"`
 	// Optional. When set to a registered scheme, the BANDWIDTH estimate
 	// reserves room for the PQAuthSig wire size instead of an ECDSA signature
+	//
+	// Experimental: TIP-899 is a draft, live only on the Nile testnet; may change before mainnet.
 	PqScheme      core.PQScheme `protobuf:"varint,3,opt,name=pq_scheme,json=pqScheme,proto3,enum=protocol.PQScheme" json:"pq_scheme,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
