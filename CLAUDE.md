@@ -28,6 +28,7 @@ make build-windows      # Cross-compile to ./bin/tronctl.exe
 make clean              # Remove ./bin
 
 make test               # Unit tests: -race -shuffle=on, with coverage
+make test-falcon        # FN-DSA-512 (liboqs, cgo) tests: -tags falcon; needs liboqs + pkg-config. Build liboqs shared (-DBUILD_SHARED_LIBS=ON), or for static liboqs set CGO_LDFLAGS="-lcrypto" (or PKG_CONFIG="pkg-config --static")
 make test-integration   # Live Nile testnet, -tags=integration (network required)
 make lint               # golangci-lint
 make goimports          # Format (skips *.pb.go and vendor/)
