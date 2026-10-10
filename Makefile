@@ -11,7 +11,7 @@ ldflags += -X main.builtAt=${built_at} -X main.builtBy=${built_by}
 cli := ./bin/${BUILD_TARGET}
 uname := $(shell uname)
 
-.PHONY: all build build-windows run debug install clean test test-integration lint goimports tidy hooks
+.PHONY: all build build-windows run debug install clean test test-falcon test-integration lint goimports tidy hooks
 
 all: build
 
@@ -37,6 +37,12 @@ clean:
 # Test target for CI
 test:
 	$(env) go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v -E '/pkg/proto/|/cmd')
+
+# FN-DSA-512 backend tests; needs liboqs installed and discoverable via pkg-config.
+# Build liboqs shared (-DBUILD_SHARED_LIBS=ON); for a static liboqs set
+# CGO_LDFLAGS="-lcrypto" (or PKG_CONFIG="pkg-config --static") so OpenSSL links.
+test-falcon:
+	$(env) CGO_ENABLED=1 go test -race -timeout 120s -tags falcon ./pkg/pqc/...
 
 # Integration tests against the Nile testnet.
 # Test fixtures use Nile-specific accounts, contracts, and witnesses.
