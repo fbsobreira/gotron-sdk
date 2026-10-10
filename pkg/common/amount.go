@@ -12,6 +12,10 @@ import (
 // matches both the typical token limit and numeric.Precision.
 const MaxAmountDecimals = 18
 
+// MaxTokenDecimals is the largest scale ParseAmountBig accepts. TRC20
+// decimals() returns a uint8, so 255 is the protocol ceiling.
+const MaxTokenDecimals = 255
+
 // ParseAmount converts a decimal amount string into an integer number of
 // base units by scaling with 10^decimals. Parsing is exact: the input is
 // never converted through float64.
@@ -28,41 +32,60 @@ const MaxAmountDecimals = 18
 // limit ("1.1000000" is valid for 6 decimals). Scientific notation is
 // rejected.
 func ParseAmount(amount string, decimals int) (int64, error) {
-	if decimals < 0 {
-		return 0, fmt.Errorf("decimals must be non-negative, got %d", decimals)
-	}
 	if decimals > MaxAmountDecimals {
 		return 0, fmt.Errorf("decimals %d exceeds maximum %d", decimals, MaxAmountDecimals)
+	}
+	n, err := ParseAmountBig(amount, decimals)
+	if err != nil {
+		return 0, err
+	}
+	if !n.IsInt64() {
+		return 0, fmt.Errorf("%q overflows int64 after scaling by 10^%d", amount, decimals)
+	}
+	return n.Int64(), nil
+}
+
+// ParseAmountBig is ParseAmount without the int64 limit, for TRC20 amounts
+// where an 18-decimal token overflows int64 at 10 whole tokens. It accepts
+// the same input forms and applies the same rejections, using only integer
+// arithmetic so representability is decided exactly — unlike big.Float,
+// whose binary rounding makes values such as 0.15 inexact.
+func ParseAmountBig(amount string, decimals int) (*big.Int, error) {
+	if decimals < 0 {
+		return nil, fmt.Errorf("decimals must be non-negative, got %d", decimals)
+	}
+	if decimals > MaxTokenDecimals {
+		return nil, fmt.Errorf("decimals %d exceeds maximum %d", decimals, MaxTokenDecimals)
 	}
 
 	orig := amount
 	amount = strings.TrimSpace(amount)
 	if amount == "" {
-		return 0, fmt.Errorf("%q is empty", orig)
+		return nil, fmt.Errorf("%q is empty", orig)
 	}
 	if isNonFiniteAmount(amount) {
-		return 0, fmt.Errorf("%q is not a finite number", orig)
+		return nil, fmt.Errorf("%q is not a finite number", orig)
 	}
 	if amount[0] == '-' {
-		return 0, fmt.Errorf("%q is negative", orig)
+		return nil, fmt.Errorf("%q is negative", orig)
 	}
 	if amount[0] == '+' {
 		amount = amount[1:]
 		if amount == "" {
-			return 0, fmt.Errorf("invalid amount %q", orig)
+			return nil, fmt.Errorf("invalid amount %q", orig)
 		}
 		if isNonFiniteAmount(amount) {
-			return 0, fmt.Errorf("%q is not a finite number", orig)
+			return nil, fmt.Errorf("%q is not a finite number", orig)
 		}
 	}
 
 	whole, frac, ok := splitDecimalAmount(amount)
 	if !ok {
-		return 0, fmt.Errorf("invalid amount %q", orig)
+		return nil, fmt.Errorf("invalid amount %q", orig)
 	}
 	frac = strings.TrimRight(frac, "0")
 	if len(frac) > decimals {
-		return 0, fmt.Errorf("%q has more than %d decimal places", orig, decimals)
+		return nil, fmt.Errorf("%q has more than %d decimal places", orig, decimals)
 	}
 
 	ten := big.NewInt(10)
@@ -72,14 +95,14 @@ func ParseAmount(amount string, decimals int) (int64, error) {
 	if whole == "" {
 		n.SetInt64(0)
 	} else if _, ok := n.SetString(whole, 10); !ok {
-		return 0, fmt.Errorf("invalid amount %q", orig)
+		return nil, fmt.Errorf("invalid amount %q", orig)
 	}
 	n.Mul(n, scale)
 
 	if frac != "" {
 		f := new(big.Int)
 		if _, ok := f.SetString(frac, 10); !ok {
-			return 0, fmt.Errorf("invalid amount %q", orig)
+			return nil, fmt.Errorf("invalid amount %q", orig)
 		}
 		pad := decimals - len(frac)
 		if pad > 0 {
@@ -88,10 +111,7 @@ func ParseAmount(amount string, decimals int) (int64, error) {
 		n.Add(n, f)
 	}
 
-	if !n.IsInt64() {
-		return 0, fmt.Errorf("%q overflows int64 after scaling by 10^%d", orig, decimals)
-	}
-	return n.Int64(), nil
+	return n, nil
 }
 
 func isNonFiniteAmount(s string) bool {

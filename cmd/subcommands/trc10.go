@@ -229,13 +229,17 @@ func trc10ICOCmd() *cobra.Command {
 			// check if possible id
 			tokenID := ""
 			issuerAddress := ""
-			price := float64(0)
+			// trx_num and num define the exchange rate: num token base units are
+			// bought with trx_num SUN. Keep them integral rather than collapsing
+			// to a float so the received amount can be computed exactly.
+			var trxNum, icoNum, tokenPrecision int32
 			if _, err := strconv.Atoi(args[0]); err == nil {
 				if asset, err := conn.GetAssetIssueByID(args[0]); err == nil {
 					if asset.GetId() == args[0] {
 						tokenID = args[0]
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
-						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
+						trxNum, icoNum = asset.GetTrxNum(), asset.GetNum()
+						tokenPrecision = asset.GetPrecision()
 					}
 				} else {
 					return fmt.Errorf("TRC10 not found: %s", args[0])
@@ -247,7 +251,8 @@ func trc10ICOCmd() *cobra.Command {
 					if string(asset.GetName()) == args[0] {
 						tokenID = asset.GetId()
 						issuerAddress = address.Address(asset.GetOwnerAddress()).String()
-						price = float64(asset.GetTrxNum()) / float64(asset.GetNum())
+						trxNum, icoNum = asset.GetTrxNum(), asset.GetNum()
+						tokenPrecision = asset.GetPrecision()
 					} else {
 						return fmt.Errorf("TRC10 not found: %s", args[0])
 					}
@@ -257,6 +262,14 @@ func trc10ICOCmd() *cobra.Command {
 			}
 
 			valueInt, err := parseTRXArg(args[1], "AMOUNT")
+			if err != nil {
+				return err
+			}
+			// Tokens received, per java-tron's ParticipateAssetIssueActuator:
+			//   base units = floor(spent_SUN * num / trx_num)
+			// Computed before submitting so a purchase the chain would reject
+			// (overflowing product, zero tokens) fails without spending fees.
+			tokenBaseUnits, err := icoTokensReceived(valueInt, trxNum, icoNum)
 			if err != nil {
 				return err
 			}
@@ -285,6 +298,11 @@ func trc10ICOCmd() *cobra.Command {
 				return nil
 			}
 
+			// Unchanged field: the raw trx_num/num rate. icoTokensReceived has
+			// already rejected a zero num, so this cannot produce Inf (which
+			// json.Marshal refuses to encode).
+			price := float64(trxNum) / float64(icoNum)
+
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["blockNumber"] = ctrlr.Receipt.BlockNumber
@@ -295,7 +313,7 @@ func trc10ICOCmd() *cobra.Command {
 				"netUsage":    ctrlr.Receipt.Receipt.NetUsage,
 				"price":       price,
 				"cost":        json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint)),
-				"tokenAmount": float64(valueInt) * price,
+				"tokenAmount": json.Number(common.FormatAmount(tokenBaseUnits, int(tokenPrecision))),
 			}
 
 			asJSON, _ := json.Marshal(result)

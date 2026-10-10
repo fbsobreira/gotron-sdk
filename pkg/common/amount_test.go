@@ -161,3 +161,49 @@ func TestFormatAmount_RoundTrip(t *testing.T) {
 		assert.Equal(t, units, got, "round trip failed for %d via %q", units, s)
 	}
 }
+
+// ParseAmountBig must decide representability exactly. big.Float scaling made
+// values like 0.15 at 2 decimals inexact, which rejected valid TRC20 sends.
+func TestParseAmountBig(t *testing.T) {
+	tests := []struct {
+		name     string
+		amount   string
+		decimals int
+		want     string
+	}{
+		{"0.15 at 2 decimals", "0.15", 2, "15"},
+		{"0.000127 at 6 decimals", "0.000127", 6, "127"},
+		{"1.1 at 6 decimals", "1.1", 6, "1100000"},
+		{"100 tokens at 18 decimals exceeds int64", "100", 18, "100000000000000000000"},
+		{"one wei", "0.000000000000000001", 18, "1"},
+		{"max uint8 scale", "1", common.MaxTokenDecimals, "1" + strings.Repeat("0", common.MaxTokenDecimals)},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := common.ParseAmountBig(tc.amount, tc.decimals)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got.String())
+		})
+	}
+}
+
+func TestParseAmountBig_Rejects(t *testing.T) {
+	tests := []struct {
+		name     string
+		amount   string
+		decimals int
+	}{
+		{"too many fractional digits", "0.123", 2},
+		{"negative", "-1", 18},
+		{"not finite", "NaN", 18},
+		{"scientific", "1e18", 18},
+		{"decimals above uint8", "1", common.MaxTokenDecimals + 1},
+		{"negative decimals", "1", -1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := common.ParseAmountBig(tc.amount, tc.decimals)
+			assert.Error(t, err)
+		})
+	}
+}

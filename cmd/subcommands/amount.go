@@ -92,3 +92,28 @@ func roundBancorQuote(input, reserveIn, reserveOut int64) (int64, error) {
 	}
 	return num.Int64(), nil
 }
+
+// icoTokensReceived returns the TRC10 base units obtained by spending
+// spentSUN in an ICO, matching java-tron's ParticipateAssetIssueActuator:
+//
+//	base units = floor(spentSUN * num / trxNum)
+//
+// trxNum and num come from the asset's exchange rate ("num token base units
+// are bought with trxNum SUN"). It also applies the actuator's validation,
+// so a purchase the chain would reject fails before it is submitted:
+// java-tron computes spentSUN * num with multiplyExact, rejecting any
+// product that overflows int64, and rejects a purchase yielding no tokens.
+func icoTokensReceived(spentSUN int64, trxNum, num int32) (int64, error) {
+	if trxNum <= 0 || num <= 0 {
+		return 0, fmt.Errorf("invalid TRC10 exchange rate %d:%d", trxNum, num)
+	}
+	v := new(big.Int).Mul(big.NewInt(spentSUN), big.NewInt(int64(num)))
+	if !v.IsInt64() {
+		return 0, fmt.Errorf("amount %d SUN * rate %d overflows int64; the network rejects this purchase", spentSUN, num)
+	}
+	v.Quo(v, big.NewInt(int64(trxNum)))
+	if v.Sign() <= 0 {
+		return 0, fmt.Errorf("amount %d SUN buys no tokens at rate %d:%d", spentSUN, trxNum, num)
+	}
+	return v.Int64(), nil
+}
