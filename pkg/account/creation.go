@@ -33,6 +33,14 @@ func IsValidPassphrase(pass string) bool {
 
 // CreateNewLocalAccount creates a new account in the local keystore from the given Creation params.
 func CreateNewLocalAccount(candidate *Creation) error {
+	// Validate first: the name becomes a folder under account-keys.
+	if err := store.ValidateAccountName(candidate.Name); err != nil {
+		return err
+	}
+	// Names are unique across ECDSA and post-quantum accounts.
+	if nameTaken(DefaultStore(), candidate.Name) {
+		return fmt.Errorf("account %s already exists", candidate.Name)
+	}
 	ks := store.FromAccountName(candidate.Name)
 	defer ks.Close()
 	if candidate.Mnemonic == "" {

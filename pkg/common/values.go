@@ -8,6 +8,11 @@ import (
 const (
 	// DefaultConfigAccountAliasesDirName is the directory name for account key aliases.
 	DefaultConfigAccountAliasesDirName = "account-keys"
+	// DefaultConfigPQKeysDirName is the directory name for TIP-899 post-quantum
+	// keystores, next to DefaultConfigAccountAliasesDirName.
+	//
+	// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+	DefaultConfigPQKeysDirName = "pq-keys"
 	// DefaultPassphrase is the default passphrase used when none is provided.
 	DefaultPassphrase = ""
 	// Secp256k1PrivateKeyBytesLength is the required byte length of a secp256k1 private key.

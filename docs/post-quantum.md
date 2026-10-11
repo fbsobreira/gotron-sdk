@@ -520,11 +520,17 @@ JSON shape returned by the node (bytes are lowercase hex, the enum is printed by
 | Transaction JSON with `pq_auth_sig` | `transaction.ToJSON` / `FromJSON` |
 | Bandwidth estimate for PQ | `client.GetCanDelegatedMaxSizePQ` |
 | Wipe a key from memory (best effort) | `pqc.PrivateKey.Destroy()` |
+| Manage PQ keys from the command line | `tronctl keys add --scheme fn-dsa-512\|ml-dsa-44`, `keys import-ks`, `keys import-toolkit`, `keys list`, `keys export-ks`, `keys remove`; sign any command with `tronctl -s <name\|address>` (see [CLI usage](cli-usage.md#post-quantum-keys-experimental)) |
+| Store PQ keystores on disk (`~/.tronctl/pq-keys/<name>/`) | `pkg/store` (`PQAccounts`, `PQAccountByName`, `PQAccountByAddress`, `ImportPQKeystore`, `SavePQKey`, `DecryptPQKey`, `RemovePQAccount`, `PQKeysDir`); names are unique across ECDSA and PQ accounts (`NameExists`) |
 
 Build notes: ML-DSA-44 is pure Go. FN-DSA-512 signing **and verifying** need the `falcon` build tag, CGO and
 [liboqs](https://openquantumsafe.org/liboqs/) (`make test-falcon` runs those tests). Without it, FN-DSA-512 keys
 still parse, addresses still derive and key pairs are still validated, but `Sign` and `Verify` return
 `pqc.ErrFalconUnavailable` (a pure-Go verifier is planned).
+CI builds and tests the Falcon path in a separate job (`.github/workflows/falcon.yaml`, liboqs 0.16.0). To build
+`tronctl` with FN-DSA-512 support, run `CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl` with
+liboqs installed. Release binaries are built without CGO, so they can import, list and export FN-DSA-512 keys but
+cannot create keys or sign with them.
 
 ## Sources
 

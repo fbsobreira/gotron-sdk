@@ -24,6 +24,7 @@ func init() {
 	cmdConfig.AddCommand([]*cobra.Command{{
 		Use:   "set [param] [value]",
 		Short: "set default config",
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 
 			var err error
@@ -52,6 +53,12 @@ func init() {
 				if config.WithTLS, err = strconv.ParseBool(args[1]); err != nil {
 					return err
 				}
+			case "timeout":
+				t, err := strconv.ParseUint(args[1], 10, 32)
+				if err != nil {
+					return fmt.Errorf("timeout must be a whole number of seconds: %w", err)
+				}
+				config.Timeout = uint32(t)
 			default:
 				return fmt.Errorf("parameter not found")
 			}
@@ -79,6 +86,8 @@ func init() {
 				fmt.Println(config.APIKey)
 			case "withTLS":
 				fmt.Println(config.WithTLS)
+			case "timeout":
+				fmt.Println(config.Timeout)
 			default:
 				return fmt.Errorf("parameter not found")
 			}

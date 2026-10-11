@@ -40,7 +40,8 @@ test:
 
 # FN-DSA-512 backend tests; needs liboqs installed and discoverable via pkg-config.
 # Build liboqs shared (-DBUILD_SHARED_LIBS=ON); for a static liboqs set
-# CGO_LDFLAGS="-lcrypto" (or PKG_CONFIG="pkg-config --static") so OpenSSL links.
+# CGO_LDFLAGS="-lcrypto" so OpenSSL links (Go reads only the first word of PKG_CONFIG,
+# so PKG_CONFIG="pkg-config --static" does not work).
 test-falcon:
 	$(env) CGO_ENABLED=1 go test -race -timeout 120s -tags falcon ./pkg/pqc/... ./pkg/signer/... ./pkg/client/transaction/...
 

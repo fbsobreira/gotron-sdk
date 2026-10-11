@@ -99,7 +99,7 @@ func srCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -111,12 +111,12 @@ func srCreateCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -152,7 +152,7 @@ func srUpdateBrokerageCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -164,12 +164,12 @@ func srUpdateBrokerageCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -183,8 +183,8 @@ func srUpdateBrokerageCmd() *cobra.Command {
 func srSub() []*cobra.Command {
 	return []*cobra.Command{
 		srListCmd(),
-		srCreateCmd(),
-		srUpdateBrokerageCmd(),
+		addSigningFlags(srCreateCmd()),
+		addSigningFlags(srUpdateBrokerageCmd()),
 	}
 }
 

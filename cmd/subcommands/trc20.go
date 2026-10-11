@@ -78,7 +78,7 @@ func trc20SendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -87,23 +87,23 @@ func trc20SendCmd() *cobra.Command {
 				return nil
 			}
 
-			addrResult := address.Address(ctrlr.Receipt.ContractAddress).String()
+			addrResult := address.Address(ctrlr.Receipt.GetContractAddress()).String()
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["contractAddress"] = addrResult
 			result["success"] = ctrlr.GetResultError() == nil
-			result["resMessage"] = string(ctrlr.Receipt.ResMessage)
+			result["resMessage"] = string(ctrlr.Receipt.GetResMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":               ctrlr.Receipt.Fee,
-				"energyFee":         ctrlr.Receipt.Receipt.EnergyFee,
-				"energyUsage":       ctrlr.Receipt.Receipt.EnergyUsage,
-				"originEnergyUsage": ctrlr.Receipt.Receipt.OriginEnergyUsage,
-				"energyUsageTotal":  ctrlr.Receipt.Receipt.EnergyUsageTotal,
-				"netFee":            ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":          ctrlr.Receipt.Receipt.NetUsage,
+				"fee":               ctrlr.Receipt.GetFee(),
+				"energyFee":         ctrlr.Receipt.GetReceipt().GetEnergyFee(),
+				"energyUsage":       ctrlr.Receipt.GetReceipt().GetEnergyUsage(),
+				"originEnergyUsage": ctrlr.Receipt.GetReceipt().GetOriginEnergyUsage(),
+				"energyUsageTotal":  ctrlr.Receipt.GetReceipt().GetEnergyUsageTotal(),
+				"netFee":            ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -167,7 +167,7 @@ func trc20BalanceCmd() *cobra.Command {
 
 func trc20Sub() []*cobra.Command {
 	return []*cobra.Command{
-		trc20SendCmd(),
+		addSigningFlags(trc20SendCmd()),
 		trc20BalanceCmd(),
 	}
 }

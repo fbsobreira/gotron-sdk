@@ -22,8 +22,8 @@
 // installed and discoverable through pkg-config (pkg-config --cflags --libs
 // liboqs). Build liboqs as a shared library (-DBUILD_SHARED_LIBS=ON); a static
 // liboqs lists OpenSSL only in Requires.private, so also set
-// CGO_LDFLAGS="-lcrypto" (or PKG_CONFIG="pkg-config --static") to avoid
-// undefined OpenSSL symbols. The backend links liboqs through cgo and uses
+// CGO_LDFLAGS="-lcrypto" to avoid undefined OpenSSL symbols
+// (PKG_CONFIG="pkg-config --static" does not help: Go reads only its first word). The backend links liboqs through cgo and uses
 // its "Falcon-512" algorithm (compressed signatures), byte-compatible with
 // the BouncyCastle verifier in TRON nodes. liboqs lists Falcon as Tier 3
 // ("upstream maintenance TBD"); a pure-Go verifier is tracked as GOT-77. The

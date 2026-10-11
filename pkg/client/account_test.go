@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
@@ -167,6 +168,7 @@ func TestGetAccountDetailed_NotFound(t *testing.T) {
 	_, err := c.GetAccountDetailed(accountAddress)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "account not found")
+	assert.ErrorIs(t, err, client.ErrAccountNotFound)
 }
 
 func TestGetAccount_InvalidAddress(t *testing.T) {

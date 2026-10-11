@@ -4,6 +4,7 @@ package cmd
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -100,7 +101,7 @@ func accountActivateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -111,12 +112,12 @@ func accountActivateCmd() *cobra.Command {
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -150,7 +151,7 @@ func accountSendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -164,12 +165,12 @@ func accountSendCmd() *cobra.Command {
 			result["to"] = addr.String()
 			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -256,7 +257,7 @@ func accountWithdrawCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -268,13 +269,13 @@ func accountWithdrawCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["address"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
-			result["amount"] = float64(ctrlr.Receipt.WithdrawAmount) / 1000000
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
+			result["amount"] = float64(ctrlr.Receipt.GetWithdrawAmount()) / 1000000
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 			asJSON, _ := json.Marshal(result)
 			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
@@ -329,7 +330,7 @@ func accountFreezeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -344,12 +345,12 @@ func accountFreezeCmd() *cobra.Command {
 			result["Delegate"] = resourcesDelegate
 			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -403,7 +404,7 @@ func accountVoteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -416,12 +417,12 @@ func accountVoteCmd() *cobra.Command {
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
 			result["from"] = signerAddress.String()
 			result["votes"] = votes
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -572,7 +573,7 @@ func accountPermissionCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -584,12 +585,12 @@ func accountPermissionCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -638,7 +639,7 @@ func accountFreezeV2Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -652,12 +653,12 @@ func accountFreezeV2Cmd() *cobra.Command {
 			result["Type"] = rType.String()
 			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -705,7 +706,7 @@ func accountUnfreezeV2Cmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -719,12 +720,12 @@ func accountUnfreezeV2Cmd() *cobra.Command {
 			result["Type"] = rType.String()
 			result["amount"] = json.Number(common.FormatAmount(valueInt, common.AmountDecimalPoint))
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -756,8 +757,20 @@ func accountSignCmd() *cobra.Command {
 				// TODO:
 				// account := keystore.Account{Address: signerAddress.GetAddress()}
 			} else {
+				// TIP-899 defines transaction signatures only, so a PQ
+				// account has no message signature to produce.
+				// An unreadable pq-keys folder must not block an ECDSA
+				// account; report it only if the ECDSA lookup fails too.
+				_, isPQ, pqErr := lookupPQAccount(signerAddress.String())
+				if pqErr == nil && isPQ {
+					return errors.New("account sign does not support post-quantum keys " +
+						"(TIP-899 defines no message signature)")
+				}
 				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
 				if err != nil {
+					if pqErr != nil {
+						return fmt.Errorf("%w; post-quantum account lookup also failed: %w", err, pqErr)
+					}
 					return err
 				}
 				signature, err = ks.Wallets()[0].SignText(*acct, []byte(message), useFixedLength)
@@ -823,16 +836,16 @@ func accountVerifyCmd() *cobra.Command {
 func accountSub() []*cobra.Command {
 	return []*cobra.Command{
 		accountBalanceCmd(),
-		accountActivateCmd(),
-		accountSendCmd(),
+		addSigningFlags(accountActivateCmd()),
+		addSigningFlags(accountSendCmd()),
 		accountAddressCmd(),
 		accountInfoCmd(),
-		accountWithdrawCmd(),
-		accountFreezeCmd(),
-		accountFreezeV2Cmd(),
-		accountUnfreezeV2Cmd(),
-		accountVoteCmd(),
-		accountPermissionCmd(),
+		addSigningFlags(accountWithdrawCmd()),
+		addSigningFlags(accountFreezeCmd()),
+		addSigningFlags(accountFreezeV2Cmd()),
+		addSigningFlags(accountUnfreezeV2Cmd()),
+		addSigningFlags(accountVoteCmd()),
+		addSigningFlags(accountPermissionCmd()),
 		accountSignCmd(),
 		accountVerifyCmd(),
 	}

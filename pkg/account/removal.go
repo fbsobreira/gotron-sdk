@@ -1,6 +1,7 @@
 package account
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,12 +9,16 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/store"
 )
 
+// ErrAccountNotFound matches, under errors.Is, the error RemoveAccount
+// returns when the named account does not exist in the local store.
+var ErrAccountNotFound = errors.New("account not found")
+
 // RemoveAccount deletes the named account and its keystore files from the local store.
 func RemoveAccount(name string) error {
 	accountExists := store.DoesNamedAccountExist(name)
 
 	if !accountExists {
-		return fmt.Errorf("account %s doesn't exist", name)
+		return &accountNotFoundError{name: name}
 	}
 
 	accountDir := filepath.Join(store.DefaultLocation(), name)
@@ -22,4 +27,18 @@ func RemoveAccount(name string) error {
 	}
 
 	return nil
+}
+
+// accountNotFoundError keeps RemoveAccount's original message while matching
+// ErrAccountNotFound under errors.Is.
+type accountNotFoundError struct {
+	name string
+}
+
+func (e *accountNotFoundError) Error() string {
+	return fmt.Sprintf("account %s doesn't exist", e.name)
+}
+
+func (e *accountNotFoundError) Is(target error) bool {
+	return target == ErrAccountNotFound
 }

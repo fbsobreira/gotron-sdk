@@ -1,0 +1,136 @@
+name: FN-DSA-512 (liboqs)
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  falcon:
+    name: FN-DSA-512 liboqs backend (Go 1.26)
+    runs-on: ubuntu-latest
+    # The job only reads the repository.
+    permissions:
+      contents: read
+    # Pin the toolchain to the setup-go version — see the note in test.yaml.
+    env:
+      GOTOOLCHAIN: local
+      CGO_ENABLED: 1
+      # The liboqs release the backend is tested against (also the Homebrew
+      # version used for local development).
+      LIBOQS_VERSION: 0.16.0
+      # The commit that tag must resolve to; the build fails if the tag moves.
+      # 0.16.0 is a lightweight tag: git ls-remote shows no ^{} entry.
+      LIBOQS_COMMIT: 5a1a854b0dc9f2141bdc771c555ee60c37950183
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      # Ubuntu ships no liboqs-dev, so liboqs is built from source below.
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake ninja-build pkg-config libssl-dev
+
+      # Install prefix and cgo settings, for cache hits and misses alike.
+      # pkg-config passes only -loqs for the static archive (OpenSSL is in
+      # Requires.private), and cmd/go uses only the first word of PKG_CONFIG,
+      # so "pkg-config --static" cannot help; libcrypto comes from
+      # CGO_LDFLAGS instead. Without it the link fails on EVP_* symbols.
+      - name: Configure cgo for liboqs
+        run: |
+          {
+            echo "LIBOQS_PREFIX=$HOME/liboqs"
+            echo "PKG_CONFIG_PATH=$HOME/liboqs/lib/pkgconfig"
+            echo "CGO_LDFLAGS=-lcrypto"
+          } >> "$GITHUB_ENV"
+
+      # The key hashes this file, so any change to the version, the commit or
+      # the cmake flags below rebuilds liboqs.
+      - name: Restore liboqs
+        id: liboqs-cache
+        uses: actions/cache@v6
+        with:
+          path: ~/liboqs
+          key: liboqs-${{ runner.os }}-${{ runner.arch }}-${{ env.LIBOQS_VERSION }}-${{ env.LIBOQS_COMMIT }}-${{ hashFiles('.github/workflows/falcon.yaml') }}
+
+      # Default static library, Falcon-512 only (a full build compiles every
+      # algorithm and is slow). OpenSSL stays enabled, as in a stock liboqs:
+      # the static archive then needs libcrypto at link time, which is the
+      # CGO_LDFLAGS=-lcrypto case documented in CLAUDE.md and exercised here.
+      - name: Build liboqs
+        if: steps.liboqs-cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --branch "$LIBOQS_VERSION" https://github.com/open-quantum-safe/liboqs.git "$RUNNER_TEMP/liboqs-src"
+          head=$(git -C "$RUNNER_TEMP/liboqs-src" rev-parse HEAD)
+          if [ "$head" != "$LIBOQS_COMMIT" ]; then
+            echo "::error::liboqs tag $LIBOQS_VERSION resolves to $head, expected $LIBOQS_COMMIT"
+            exit 1
+          fi
+          cmake -S "$RUNNER_TEMP/liboqs-src" -B "$RUNNER_TEMP/liboqs-build" -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$LIBOQS_PREFIX" \
+            -DCMAKE_INSTALL_LIBDIR=lib \
+            -DOQS_MINIMAL_BUILD="SIG_falcon_512" \
+            -DOQS_BUILD_ONLY_LIB=ON
+          cmake --build "$RUNNER_TEMP/liboqs-build"
+          cmake --install "$RUNNER_TEMP/liboqs-build"
+
+      - name: Show liboqs
+        run: |
+          echo "liboqs $(pkg-config --modversion liboqs)"
+          pkg-config --cflags --libs liboqs
+          grep -E 'OQS_VERSION_TEXT|OQS_USE_OPENSSL' "$LIBOQS_PREFIX/include/oqs/oqsconfig.h"
+          ls -l "$LIBOQS_PREFIX/lib"
+
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Run FN-DSA-512 tests
+        run: make test-falcon
+
+      # tronctl's own tests, including the FN-DSA-512 keys add and signing
+      # path in cmd/subcommands (make test-falcon covers pkg/ only).
+      - name: Run tronctl tests with FN-DSA-512
+        run: go test -race -count=1 -tags falcon ./cmd/...
+
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.3
+
+      # The tag is passed here only: .golangci.yml stays tag-free so that
+      # contributors without liboqs can still run make lint.
+      - name: Lint falcon-tagged code
+        run: golangci-lint run --timeout=5m --build-tags falcon ./pkg/... ./cmd/...
+
+      - name: Build CLI with FN-DSA-512
+        run: |
+          go build -tags falcon -o "$RUNNER_TEMP/tronctl" ./cmd/tronctl
+          go version -m "$RUNNER_TEMP/tronctl" | grep -E 'build[[:space:]]+-tags=falcon'
+
+      - name: Smoke-test CLI
+        run: |
+          "$RUNNER_TEMP/tronctl" --help
+          "$RUNNER_TEMP/tronctl" version
+
+      # keys add and keys list are offline. The list output is captured
+      # first: with pipefail, grep -q exiting early could fail the step on
+      # SIGPIPE.
+      - name: Smoke-test FN-DSA-512 key
+        env:
+          HOME: ${{ runner.temp }}/h
+        run: |
+          mkdir -p "$HOME"
+          printf 'ci-passphrase\n' > "$RUNNER_TEMP/pp"
+          "$RUNNER_TEMP/tronctl" --passphrase-file "$RUNNER_TEMP/pp" keys add ci-fn --scheme fn-dsa-512
+          out=$("$RUNNER_TEMP/tronctl" --passphrase-file "$RUNNER_TEMP/pp" keys list)
+          printf '%s\n' "$out"
+          printf '%s\n' "$out" | grep -E '^ci-fn[[:space:]].*[[:space:]]FN_DSA_512$'

@@ -4,6 +4,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -14,6 +15,12 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 )
+
+// ErrAccountNotFound is returned by GetAccount and the functions built on it
+// when the node has no account for the address, as for an address that has
+// never been funded. Test for it with errors.Is to tell it apart from a
+// network or RPC error.
+var ErrAccountNotFound = errors.New("account not found")
 
 // GetAccount from BASE58 address
 func (g *GrpcClient) GetAccount(addr string) (*core.Account, error) {
@@ -40,10 +47,10 @@ func (g *GrpcClient) GetAccountCtx(ctx context.Context, addr string) (*core.Acco
 	// A substituted WalletClient can return (nil, nil); a real gRPC round trip
 	// always materialises a message. Check before field access.
 	if acc == nil {
-		return nil, fmt.Errorf("account not found")
+		return nil, ErrAccountNotFound
 	}
 	if !bytes.Equal(acc.Address, account.Address) {
-		return nil, fmt.Errorf("account not found")
+		return nil, ErrAccountNotFound
 	}
 	return acc, nil
 }

@@ -110,7 +110,7 @@ func contractDeployCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -119,23 +119,23 @@ func contractDeployCmd() *cobra.Command {
 				return nil
 			}
 
-			addrResult := address.Address(ctrlr.Receipt.ContractAddress).String()
+			addrResult := address.Address(ctrlr.Receipt.GetContractAddress()).String()
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["contractAddress"] = addrResult
 			result["success"] = ctrlr.GetResultError() == nil
-			result["resMessage"] = string(ctrlr.Receipt.ResMessage)
+			result["resMessage"] = string(ctrlr.Receipt.GetResMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":               ctrlr.Receipt.Fee,
-				"energyFee":         ctrlr.Receipt.Receipt.EnergyFee,
-				"energyUsage":       ctrlr.Receipt.Receipt.EnergyUsage,
-				"originEnergyUsage": ctrlr.Receipt.Receipt.OriginEnergyUsage,
-				"energyUsageTotal":  ctrlr.Receipt.Receipt.EnergyUsageTotal,
-				"netFee":            ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":          ctrlr.Receipt.Receipt.NetUsage,
+				"fee":               ctrlr.Receipt.GetFee(),
+				"energyFee":         ctrlr.Receipt.GetReceipt().GetEnergyFee(),
+				"energyUsage":       ctrlr.Receipt.GetReceipt().GetEnergyUsage(),
+				"originEnergyUsage": ctrlr.Receipt.GetReceipt().GetOriginEnergyUsage(),
+				"energyUsageTotal":  ctrlr.Receipt.GetReceipt().GetEnergyUsageTotal(),
+				"netFee":            ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -316,26 +316,26 @@ func contractTriggerCmd() *cobra.Command {
 				}
 
 				if noPrettyOutput {
-					fmt.Println(estimate)
-					return nil
+					_, err = fmt.Fprintln(cmd.OutOrStdout(), estimate)
+					return err
 				}
 
 				result := make(map[string]interface{})
-				result["EnergyRequired"] = estimate.EnergyRequired
+				result["EnergyRequired"] = estimate.GetEnergyRequired()
 				result["result"] = map[string]interface{}{
-					"code":    estimate.Result.Code.String(),
-					"message": string(estimate.Result.Message),
-					"result":  estimate.Result.Result,
+					"code":    estimate.GetResult().GetCode().String(),
+					"message": string(estimate.GetResult().GetMessage()),
+					"result":  estimate.GetResult().GetResult(),
 				}
 
 				asJSON, err := json.Marshal(result)
 				if err != nil {
 					return err
 				}
-				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 				// --estimate is a dry run: never fall through to TriggerContract,
 				// which would sign and broadcast a real state-changing call.
-				return nil
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), common.JSONPrettyFormat(string(asJSON)))
+				return err
 			}
 
 			tx, err := conn.TriggerContract(
@@ -356,7 +356,7 @@ func contractTriggerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -365,23 +365,23 @@ func contractTriggerCmd() *cobra.Command {
 				return nil
 			}
 
-			addrResult := address.Address(ctrlr.Receipt.ContractAddress).String()
+			addrResult := address.Address(ctrlr.Receipt.GetContractAddress()).String()
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["contractAddress"] = addrResult
 			result["success"] = ctrlr.GetResultError() == nil
-			result["resMessage"] = string(ctrlr.Receipt.ResMessage)
+			result["resMessage"] = string(ctrlr.Receipt.GetResMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":               ctrlr.Receipt.Fee,
-				"energyFee":         ctrlr.Receipt.Receipt.EnergyFee,
-				"energyUsage":       ctrlr.Receipt.Receipt.EnergyUsage,
-				"originEnergyUsage": ctrlr.Receipt.Receipt.OriginEnergyUsage,
-				"energyUsageTotal":  ctrlr.Receipt.Receipt.EnergyUsageTotal,
-				"netFee":            ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":          ctrlr.Receipt.Receipt.NetUsage,
+				"fee":               ctrlr.Receipt.GetFee(),
+				"energyFee":         ctrlr.Receipt.GetReceipt().GetEnergyFee(),
+				"energyUsage":       ctrlr.Receipt.GetReceipt().GetEnergyUsage(),
+				"originEnergyUsage": ctrlr.Receipt.GetReceipt().GetOriginEnergyUsage(),
+				"energyUsageTotal":  ctrlr.Receipt.GetReceipt().GetEnergyUsageTotal(),
+				"netFee":            ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -401,9 +401,9 @@ func contractTriggerCmd() *cobra.Command {
 
 func contractSub() []*cobra.Command {
 	return []*cobra.Command{
-		contractDeployCmd(),
+		addSigningFlags(contractDeployCmd()),
 		contractConstantCmd(),
-		contractTriggerCmd(),
+		addSigningFlags(contractTriggerCmd()),
 	}
 }
 

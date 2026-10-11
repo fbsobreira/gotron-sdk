@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	color "github.com/fatih/color"
@@ -61,6 +62,9 @@ var (
 			rt.loadDotEnv()
 			rt.setupVerbose()
 			signer = rt.applyEnvOverrides(config.Node, signer, withTLS)
+			// Apply --ks-dir / TRONCTL_KS_DIR before resolving the signer:
+			// setupSigner looks account names up in the keystore.
+			rt.setupKeystore()
 
 			if err := rt.setupNetwork(); err != nil {
 				return err
@@ -80,9 +84,12 @@ var (
 			}
 			passphrase = rt.Passphrase
 
-			rt.setupKeystore()
-
 			return nil
+		},
+		// Zero decrypted PQ signing keys after a successful run; Execute
+		// also does it, which covers failed runs.
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			destroyPQSigningKeys()
 		},
 		Long: fmt.Sprintf(`
 CLI interface to Tron blockchain
@@ -94,8 +101,28 @@ CLI interface to Tron blockchain
 	}
 )
 
+// configOnce loads the config file once, on first use. Commands register
+// flags whose defaults come from config (addSigningFlags reads
+// config.Timeout) in init functions of files that run before root.go's, so
+// whichever comes first loads it.
+var configOnce sync.Once
+
+func ensureConfig() { configOnce.Do(initConfig) }
+
+// addSigningFlags registers --dry-run and --timeout on cmd and returns it.
+// Only commands that sign and broadcast through executeOrDryRun take them;
+// any other command rejects them as unknown flags instead of silently
+// ignoring a --dry-run. Every registration binds the same globals with the
+// same defaults, so registering them on many commands is safe.
+func addSigningFlags(cmd *cobra.Command) *cobra.Command {
+	ensureConfig()
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "sign and print the transaction without broadcasting it")
+	cmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
+	return cmd
+}
+
 func init() {
-	initConfig()
+	ensureConfig()
 
 	vS := "dump out debug information, same as env var GOTRON_SDK_DEBUG=true"
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", config.Verbose, vS)
@@ -107,8 +134,6 @@ func init() {
 		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)
 	RootCmd.PersistentFlags().BoolVar(&noWait, "no-wait", false, "do not wait for TX confirmation")
-	RootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
-	RootCmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
 
 	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", config.Ledger, "Use ledger hardware wallet")
 	RootCmd.PersistentFlags().StringVar(&givenFilePath, "file", "", "Path to file for given command when applicable")
@@ -270,7 +295,11 @@ func getGitVersion() (string, error) {
 // Execute kicks off the tronctl CLI
 func Execute() {
 	RootCmd.SilenceErrors = true
-	if err := RootCmd.Execute(); err != nil {
+	err := RootCmd.Execute()
+	// Zero any decrypted PQ signing key now, failed runs included: cobra
+	// skips PersistentPostRun on error and os.Exit below skips defers.
+	destroyPQSigningKeys()
+	if err != nil {
 		if tag, errGit := getGitVersion(); errGit == nil {
 			VersionWrapDump += ":" + tag
 		}
@@ -295,6 +324,10 @@ func findAddress(value string) (tronAddress, error) {
 		// Check if input is valid account name
 		if acc, err := store.AddressFromAccountName(value); err == nil {
 			return tronAddress{acc}, nil
+		}
+		// Check if input is a post-quantum account name
+		if acct, err := store.PQAccountByName(value); err == nil {
+			return tronAddress{acct.Address}, nil
 		}
 		return address, fmt.Errorf("Invalid address/Invalid account name: %s", value)
 	}
