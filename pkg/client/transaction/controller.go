@@ -10,9 +10,10 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/signer"
+	"github.com/fbsobreira/gotron-sdk/pkg/txcore"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -27,20 +28,29 @@ type sender struct {
 	account *keystore.Account
 }
 
-// Controller drives the transaction signing process
+// Controller drives the transaction signing process.
+//
+// The preferred way to choose how a transaction is signed is the WithSigner
+// option, which accepts any signer.Signer (keystore, private key, Ledger, or
+// a TIP-899 post-quantum signer). Without it the Controller falls back to
+// Behavior.SigningImpl and the keystore and account given to NewController.
 type Controller struct {
 	executionError error
 	resultError    error
 	client         *client.GrpcClient
 	tx             *core.Transaction
 	sender         sender
+	signer         signer.Signer
 	Behavior       behavior
 	Result         *api.Return
 	Receipt        *core.TransactionInfo
 }
 
 type behavior struct {
-	DryRun               bool
+	DryRun bool
+	// SigningImpl selects the fallback signer when WithSigner is not used.
+	// It is read when ExecuteTransaction runs, so it may be set after
+	// NewController.
 	SigningImpl          SignerImpl
 	ConfirmationWaitTime uint32
 	PermissionID         *int32
@@ -83,6 +93,27 @@ func WithPermissionID(id int32) func(*Controller) {
 	}
 }
 
+// WithSigner sets the signer used by ExecuteTransaction. It is the preferred
+// way to choose a signer; when set it takes precedence over
+// Behavior.SigningImpl and the keystore and account passed to NewController,
+// which are then ignored for signing. A nil signer is ignored.
+//
+// If s signs with a TIP-899 post-quantum key (it implements
+// txcore.PQSchemeSigner, as signer.NewPQSigner does), ExecuteTransaction
+// first asks the node whether the scheme is enabled and fails with an error
+// wrapping txcore.ErrPQSchemeDisabled if it is not, without signing or
+// broadcasting. This check also runs in DryRun mode.
+//
+// A typed-nil Signer (a nil pointer wrapped in a non-nil interface) is the
+// caller's bug and is not filtered; only a nil interface is ignored.
+func WithSigner(s signer.Signer) func(*Controller) {
+	return func(c *Controller) {
+		if s != nil {
+			c.signer = s
+		}
+	}
+}
+
 func setPermissionID(tx *core.Transaction, id int32) {
 	for _, contract := range tx.GetRawData().GetContract() {
 		contract.PermissionId = id //nolint:staticcheck // ST1003: proto generated field name
@@ -95,38 +126,105 @@ func (C *Controller) applyPermissionID() {
 	}
 }
 
-func (C *Controller) signTxForSending() {
-	if C.executionError != nil {
-		return
+// softwareSigner returns the keystore signer used by the Software fallback.
+func (C *Controller) softwareSigner() (signer.Signer, error) {
+	if C.sender.ks == nil || C.sender.account == nil {
+		return nil, fmt.Errorf("%w: software signing needs a keystore and an account", ErrBadTransactionParam)
 	}
-	signedTransaction, err :=
-		C.sender.ks.SignTx(*C.sender.account, C.tx)
-	if err != nil {
-		C.executionError = err
-		return
-	}
-	C.tx = signedTransaction
+	return signer.NewKeystoreSigner(C.sender.ks, *C.sender.account), nil
 }
 
-func (C *Controller) hardwareSignTxForSending() {
+// ledgerSigner returns the Ledger signer used by the Ledger fallback. It
+// reuses the sender address and does not touch the device until Sign.
+func (C *Controller) ledgerSigner() signer.Signer {
+	var addr []byte
+	if C.sender.account != nil {
+		addr = C.sender.account.Address
+	}
+	return signer.NewLedgerSignerWithAddress(addr)
+}
+
+// resolveSigner picks the signer for ExecuteTransaction: the WithSigner
+// signer if set, otherwise the one Behavior.SigningImpl selects. It returns
+// a nil signer and no error for an unrecognised SigningImpl, which signs
+// nothing, as before signers were introduced.
+func (C *Controller) resolveSigner() (signer.Signer, error) {
+	if C.signer != nil {
+		return C.signer, nil
+	}
+	switch C.Behavior.SigningImpl {
+	case Software:
+		return C.softwareSigner()
+	case Ledger:
+		return C.ledgerSigner(), nil
+	}
+	return nil, nil
+}
+
+// signTx signs C.tx with the resolved signer.
+func (C *Controller) signTx() {
 	if C.executionError != nil {
 		return
 	}
-	data, err := C.GetRawData()
-	if err != nil {
-		// Do not sign a nil/empty payload when GetRawData fails — that would
-		// produce a signature over something other than the approved transaction.
-		C.executionError = fmt.Errorf("get raw data for ledger signing: %w", err)
-		return
-	}
-	signature, err := ledger.SignTx(data)
+	s, err := C.resolveSigner()
 	if err != nil {
 		C.executionError = err
 		return
 	}
+	if s == nil {
+		return
+	}
+	C.signWith(s)
+}
 
-	// add signature
-	C.tx.Signature = append(C.tx.Signature, signature)
+// signWith signs C.tx with s. It refuses a nil transaction or nil or empty
+// raw data before calling any signer, so no signer is asked to sign a payload
+// other than the transaction. For a post-quantum signer it then checks that
+// the node has the scheme enabled.
+func (C *Controller) signWith(s signer.Signer) {
+	if C.executionError != nil {
+		return
+	}
+	if _, err := C.GetRawData(); err != nil {
+		C.executionError = fmt.Errorf("get raw data for signing: %w", err)
+		return
+	}
+	if err := C.checkPQScheme(s); err != nil {
+		C.executionError = err
+		return
+	}
+	signed, err := s.Sign(C.tx)
+	if err != nil {
+		C.executionError = err
+		return
+	}
+	if signed == nil {
+		C.executionError = errors.New("signer returned a nil transaction")
+		return
+	}
+	C.tx = signed
+}
+
+// checkPQScheme asks the node whether a post-quantum signer's scheme is
+// enabled. It returns nil without a network call for any other signer. The
+// errors match txcore.Send.
+func (C *Controller) checkPQScheme(s signer.Signer) error {
+	pqSigner, ok := s.(txcore.PQSchemeSigner)
+	if !ok {
+		return nil
+	}
+	if C.client == nil {
+		return fmt.Errorf("checking post-quantum capability: %w", errors.New("no client to query the node"))
+	}
+	scheme := pqSigner.PQScheme()
+	allowed, err := C.client.PQSchemeAllowed(scheme)
+	if err != nil {
+		return fmt.Errorf("checking post-quantum capability: %w", err)
+	}
+	if !allowed {
+		return fmt.Errorf("%w: %s", txcore.ErrPQSchemeDisabled, scheme)
+	}
+	return nil
 }
 
 // TransactionHash extract hash from TX
@@ -188,12 +286,7 @@ func (C *Controller) GetResultError() error {
 // Each becomes a no-op if executionError occurred in any previous step
 func (C *Controller) ExecuteTransaction() error {
 	C.applyPermissionID()
-	switch C.Behavior.SigningImpl {
-	case Software:
-		C.signTxForSending()
-	case Ledger:
-		C.hardwareSignTxForSending()
-	}
+	C.signTx()
 	C.sendSignedTx()
 	C.txConfirmation()
 	return C.executionError

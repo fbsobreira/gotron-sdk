@@ -8,10 +8,7 @@ import (
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
-	"github.com/fbsobreira/gotron-sdk/pkg/client/transaction"
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
-	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
-	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 )
 
@@ -99,16 +96,9 @@ func proposalApproveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var ctrlr *transaction.Controller
-			if useLedgerWallet {
-				account := keystore.Account{Address: signerAddress.GetAddress()}
-				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
-			} else {
-				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
-				if err != nil {
-					return err
-				}
-				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			ctrlr, err := newController(signerAddress, tx.Transaction)
+			if err != nil {
+				return err
 			}
 			if err = ctrlr.ExecuteTransaction(); err != nil {
 				return err
@@ -156,16 +146,9 @@ func proposalWithdrawCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			var ctrlr *transaction.Controller
-			if useLedgerWallet {
-				account := keystore.Account{Address: signerAddress.GetAddress()}
-				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
-			} else {
-				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
-				if err != nil {
-					return err
-				}
-				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			ctrlr, err := newController(signerAddress, tx.Transaction)
+			if err != nil {
+				return err
 			}
 			if err = ctrlr.ExecuteTransaction(); err != nil {
 				return err
@@ -231,16 +214,9 @@ func proposalCreateCmd() *cobra.Command {
 				return err
 			}
 
-			var ctrlr *transaction.Controller
-			if useLedgerWallet {
-				account := keystore.Account{Address: signerAddress.GetAddress()}
-				ctrlr = transaction.NewController(conn, nil, &account, tx.Transaction, opts)
-			} else {
-				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
-				if err != nil {
-					return err
-				}
-				ctrlr = transaction.NewController(conn, ks, acct, tx.Transaction, opts)
+			ctrlr, err := newController(signerAddress, tx.Transaction)
+			if err != nil {
+				return err
 			}
 			if err = ctrlr.ExecuteTransaction(); err != nil {
 				return err

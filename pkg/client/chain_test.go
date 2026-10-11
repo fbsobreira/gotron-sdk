@@ -223,3 +223,40 @@ func TestGetCanDelegatedMaxSizePQ_InvalidAddress(t *testing.T) {
 // txcore.Send probes the broadcaster for txcore.PQProber; if GrpcClient's
 // method drifted, the capability check would silently stop running.
 var _ txcore.PQProber = (*client.GrpcClient)(nil)
+
+func TestPQSchemeAllowed(t *testing.T) {
+	tests := []struct {
+		name   string
+		cp     *core.ChainParameters
+		scheme core.PQScheme
+		want   bool
+	}{
+		{"ML-DSA-44 enabled", chainParams("getAllowMlDsa44", int64(1)), core.PQScheme_ML_DSA_44, true},
+		{"ML-DSA-44 disabled", chainParams("getAllowMlDsa44", int64(0)), core.PQScheme_ML_DSA_44, false},
+		{"FN-DSA-512 enabled", chainParams("getAllowFnDsa512", int64(1)), core.PQScheme_FN_DSA_512, true},
+		{"parameter missing", chainParams("getMaintenanceTimeInterval", int64(21600000)), core.PQScheme_ML_DSA_44, false},
+		{"unknown scheme", chainParams("getAllowMlDsa44", int64(1)), core.PQScheme_UNKNOWN_PQ_SCHEME, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newMockClient(t, chainParamsMock(tt.cp))
+			allowed, err := c.PQSchemeAllowed(tt.scheme)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, allowed)
+		})
+	}
+}
+
+func TestPQSchemeAllowed_Error(t *testing.T) {
+	mock := &mockWalletServer{
+		GetChainParametersFunc: func(_ context.Context, _ *api.EmptyMessage) (*core.ChainParameters, error) {
+			return nil, status.Error(codes.Unavailable, "node down")
+		},
+	}
+	c := newMockClient(t, mock)
+
+	allowed, err := c.PQSchemeAllowed(core.PQScheme_ML_DSA_44)
+	require.Error(t, err)
+	assert.False(t, allowed)
+	assert.Contains(t, err.Error(), "node down")
+}
