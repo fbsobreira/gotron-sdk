@@ -12,6 +12,8 @@ type ledgerSigner struct {
 	addr address.Address
 }
 
+var _ Signer = (*ledgerSigner)(nil)
+
 // NewLedgerSigner creates a Signer backed by a connected Ledger device.
 // It immediately queries the device for its address.
 func NewLedgerSigner() (Signer, error) {
@@ -21,6 +23,14 @@ func NewLedgerSigner() (Signer, error) {
 		return nil, err
 	}
 	return &ledgerSigner{addr: addr}, nil
+}
+
+// NewLedgerSignerWithAddress creates a Signer backed by a Ledger device whose
+// address the caller already knows. Unlike NewLedgerSigner it does no device
+// I/O at construction; the device is opened only when Sign is called. The
+// address is reported by Address and is not checked against the device.
+func NewLedgerSignerWithAddress(addr address.Address) Signer {
+	return &ledgerSigner{addr: append(address.Address(nil), addr...)}
 }
 
 // Sign signs the transaction using the connected Ledger device.

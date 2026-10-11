@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/btcsuite/btcd/btcec/v2"
@@ -220,13 +221,27 @@ type mockWalletServer struct {
 	api.UnimplementedWalletServer
 	BroadcastTransactionFunc   func(context.Context, *core.Transaction) (*api.Return, error)
 	GetTransactionInfoByIdFunc func(context.Context, *api.BytesMessage) (*core.TransactionInfo, error) //nolint:staticcheck,revive // matches proto-generated method name
+	GetChainParametersFunc     func(context.Context, *api.EmptyMessage) (*core.ChainParameters, error)
+
+	// Call counters; the handlers run on gRPC server goroutines.
+	broadcastCalls   atomic.Int32
+	chainParamsCalls atomic.Int32
 }
 
 func (m *mockWalletServer) BroadcastTransaction(ctx context.Context, in *core.Transaction) (*api.Return, error) {
+	m.broadcastCalls.Add(1)
 	if m.BroadcastTransactionFunc != nil {
 		return m.BroadcastTransactionFunc(ctx, in)
 	}
 	return m.UnimplementedWalletServer.BroadcastTransaction(ctx, in)
+}
+
+func (m *mockWalletServer) GetChainParameters(ctx context.Context, in *api.EmptyMessage) (*core.ChainParameters, error) {
+	m.chainParamsCalls.Add(1)
+	if m.GetChainParametersFunc != nil {
+		return m.GetChainParametersFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetChainParameters(ctx, in)
 }
 
 func (m *mockWalletServer) GetTransactionInfoById(ctx context.Context, in *api.BytesMessage) (*core.TransactionInfo, error) { //nolint:staticcheck,revive // matches proto-generated method name
@@ -340,18 +355,19 @@ func TestTransactionHashHexFormat(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// 2. signTxForSending (uses real keystore)
+// 2. signTx (Software, uses real keystore)
 // ---------------------------------------------------------------------------
 
-func TestSignTxForSending_SkipsOnExecutionError(t *testing.T) {
+func TestSignTx_Software_SkipsOnExecutionError(t *testing.T) {
 	ks, acct := newTestKeystore(t)
 	require.NoError(t, ks.Unlock(acct, "test-pass"), "Unlock")
 
 	tx := newTestTransaction()
 	ctrl := NewController(nil, ks, &acct, tx)
+	ctrl.Behavior.SigningImpl = Software
 	ctrl.executionError = errors.New("prior error")
 
-	ctrl.signTxForSending()
+	ctrl.signTx()
 
 	// Should not have added a signature.
 	assert.Empty(t, ctrl.tx.GetSignature(), "expected no signature when executionError is set")
@@ -359,57 +375,61 @@ func TestSignTxForSending_SkipsOnExecutionError(t *testing.T) {
 	assert.Equal(t, "prior error", ctrl.executionError.Error(), "executionError changed")
 }
 
-func TestSignTxForSending_LockedAccount(t *testing.T) {
+func TestSignTx_Software_LockedAccount(t *testing.T) {
 	ks, acct := newTestKeystore(t)
 	// Account is locked by default after creation.
 
 	tx := newTestTransaction()
 	ctrl := NewController(nil, ks, &acct, tx)
+	ctrl.Behavior.SigningImpl = Software
 
-	ctrl.signTxForSending()
+	ctrl.signTx()
 
 	require.Error(t, ctrl.executionError, "expected executionError for locked account")
 	var authErr *keystore.AuthNeededError
 	assert.ErrorAs(t, ctrl.executionError, &authErr, "expected AuthNeededError")
 }
 
-func TestSignTxForSending_UnlockedSuccess(t *testing.T) {
+func TestSignTx_Software_UnlockedSuccess(t *testing.T) {
 	ks, acct := newTestKeystore(t)
 	require.NoError(t, ks.Unlock(acct, "test-pass"), "Unlock")
 
 	tx := newTestTransaction()
 	ctrl := NewController(nil, ks, &acct, tx)
+	ctrl.Behavior.SigningImpl = Software
 
-	ctrl.signTxForSending()
+	ctrl.signTx()
 
 	require.NoError(t, ctrl.executionError, "unexpected executionError")
 	assert.Len(t, ctrl.tx.GetSignature(), 1, "expected 1 signature")
 }
 
 // ---------------------------------------------------------------------------
-// 2b. hardwareSignTxForSending / GetRawData error propagation (W50)
+// 2b. signTx (Ledger) / GetRawData error propagation (W50)
 // ---------------------------------------------------------------------------
 
-func TestHardwareSignTxForSending_SkipsOnExecutionError(t *testing.T) {
+func TestSignTx_Ledger_SkipsOnExecutionError(t *testing.T) {
 	tx := newTestTransaction()
 	ctrl := NewController(nil, nil, nil, tx)
+	ctrl.Behavior.SigningImpl = Ledger
 	ctrl.executionError = errors.New("prior error")
 
-	ctrl.hardwareSignTxForSending()
+	ctrl.signTx()
 
 	assert.Empty(t, ctrl.tx.GetSignature(), "expected no signature when executionError is set")
 	assert.Equal(t, "prior error", ctrl.executionError.Error(), "executionError changed")
 }
 
-func TestHardwareSignTxForSending_PropagatesGetRawDataError(t *testing.T) {
+func TestSignTx_Ledger_PropagatesGetRawDataError(t *testing.T) {
 	// nil transaction makes GetRawData fail; previously the error was discarded
 	// and ledger.SignTx was called with a nil payload.
 	ctrl := NewController(nil, nil, nil, nil)
+	ctrl.Behavior.SigningImpl = Ledger
 
-	ctrl.hardwareSignTxForSending()
+	ctrl.signTx()
 
 	require.Error(t, ctrl.executionError, "expected executionError when GetRawData fails")
-	assert.ErrorContains(t, ctrl.executionError, "get raw data for ledger signing")
+	assert.ErrorContains(t, ctrl.executionError, "get raw data for signing")
 	assert.ErrorContains(t, ctrl.executionError, "transaction is nil")
 	assert.Nil(t, ctrl.tx, "must not invent a transaction after GetRawData failure")
 }
@@ -424,7 +444,7 @@ func TestGetRawData_NilTransaction(t *testing.T) {
 
 func TestGetRawData_NilRawData(t *testing.T) {
 	// Non-nil tx with missing RawData used to marshal to empty bytes with no error,
-	// which hardwareSignTxForSending would then feed to ledger.SignTx.
+	// which the Ledger signer would then feed to ledger.SignTx.
 	ctrl := NewController(nil, nil, nil, &core.Transaction{})
 	raw, err := ctrl.GetRawData()
 	require.Error(t, err)
@@ -442,13 +462,14 @@ func TestGetRawData_EmptyRawData(t *testing.T) {
 	assert.Contains(t, err.Error(), "transaction raw data is empty")
 }
 
-func TestHardwareSignTxForSending_EmptyTransaction(t *testing.T) {
+func TestSignTx_Ledger_EmptyTransaction(t *testing.T) {
 	ctrl := NewController(nil, nil, nil, &core.Transaction{})
+	ctrl.Behavior.SigningImpl = Ledger
 
-	ctrl.hardwareSignTxForSending()
+	ctrl.signTx()
 
 	require.Error(t, ctrl.executionError, "expected executionError for empty transaction")
-	assert.ErrorContains(t, ctrl.executionError, "get raw data for ledger signing")
+	assert.ErrorContains(t, ctrl.executionError, "get raw data for signing")
 	assert.ErrorContains(t, ctrl.executionError, "transaction raw data is nil")
 }
 

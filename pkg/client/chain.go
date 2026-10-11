@@ -88,6 +88,17 @@ func (g *GrpcClient) GetPQCapabilitiesCtx(ctx context.Context) (PQCapabilities, 
 	return caps, nil
 }
 
+// PQSchemeAllowed reports whether the node has enabled the given
+// post-quantum signature scheme, using the client's configured timeout.
+// transaction.Controller calls it before signing with a post-quantum signer.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+func (g *GrpcClient) PQSchemeAllowed(scheme core.PQScheme) (bool, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.PQSchemeAllowedCtx(ctx, scheme)
+}
+
 // PQSchemeAllowedCtx reports whether the node has enabled the given
 // post-quantum signature scheme. The txcore package probes for this method
 // before signing with a post-quantum signer.

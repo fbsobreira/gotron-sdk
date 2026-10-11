@@ -305,9 +305,6 @@ func opts(ctlr *transaction.Controller) {
 	if rt.DryRun {
 		ctlr.Behavior.DryRun = true
 	}
-	if rt.UseLedgerWallet {
-		ctlr.Behavior.SigningImpl = transaction.Ledger
-	}
 	if rt.NoWait {
 		ctlr.Behavior.ConfirmationWaitTime = 0
 	} else if rt.Timeout > 0 {

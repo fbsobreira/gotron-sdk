@@ -547,6 +547,7 @@ type Controller struct {
     client         *client.GrpcClient
     tx             *core.Transaction
     sender         sender
+    signer         signer.Signer
     Behavior       behavior
     Result         *api.Return
     Receipt        *core.TransactionInfo
@@ -585,6 +586,25 @@ func (C *Controller) GetResultError() error
 // PermissionID = 0 is the owner permission (default), PermissionID = 2 is
 // commonly used for active permissions in multi-sig setups.
 func WithPermissionID(id int32) func(*Controller)
+
+// WithSigner sets the signer.Signer used to sign. It is the preferred way to
+// choose a signer and takes precedence over Behavior.SigningImpl and the
+// keystore/account passed to NewController, which remain the fallback.
+// For a post-quantum signer (signer.NewPQSigner), ExecuteTransaction first
+// checks that the node has the scheme enabled (also in DryRun) and returns
+// an error wrapping txcore.ErrPQSchemeDisabled if it is not.
+func WithSigner(s signer.Signer) func(*Controller)
+```
+
+```go
+s, err := signer.NewPrivateKeySigner(privateKey)
+if err != nil {
+    return err
+}
+ctrl := transaction.NewController(conn, nil, nil, tx, transaction.WithSigner(s))
+if err := ctrl.ExecuteTransaction(); err != nil {
+    return err
+}
 ```
 
 #### Transaction Signing Functions
