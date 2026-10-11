@@ -271,14 +271,21 @@ func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 // work. CTR (v3) accepts any ciphertext length up to the ceiling; CBC (v1) also
 // requires a positive multiple of the AES block size so CryptBlocks cannot panic.
 func decodeCipherFields(macHex, ivHex, cipherHex string, cbc bool) (mac, iv, cipherText []byte, err error) {
+	return decodeCipherFieldsMax(macHex, ivHex, cipherHex, cbc, maxCiphertextLen)
+}
+
+// decodeCipherFieldsMax is decodeCipherFields with an explicit ciphertext
+// ceiling of maxLen bytes. The post-quantum keystore uses it with a larger
+// bound; every other caller goes through decodeCipherFields.
+func decodeCipherFieldsMax(macHex, ivHex, cipherHex string, cbc bool, maxLen int) (mac, iv, cipherText []byte, err error) {
 	if len(macHex) > macLen*2 {
 		return nil, nil, nil, fmt.Errorf("crypto: mac hex length %d exceeds limit %d", len(macHex), macLen*2)
 	}
 	if len(ivHex) > aesIVLen*2 {
 		return nil, nil, nil, fmt.Errorf("crypto: iv hex length %d exceeds limit %d", len(ivHex), aesIVLen*2)
 	}
-	if len(cipherHex) > maxCiphertextLen*2 {
-		return nil, nil, nil, fmt.Errorf("crypto: ciphertext hex length %d exceeds limit %d", len(cipherHex), maxCiphertextLen*2)
+	if len(cipherHex) > maxLen*2 {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext hex length %d exceeds limit %d", len(cipherHex), maxLen*2)
 	}
 
 	mac, err = hex.DecodeString(macHex)
@@ -304,8 +311,8 @@ func decodeCipherFields(macHex, ivHex, cipherHex string, cbc bool) (mac, iv, cip
 	if len(cipherText) == 0 {
 		return nil, nil, nil, fmt.Errorf("crypto: empty ciphertext")
 	}
-	if len(cipherText) > maxCiphertextLen {
-		return nil, nil, nil, fmt.Errorf("crypto: ciphertext length %d exceeds limit %d", len(cipherText), maxCiphertextLen)
+	if len(cipherText) > maxLen {
+		return nil, nil, nil, fmt.Errorf("crypto: ciphertext length %d exceeds limit %d", len(cipherText), maxLen)
 	}
 	if cbc && len(cipherText)%aes.BlockSize != 0 {
 		return nil, nil, nil, fmt.Errorf("crypto: cbc ciphertext length must be a multiple of %d, got %d",
