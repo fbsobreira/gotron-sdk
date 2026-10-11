@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
@@ -34,12 +35,65 @@ var (
 // @type for Any fields), which differs from the TRON HTTP API format
 // (hex bytes, type_url/value for Any). Consumers should always prefer
 // raw_data_hex for deserialization.
+//
+// TIP-899 post-quantum signatures travel in pq_auth_sig, which is
+// hand-encoded like signature (enum by name, bytes as lowercase hex) rather
+// than through protojson, matching the java-tron HTTP format.
 type jsonTransaction struct {
 	Visible    bool            `json:"visible"`
 	TxID       string          `json:"txID"`
 	RawData    json.RawMessage `json:"raw_data,omitempty"`
 	RawDataHex string          `json:"raw_data_hex"`
 	Signature  []string        `json:"signature,omitempty"`
+	PQAuthSig  []jsonPQAuthSig `json:"pq_auth_sig,omitempty"`
+}
+
+// jsonPQAuthSig is the JSON form of core.PQAuthSig. Scheme stays raw so that
+// FromJSON can accept both the enum name and an integer.
+type jsonPQAuthSig struct {
+	Scheme    json.RawMessage `json:"scheme"`
+	PublicKey string          `json:"public_key"`
+	Signature string          `json:"signature"`
+}
+
+// pqSchemeJSON prints a scheme by enum name. A value outside the known enum is
+// printed as an integer so it is never silently altered; FromJSON rejects it.
+func pqSchemeJSON(s core.PQScheme) json.RawMessage {
+	if name, ok := core.PQScheme_name[int32(s)]; ok {
+		return json.RawMessage(strconv.Quote(name))
+	}
+	return json.RawMessage(strconv.FormatInt(int64(s), 10))
+}
+
+// parsePQScheme accepts an exact enum name or a JSON integer, as java-tron
+// does. Unknown values and UNKNOWN_PQ_SCHEME (0) are rejected. Rejected input
+// is never echoed.
+func parsePQScheme(raw json.RawMessage, index int) (core.PQScheme, error) {
+	errUnknown := fmt.Errorf("%w: pq_auth_sig[%d]: unknown scheme", ErrInvalidTxJSON, index)
+
+	var v int32
+	if len(raw) > 0 && raw[0] == '"' {
+		var name string
+		if err := json.Unmarshal(raw, &name); err != nil {
+			return 0, errUnknown
+		}
+		n, ok := core.PQScheme_value[name]
+		if !ok {
+			return 0, errUnknown
+		}
+		v = n
+	} else {
+		n, err := strconv.ParseInt(string(raw), 10, 32)
+		if err != nil {
+			return 0, errUnknown
+		}
+		v = int32(n)
+	}
+
+	if _, ok := core.PQScheme_name[v]; !ok || core.PQScheme(v) == core.PQScheme_UNKNOWN_PQ_SCHEME {
+		return 0, errUnknown
+	}
+	return core.PQScheme(v), nil
 }
 
 // FromRawDataHex reconstructs a Transaction from a hex-encoded raw_data
@@ -49,6 +103,9 @@ type jsonTransaction struct {
 // The hex string may optionally have a "0x" prefix, which is stripped
 // before decoding. Any provided signatures are attached to the resulting
 // transaction, preserving their order.
+//
+// The signatures are ECDSA signatures only. raw_data_hex does not cover
+// TIP-899 pq_auth_sig entries; use FromJSON to carry those.
 //
 // Example:
 //
@@ -91,6 +148,14 @@ func FromRawDataHex(rawDataHex string, signatures ...[]byte) (*core.Transaction,
 // hash of the deserialized raw_data. Signatures are decoded from hex
 // strings and attached to the transaction.
 //
+// TIP-899 post-quantum signatures are read from the pq_auth_sig array. Each
+// entry carries a scheme (the enum name such as "FN_DSA_512" or "ML_DSA_44",
+// or its integer value), and hex-encoded public_key and signature (an
+// optional "0x" prefix is accepted). Unknown schemes, UNKNOWN_PQ_SCHEME, bad
+// hex, and empty keys or signatures are rejected. Key and signature lengths
+// are not checked here; the node is the authority. pq_auth_sig is not part of
+// raw_data, so it does not affect txID validation.
+//
 // Example:
 //
 //	resp, _ := http.Post("https://api.trongrid.io/wallet/createtransaction", ...)
@@ -116,10 +181,16 @@ func FromJSON(jsonData []byte) (*core.Transaction, error) {
 		sigs = append(sigs, sig)
 	}
 
+	pqSigs, err := decodePQAuthSigs(jtx.PQAuthSig)
+	if err != nil {
+		return nil, err
+	}
+
 	tx, err := FromRawDataHex(jtx.RawDataHex, sigs...)
 	if err != nil {
 		return nil, err
 	}
+	tx.PqAuthSig = pqSigs
 
 	// Validate txID if present
 	if jtx.TxID != "" {
@@ -133,6 +204,52 @@ func FromJSON(jsonData []byte) (*core.Transaction, error) {
 	}
 
 	return tx, nil
+}
+
+// decodePQAuthSigs converts the JSON pq_auth_sig entries to proto messages.
+// Errors name the entry index and field but never include the offending value.
+func decodePQAuthSigs(entries []jsonPQAuthSig) ([]*core.PQAuthSig, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	out := make([]*core.PQAuthSig, 0, len(entries))
+	for i, e := range entries {
+		scheme, err := parsePQScheme(e.Scheme, i)
+		if err != nil {
+			return nil, err
+		}
+		pk, err := decodePQHex(e.PublicKey, i, "public_key")
+		if err != nil {
+			return nil, err
+		}
+		sig, err := decodePQHex(e.Signature, i, "signature")
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, &core.PQAuthSig{
+			Scheme:    scheme,
+			PublicKey: pk,
+			Signature: sig,
+		})
+	}
+	return out, nil
+}
+
+// decodePQHex decodes one non-empty hex field of a pq_auth_sig entry,
+// accepting an optional "0x" or "0X" prefix.
+func decodePQHex(s string, index int, field string) ([]byte, error) {
+	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
+		s = s[2:]
+	}
+	if s == "" {
+		return nil, fmt.Errorf("%w: pq_auth_sig[%d]: empty %s", ErrInvalidTxJSON, index, field)
+	}
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		// The decoder error quotes the offending byte; report only the location.
+		return nil, fmt.Errorf("%w: pq_auth_sig[%d]: invalid %s hex", ErrInvalidTxJSON, index, field)
+	}
+	return b, nil
 }
 
 // ToRawDataHex returns the hex-encoded protobuf serialization of the
@@ -150,7 +267,11 @@ func ToRawDataHex(tx *core.Transaction) (string, error) {
 }
 
 // ToJSON serializes a Transaction to a JSON envelope containing txID,
-// raw_data_hex, raw_data, and signature fields.
+// raw_data_hex, raw_data, and signature fields. Transactions carrying TIP-899
+// post-quantum signatures also get a pq_auth_sig array of
+// {"scheme", "public_key", "signature"} objects, with the scheme printed by
+// enum name and the bytes as lowercase hex; the field is omitted when there
+// are none. A nil pq_auth_sig entry is an error.
 //
 // The txID is computed as the SHA256 hash of the protobuf-encoded raw_data.
 // The raw_data_hex field contains the canonical protobuf serialization and
@@ -188,11 +309,24 @@ func ToJSON(tx *core.Transaction) ([]byte, error) {
 		sigs = append(sigs, hex.EncodeToString(sig))
 	}
 
+	var pqSigs []jsonPQAuthSig
+	for i, pq := range tx.GetPqAuthSig() {
+		if pq == nil {
+			return nil, fmt.Errorf("pq_auth_sig[%d] is nil", i)
+		}
+		pqSigs = append(pqSigs, jsonPQAuthSig{
+			Scheme:    pqSchemeJSON(pq.GetScheme()),
+			PublicKey: hex.EncodeToString(pq.GetPublicKey()),
+			Signature: hex.EncodeToString(pq.GetSignature()),
+		})
+	}
+
 	jtx := jsonTransaction{
 		TxID:       txID,
 		RawData:    rawDataJSON,
 		RawDataHex: rawDataHex,
 		Signature:  sigs,
+		PQAuthSig:  pqSigs,
 	}
 
 	return json.Marshal(jtx)

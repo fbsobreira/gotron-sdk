@@ -149,6 +149,24 @@ func (g *GrpcClient) GetCanDelegatedMaxSize(address string, resource int32) (*ap
 
 // GetCanDelegatedMaxSizeCtx is the context-aware version of GetCanDelegatedMaxSize.
 func (g *GrpcClient) GetCanDelegatedMaxSizeCtx(ctx context.Context, address string, resource int32) (*api.CanDelegatedMaxSizeResponseMessage, error) {
+	return g.GetCanDelegatedMaxSizePQCtx(ctx, address, resource, core.PQScheme_UNKNOWN_PQ_SCHEME)
+}
+
+// GetCanDelegatedMaxSizePQ is like GetCanDelegatedMaxSize but asks the node to
+// include the signature size of the given post-quantum scheme in its
+// bandwidth estimate.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+func (g *GrpcClient) GetCanDelegatedMaxSizePQ(address string, resource int32, scheme core.PQScheme) (*api.CanDelegatedMaxSizeResponseMessage, error) {
+	ctx, cancel := g.newContext()
+	defer cancel()
+	return g.GetCanDelegatedMaxSizePQCtx(ctx, address, resource, scheme)
+}
+
+// GetCanDelegatedMaxSizePQCtx is the context-aware version of GetCanDelegatedMaxSizePQ.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+func (g *GrpcClient) GetCanDelegatedMaxSizePQCtx(ctx context.Context, address string, resource int32, scheme core.PQScheme) (*api.CanDelegatedMaxSizeResponseMessage, error) {
 	ctx = g.withAPIKey(ctx)
 
 	addrBytes, err := common.DecodeCheck(address)
@@ -156,18 +174,13 @@ func (g *GrpcClient) GetCanDelegatedMaxSizeCtx(ctx context.Context, address stri
 		return nil, err
 	}
 
-	dm := &api.CanDelegatedMaxSizeRequestMessage{}
-
-	dm.Type = resource
-	dm.OwnerAddress = addrBytes
-
-	response, err := g.Client.GetCanDelegatedMaxSize(ctx, dm)
-	if err != nil {
-		return nil, err
-
+	dm := &api.CanDelegatedMaxSizeRequestMessage{
+		Type:         resource,
+		OwnerAddress: addrBytes,
+		PqScheme:     scheme,
 	}
 
-	return response, nil
+	return g.Client.GetCanDelegatedMaxSize(ctx, dm)
 }
 
 // DelegateResource from BASE58 address

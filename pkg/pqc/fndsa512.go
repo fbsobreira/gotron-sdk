@@ -33,8 +33,9 @@ var fnProbeDigest = []byte("gotron-sdk pqc FN-DSA-512 probe!")
 
 // fndsaKey is an FN-DSA-512 (Falcon-512) private key.
 type fndsaKey struct {
-	sk  []byte // canonical f||g||F
-	pub *PublicKey
+	sk        []byte // canonical f||g||F; nil after Destroy
+	pub       *PublicKey
+	destroyed bool
 }
 
 var _ PrivateKey = (*fndsaKey)(nil)
@@ -106,13 +107,16 @@ func parseFNDSA512(priv, pub []byte) (PrivateKey, error) {
 	if falcon.availErr() == nil {
 		sig, err := k.Sign(fnProbeDigest)
 		if err != nil {
+			k.Destroy()
 			return nil, fmt.Errorf("%w: probe signature failed: %w", ErrKeyMismatch, err)
 		}
 		ok, err := pk.Verify(fnProbeDigest, sig)
 		if err != nil {
+			k.Destroy()
 			return nil, fmt.Errorf("%w: probe verification failed: %w", ErrKeyMismatch, err)
 		}
 		if !ok {
+			k.Destroy()
 			return nil, ErrKeyMismatch
 		}
 	}
@@ -138,6 +142,9 @@ func (k *fndsaKey) Public() *PublicKey { return k.pub }
 // lacks Falcon-512), and an error (never the signature) if the backend
 // produces one outside the TRON wire shape.
 func (k *fndsaKey) Sign(digest []byte) ([]byte, error) {
+	if k.destroyed {
+		return nil, ErrKeyDestroyed
+	}
 	if err := checkDigest(digest); err != nil {
 		return nil, err
 	}
@@ -154,12 +161,29 @@ func (k *fndsaKey) Sign(digest []byte) ([]byte, error) {
 	return bytes.Clone(sig), nil
 }
 
-// Bytes returns a copy of the canonical 1280-byte f||g||F private key.
-func (k *fndsaKey) Bytes() []byte { return bytes.Clone(k.sk) }
+// Bytes returns a copy of the canonical 1280-byte f||g||F private key, or nil
+// after Destroy.
+func (k *fndsaKey) Bytes() []byte {
+	if k.destroyed {
+		return nil
+	}
+	return bytes.Clone(k.sk)
+}
 
 // Seed always returns nil: Falcon seeds are not portable between
 // implementations.
 func (k *fndsaKey) Seed() []byte { return nil }
+
+// Destroy zeroes f||g||F in place and drops it. Sign hands the backend a
+// copy, which the backend clears before returning.
+func (k *fndsaKey) Destroy() {
+	if k.destroyed {
+		return
+	}
+	clear(k.sk)
+	k.sk = nil
+	k.destroyed = true
+}
 
 // String describes the key without revealing key material.
 func (k *fndsaKey) String() string { return formatPrivateKey(k) }

@@ -58,6 +58,8 @@ var (
 	// CGO_ENABLED=1 and -tags falcon, with liboqs installed and discoverable
 	// through pkg-config.
 	ErrFalconUnavailable = errors.New("pqc: FN-DSA-512 backend unavailable (build with CGO_ENABLED=1 -tags falcon and liboqs installed, discoverable via pkg-config)")
+	// ErrKeyDestroyed is returned by Sign after PrivateKey.Destroy.
+	ErrKeyDestroyed = errors.New("pqc: private key destroyed")
 )
 
 // Sizes, in bytes, of the TIP-899 wire encodings.
@@ -113,6 +115,15 @@ type PrivateKey interface {
 	// Seed returns a copy of the 32-byte ML-DSA-44 seed when known, otherwise
 	// nil. FN-DSA-512 keys always return nil.
 	Seed() []byte
+	// Destroy overwrites the secret key material held by the key with zeros.
+	// Afterwards Sign returns ErrKeyDestroyed and Bytes and Seed return nil;
+	// Scheme and Public keep working. Destroy is idempotent.
+	//
+	// Destroy is not safe for concurrent use with any other method of the
+	// key, including Sign. It is best effort: Go cannot guarantee that no
+	// other copy of the secret survives (the garbage collector may have moved
+	// it, and earlier Bytes or Seed results are the caller's to clear).
+	Destroy()
 
 	// isPrivateKey restricts implementations to this package.
 	isPrivateKey()
@@ -164,6 +175,25 @@ func ParsePrivateKey(scheme core.PQScheme, priv, pub []byte) (PrivateKey, error)
 		return parseFNDSA512(priv, pub)
 	default:
 		return nil, unsupported(scheme)
+	}
+}
+
+// SchemeAvailable reports whether this build can sign and verify with
+// scheme. It returns nil for ML-DSA-44, which is pure Go; for FN-DSA-512 it
+// returns nil only when a usable Falcon backend is compiled in, else an error
+// wrapping ErrFalconUnavailable; any other scheme returns an error wrapping
+// ErrUnsupportedScheme. Whether the chain has the scheme enabled is a separate
+// question this function does not answer.
+//
+// Experimental: see the package documentation.
+func SchemeAvailable(scheme core.PQScheme) error {
+	switch scheme {
+	case core.PQScheme_ML_DSA_44:
+		return nil
+	case core.PQScheme_FN_DSA_512:
+		return falcon.availErr()
+	default:
+		return unsupported(scheme)
 	}
 }
 

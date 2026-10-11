@@ -42,7 +42,7 @@ test:
 # Build liboqs shared (-DBUILD_SHARED_LIBS=ON); for a static liboqs set
 # CGO_LDFLAGS="-lcrypto" (or PKG_CONFIG="pkg-config --static") so OpenSSL links.
 test-falcon:
-	$(env) CGO_ENABLED=1 go test -race -timeout 120s -tags falcon ./pkg/pqc/...
+	$(env) CGO_ENABLED=1 go test -race -timeout 120s -tags falcon ./pkg/pqc/... ./pkg/signer/... ./pkg/client/transaction/...
 
 # Integration tests against the Nile testnet.
 # Test fixtures use Nile-specific accounts, contracts, and witnesses.

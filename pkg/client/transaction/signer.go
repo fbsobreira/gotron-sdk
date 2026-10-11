@@ -6,7 +6,9 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/signer"
 	proto "google.golang.org/protobuf/proto"
 )
 
@@ -19,6 +21,23 @@ const (
 	// Ledger signs transactions using a connected Ledger hardware wallet.
 	Ledger
 )
+
+// MaxTotalSignatures is the most signatures (ECDSA plus TIP-899
+// pq_auth_sig) a transaction may carry, the node's TOTAL_SIGN_NUM; see
+// signer.MaxTotalSignatures.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+const MaxTotalSignatures = signer.MaxTotalSignatures
+
+// SignTransactionPQ signs a transaction with a TIP-899 post-quantum key,
+// appending a pq_auth_sig entry and leaving the ECDSA signatures alone. It
+// delegates to signer.SignTransactionPQ, which documents the checks and
+// errors.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error) {
+	return signer.SignTransactionPQ(tx, key)
+}
 
 // SignTransaction signs a transaction using a btcec private key.
 func SignTransaction(tx *core.Transaction, signer *btcec.PrivateKey) (*core.Transaction, error) {
