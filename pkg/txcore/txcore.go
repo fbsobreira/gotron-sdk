@@ -5,6 +5,7 @@ package txcore
 import (
 	"context"
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -26,6 +27,12 @@ type Broadcaster interface {
 	BroadcastCtx(ctx context.Context, tx *core.Transaction) (*api.Return, error)
 	GetTransactionInfoByIDCtx(ctx context.Context, id string) (*core.TransactionInfo, error)
 }
+
+// ErrPQSchemeDisabled is returned by Send when the signer uses a post-quantum
+// signature scheme that the connected node has not enabled.
+//
+// Experimental: TIP-899 post-quantum support is a draft and may change.
+var ErrPQSchemeDisabled = errors.New("post-quantum signature scheme disabled on node")
 
 // Receipt is an alias for the shared receipt type.
 type Receipt = txresult.Receipt
@@ -49,7 +56,19 @@ func TransactionID(tx *core.Transaction) (string, error) {
 // Note: When result.Code != 0 (broadcast rejected), Send returns a nil Go
 // error but sets receipt.Error. Callers MUST check receipt.Error in addition
 // to the returned error.
+//
+// Experimental: if s is a PQSchemeSigner (as signer.NewPQSigner returns) and
+// b is a PQProber (as *client.GrpcClient is), Send asks the node whether the
+// scheme is enabled before signing. If it is not, Send returns an error
+// wrapping ErrPQSchemeDisabled without signing or broadcasting. If either
+// interface is missing, no probe is made and Send behaves as it does for any
+// other signer; the node still rejects a disabled scheme at broadcast. A
+// Broadcaster that wraps *client.GrpcClient must implement PQProber itself
+// (usually by forwarding to the client) to keep the early check.
 func Send(ctx context.Context, b Broadcaster, s signer.Signer, tx *core.Transaction) (*Receipt, error) {
+	if err := checkPQScheme(ctx, b, s); err != nil {
+		return nil, err
+	}
 	signed, err := s.Sign(tx)
 	if err != nil {
 		return nil, fmt.Errorf("signing transaction: %w", err)
@@ -70,6 +89,44 @@ func Send(ctx context.Context, b Broadcaster, s signer.Signer, tx *core.Transact
 		receipt.Error = string(result.GetMessage())
 	}
 	return receipt, nil
+}
+
+// PQSchemeSigner is implemented by signers that sign with a TIP-899
+// post-quantum key, such as the one signer.NewPQSigner returns.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+type PQSchemeSigner interface {
+	PQScheme() core.PQScheme
+}
+
+// PQProber is implemented by broadcasters that can ask the node whether a
+// TIP-899 post-quantum scheme is enabled, such as *client.GrpcClient.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+type PQProber interface {
+	PQSchemeAllowedCtx(ctx context.Context, scheme core.PQScheme) (bool, error)
+}
+
+// checkPQScheme probes the node for post-quantum capability when both the
+// signer and the broadcaster opt in. It is a no-op otherwise.
+func checkPQScheme(ctx context.Context, b Broadcaster, s signer.Signer) error {
+	pqSigner, ok := s.(PQSchemeSigner)
+	if !ok {
+		return nil
+	}
+	prober, ok := b.(PQProber)
+	if !ok {
+		return nil
+	}
+	scheme := pqSigner.PQScheme()
+	allowed, err := prober.PQSchemeAllowedCtx(ctx, scheme)
+	if err != nil {
+		return fmt.Errorf("checking post-quantum capability: %w", err)
+	}
+	if !allowed {
+		return fmt.Errorf("%w: %s", ErrPQSchemeDisabled, scheme)
+	}
+	return nil
 }
 
 // SendAndConfirm sends a transaction and polls until confirmed or the context

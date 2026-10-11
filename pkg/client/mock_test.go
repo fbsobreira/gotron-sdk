@@ -78,6 +78,7 @@ type mockWalletServer struct {
 	GetEnergyPricesFunc            func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
 	GetBandwidthPricesFunc         func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
 	GetMemoFeeFunc                 func(context.Context, *api.EmptyMessage) (*api.PricesResponseMessage, error)
+	GetChainParametersFunc         func(context.Context, *api.EmptyMessage) (*core.ChainParameters, error)
 
 	// Assets
 	GetAssetIssueByAccountFunc     func(context.Context, *core.Account) (*api.AssetIssueList, error)
@@ -698,4 +699,11 @@ func newMockClient(t *testing.T, mock *mockWalletServer) *client.GrpcClient {
 	c.Conn = conn
 	c.Client = api.NewWalletClient(conn)
 	return c
+}
+
+func (m *mockWalletServer) GetChainParameters(ctx context.Context, in *api.EmptyMessage) (*core.ChainParameters, error) {
+	if m.GetChainParametersFunc != nil {
+		return m.GetChainParametersFunc(ctx, in)
+	}
+	return m.UnimplementedWalletServer.GetChainParameters(ctx, in)
 }

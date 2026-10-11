@@ -19,8 +19,9 @@ const mldsaTRSize = 64
 // mldsaKey is an ML-DSA-44 (FIPS 204) private key, used in pure mode with an
 // empty context string.
 type mldsaKey struct {
-	sk  *mldsa44.PrivateKey
-	pub *PublicKey
+	sk        *mldsa44.PrivateKey
+	pub       *PublicKey
+	destroyed bool
 }
 
 var _ PrivateKey = (*mldsaKey)(nil)
@@ -36,7 +37,12 @@ func NewMLDSA44FromSeed(seed []byte) (PrivateKey, error) {
 	copy(s[:], seed)
 	_, sk := mldsa44.NewKeyFromSeed(&s)
 	clear(s[:])
-	return newMLDSAKey(sk)
+	k, err := newMLDSAKey(sk)
+	if err != nil {
+		*sk = mldsa44.PrivateKey{}
+		return nil, err
+	}
+	return k, nil
 }
 
 func generateMLDSA44(rand io.Reader) (PrivateKey, error) {
@@ -73,9 +79,11 @@ func parseMLDSA44(priv, pub []byte) (PrivateKey, error) {
 		clear(buf[:])
 		mk, mkErr := newMLDSAKey(sk)
 		if mkErr != nil {
+			*sk = mldsa44.PrivateKey{}
 			return nil, mkErr
 		}
 		if trErr := checkMLDSATr(priv, mk.pub); trErr != nil {
+			mk.Destroy()
 			return nil, trErr
 		}
 		k = mk
@@ -91,9 +99,11 @@ func parseMLDSA44(priv, pub []byte) (PrivateKey, error) {
 	}
 	want, err := ParsePublicKey(core.PQScheme_ML_DSA_44, pub)
 	if err != nil {
+		k.Destroy()
 		return nil, err
 	}
 	if !want.Equal(k.Public()) {
+		k.Destroy()
 		return nil, ErrKeyMismatch
 	}
 	return k, nil
@@ -148,6 +158,9 @@ func (k *mldsaKey) Sign(digest []byte) ([]byte, error) {
 // signWith signs digest with an empty context. randomized=false is the
 // FIPS 204 deterministic variant (all-zero rnd), used only by tests.
 func (k *mldsaKey) signWith(digest []byte, randomized bool) ([]byte, error) {
+	if k.destroyed {
+		return nil, ErrKeyDestroyed
+	}
 	if err := checkDigest(digest); err != nil {
 		return nil, err
 	}
@@ -158,8 +171,12 @@ func (k *mldsaKey) signWith(digest []byte, randomized bool) ([]byte, error) {
 	return sig, nil
 }
 
-// Bytes returns a copy of the 2560-byte expanded private key.
+// Bytes returns a copy of the 2560-byte expanded private key, or nil after
+// Destroy.
 func (k *mldsaKey) Bytes() []byte {
+	if k.destroyed {
+		return nil
+	}
 	var buf [mldsa44.PrivateKeySize]byte
 	k.sk.Pack(&buf)
 	out := bytes.Clone(buf[:])
@@ -168,13 +185,24 @@ func (k *mldsaKey) Bytes() []byte {
 }
 
 // Seed returns a copy of the 32-byte seed, or nil when the key was imported
-// in expanded form.
+// in expanded form or has been destroyed.
 func (k *mldsaKey) Seed() []byte {
-	s := k.sk.Seed()
-	if s == nil {
+	if k.destroyed {
 		return nil
 	}
-	return bytes.Clone(s)
+	// circl returns a fresh copy, so no clone (and no uncleared extra copy).
+	return k.sk.Seed()
+}
+
+// Destroy zeroes the circl private key in place: every field of
+// mldsa44.PrivateKey, including the retained seed and the cached NTT forms,
+// is a fixed-size array, so assigning the zero value overwrites them all.
+func (k *mldsaKey) Destroy() {
+	if k.destroyed {
+		return
+	}
+	*k.sk = mldsa44.PrivateKey{}
+	k.destroyed = true
 }
 
 // String describes the key without revealing key material.
