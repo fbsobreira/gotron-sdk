@@ -32,11 +32,13 @@ These options can be used with any command:
     --passphrase-file <path>  Read the keystore passphrase from a file
 -e, --ledger               Use a Ledger hardware wallet
     --no-wait              Do not wait for transaction confirmation
+    --dry-run              Sign and print the transaction without broadcasting it
+    --timeout <seconds>    Confirmation wait in seconds; 0 = don't wait (default: 20)
     --no-pretty            Disable pretty-printed JSON output
 -v, --verbose              Enable verbose output (same as GOTRON_SDK_DEBUG=true)
 ```
 
-Defaults for `node`, `apiKey`, `withTLS`, `ledger`, `verbose` and `nopretty` come from the config file at
+Defaults for `node`, `apiKey`, `withTLS`, `ledger`, `verbose`, `nopretty` and `timeout` come from the config file at
 `~/.config/tronctl/config.default` (see [Configuration](#configuration)).
 
 ## Account Commands

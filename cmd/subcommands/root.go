@@ -113,8 +113,8 @@ func init() {
 		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)
 	RootCmd.PersistentFlags().BoolVar(&noWait, "no-wait", false, "do not wait for TX confirmation")
-	RootCmd.Flags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
-	RootCmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
+	RootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
+	RootCmd.PersistentFlags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
 
 	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", config.Ledger, "Use ledger hardware wallet")
 	RootCmd.PersistentFlags().StringVar(&givenFilePath, "file", "", "Path to file for given command when applicable")

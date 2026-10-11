@@ -90,7 +90,7 @@ func trc10IssueCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -173,7 +173,7 @@ func trc10SendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -265,7 +265,7 @@ func trc10ICOCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 

@@ -78,7 +78,7 @@ func trc20SendCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 

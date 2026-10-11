@@ -100,7 +100,7 @@ func proposalApproveCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -150,7 +150,7 @@ func proposalWithdrawCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -218,7 +218,7 @@ func proposalCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 

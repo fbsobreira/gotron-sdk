@@ -99,7 +99,7 @@ func srCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -152,7 +152,7 @@ func srUpdateBrokerageCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 

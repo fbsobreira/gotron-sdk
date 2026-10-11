@@ -276,6 +276,15 @@ func (C *Controller) txConfirmation() {
 
 }
 
+// Transaction returns the Controller's transaction. After ExecuteTransaction
+// it is the signed transaction, carrying its ECDSA signature or TIP-899
+// pq_auth_sig, which in DryRun mode is the only output since nothing is
+// broadcast and Result and Receipt stay nil. The returned value is the
+// Controller's own instance, not a copy.
+func (C *Controller) Transaction() *core.Transaction {
+	return C.tx
+}
+
 // GetResultError return result error
 func (C *Controller) GetResultError() error {
 	return C.resultError

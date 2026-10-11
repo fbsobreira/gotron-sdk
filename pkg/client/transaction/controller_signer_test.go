@@ -558,3 +558,59 @@ func TestExecuteTransaction_PQSignerKeepsExistingECDSASignature(t *testing.T) {
 	require.Len(t, ctrl.tx.GetPqAuthSig(), 1)
 	assert.Equal(t, key.Public().Bytes(), ctrl.tx.GetPqAuthSig()[0].GetPublicKey())
 }
+
+// TestTransaction_DryRunReturnsSignedTransaction checks that Transaction
+// exposes the signed transaction after a DryRun ExecuteTransaction, for both
+// an ECDSA and a post-quantum signer, and that nothing was broadcast, so
+// Result and Receipt stay nil and the signed transaction is the only output.
+func TestTransaction_DryRunReturnsSignedTransaction(t *testing.T) {
+	t.Run("ecdsa", func(t *testing.T) {
+		key, err := crypto.GenerateKey()
+		require.NoError(t, err)
+		s, err := signer.NewPrivateKeySigner(key)
+		require.NoError(t, err)
+
+		mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
+		c := newMockClient(t, mock)
+
+		tx := newTestTransaction()
+		want, err := SignTransactionECDSA(proto.Clone(tx).(*core.Transaction), key)
+		require.NoError(t, err)
+
+		ctrl := NewController(c, nil, nil, tx, WithSigner(s))
+		ctrl.Behavior.DryRun = true
+		require.NoError(t, ctrl.ExecuteTransaction())
+
+		got := ctrl.Transaction()
+		require.NotNil(t, got)
+		require.Len(t, got.GetSignature(), 1)
+		assert.Equal(t, want.GetSignature()[0], got.GetSignature()[0])
+		assert.True(t, proto.Equal(want.GetRawData(), got.GetRawData()))
+		assert.Zero(t, mock.broadcastCalls.Load())
+		assert.Nil(t, ctrl.Result)
+		assert.Nil(t, ctrl.Receipt)
+	})
+
+	t.Run("post-quantum", func(t *testing.T) {
+		mock := &mockWalletServer{
+			BroadcastTransactionFunc: broadcastOK,
+			GetChainParametersFunc: func(context.Context, *api.EmptyMessage) (*core.ChainParameters, error) {
+				return chainParamsWith("getAllowMlDsa44", 1), nil
+			},
+		}
+		c := newMockClient(t, mock)
+		s, key := newMLDSASigner(t)
+
+		ctrl := NewController(c, nil, nil, newTestTransaction(), WithSigner(s))
+		ctrl.Behavior.DryRun = true
+		require.NoError(t, ctrl.ExecuteTransaction())
+
+		got := ctrl.Transaction()
+		require.NotNil(t, got)
+		require.Len(t, got.GetPqAuthSig(), 1)
+		assert.Equal(t, key.Public().Bytes(), got.GetPqAuthSig()[0].GetPublicKey())
+		assert.NotEmpty(t, got.GetPqAuthSig()[0].GetSignature())
+		assert.Zero(t, mock.broadcastCalls.Load())
+		assert.Nil(t, ctrl.Result)
+	})
+}

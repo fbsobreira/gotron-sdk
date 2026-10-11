@@ -80,7 +80,7 @@ func exchangeCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -143,7 +143,7 @@ func exchangeInjectCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -208,7 +208,7 @@ func exchangeWithdrawCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
@@ -366,7 +366,7 @@ func exchangeTradeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err = ctrlr.ExecuteTransaction(); err != nil {
+			if stop, err := executeOrDryRun(cmd, ctrlr); err != nil || stop {
 				return err
 			}
 
