@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/signer"
@@ -91,4 +92,27 @@ func TestSignTransactionPQ_Refusals(t *testing.T) {
 			assert.Empty(t, tc.tx.GetPqAuthSig())
 		})
 	}
+}
+
+// TestSignTransactionECDSA_SignatureCap checks that the ECDSA helper counts
+// pq_auth_sig entries too and refuses a signature beyond MaxTotalSignatures.
+func TestSignTransactionECDSA_SignatureCap(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+
+	full := newPQTx()
+	for i := 0; i < MaxTotalSignatures-1; i++ {
+		full.Signature = append(full.Signature, make([]byte, 65))
+	}
+	full.PqAuthSig = []*core.PQAuthSig{{PublicKey: []byte{1}, Signature: []byte{2}}}
+
+	_, err = SignTransactionECDSA(full, key)
+	require.ErrorIs(t, err, signer.ErrTooManySignatures)
+	assert.Len(t, full.GetSignature(), MaxTotalSignatures-1)
+
+	room := newPQTx()
+	room.PqAuthSig = full.PqAuthSig
+	_, err = SignTransactionECDSA(room, key)
+	require.NoError(t, err)
+	assert.Len(t, room.GetSignature(), 1)
 }

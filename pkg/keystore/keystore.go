@@ -41,6 +41,7 @@ import (
 	crand "crypto/rand"
 	"crypto/sha256"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -66,7 +67,30 @@ var (
 	// ErrAccountAlreadyExists is returned if an account attempted to import is
 	// already present in the keystore.
 	ErrAccountAlreadyExists = errors.New("account already exists")
+
+	// ErrTooManySignatures is returned when the transaction already carries
+	// MaxTotalSignatures signatures, so the node would reject another.
+	// signer.ErrTooManySignatures is the same error; the "signer:" prefix is
+	// kept from when it was defined there, so its text did not change.
+	ErrTooManySignatures = errors.New("signer: transaction already has the maximum number of signatures")
 )
+
+// MaxTotalSignatures is the most signatures a TRON transaction may carry:
+// ECDSA signatures plus TIP-899 pq_auth_sig entries together. It mirrors the
+// node's TOTAL_SIGN_NUM, a genesis constant that proposals cannot change.
+// signer.MaxTotalSignatures is the same value.
+const MaxTotalSignatures = 5
+
+// CheckSignatureRoom returns an error wrapping ErrTooManySignatures when tx
+// already carries MaxTotalSignatures signatures (ECDSA and pq_auth_sig
+// together), so another one would make the node reject it. Signers call it
+// before any key or device use.
+func CheckSignatureRoom(tx *core.Transaction) error {
+	if n := len(tx.GetSignature()) + len(tx.GetPqAuthSig()); n >= MaxTotalSignatures {
+		return fmt.Errorf("%w: %d of %d", ErrTooManySignatures, n, MaxTotalSignatures)
+	}
+	return nil
+}
 
 // KeyStoreType is the reflect type of a keystore backend.
 var KeyStoreType = reflect.TypeOf(&KeyStore{})
@@ -310,6 +334,9 @@ func (ks *KeyStore) SignHash(a Account, hash []byte) ([]byte, error) {
 
 // SignTx signs the given transaction with the requested account.
 func (ks *KeyStore) SignTx(a Account, tx *core.Transaction) (*core.Transaction, error) {
+	if err := CheckSignatureRoom(tx); err != nil {
+		return nil, err
+	}
 	// Look up the key to sign with and abort if it cannot be found
 	ks.mu.RLock()
 	defer ks.mu.RUnlock()
@@ -349,6 +376,10 @@ func (ks *KeyStore) SignHashWithPassphrase(a Account, passphrase string, hash []
 // SignTxWithPassphrase signs the transaction if the private key matching the
 // given address can be decrypted with the given passphrase.
 func (ks *KeyStore) SignTxWithPassphrase(a Account, passphrase string, tx *core.Transaction) (*core.Transaction, error) {
+	// Check before the scrypt decryption, which is the expensive part.
+	if err := CheckSignatureRoom(tx); err != nil {
+		return nil, err
+	}
 	_, key, err := ks.GetDecryptedKey(a, passphrase)
 	if err != nil {
 		return nil, err

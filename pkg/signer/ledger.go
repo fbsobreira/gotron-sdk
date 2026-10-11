@@ -2,6 +2,7 @@ package signer
 
 import (
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/ledger"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	proto "google.golang.org/protobuf/proto"
@@ -35,6 +36,10 @@ func NewLedgerSignerWithAddress(addr address.Address) Signer {
 
 // Sign signs the transaction using the connected Ledger device.
 func (s *ledgerSigner) Sign(tx *core.Transaction) (*core.Transaction, error) {
+	// Check before the device asks the user to confirm.
+	if err := keystore.CheckSignatureRoom(tx); err != nil {
+		return nil, err
+	}
 	rawData, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, err

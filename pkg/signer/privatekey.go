@@ -8,6 +8,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	proto "google.golang.org/protobuf/proto"
 )
@@ -52,6 +53,9 @@ func NewPrivateKeySignerFromBTCEC(key *btcec.PrivateKey) (Signer, error) {
 
 // Sign appends a signature to the transaction.
 func (s *privateKeySigner) Sign(tx *core.Transaction) (*core.Transaction, error) {
+	if err := keystore.CheckSignatureRoom(tx); err != nil {
+		return nil, err
+	}
 	rawData, err := proto.Marshal(tx.GetRawData())
 	if err != nil {
 		return nil, err
