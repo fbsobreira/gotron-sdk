@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/require"
@@ -379,6 +380,7 @@ func TestGetAccount_NilResponse(t *testing.T) {
 	require.NotPanics(t, func() {
 		_, err := c.GetAccount(testAddrA)
 		require.ErrorContains(t, err, "account not found")
+		require.ErrorIs(t, err, client.ErrAccountNotFound)
 	})
 }
 
