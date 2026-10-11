@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"google.golang.org/protobuf/encoding/protojson"
 	proto "google.golang.org/protobuf/proto"
@@ -161,7 +162,9 @@ func FromRawDataHex(rawDataHex string, signatures ...[]byte) (*core.Transaction,
 //
 // If a txID is present in the JSON, it is validated against the SHA256
 // hash of the deserialized raw_data. Signatures are decoded from hex
-// strings and attached to the transaction.
+// strings (an optional "0x" prefix is accepted) and attached to the
+// transaction; an empty or invalid entry is an error wrapping
+// ErrInvalidTxJSON that names its index but not its value.
 //
 // TIP-899 post-quantum signatures are read from the pq_auth_sig array. Each
 // entry carries a scheme (the enum name such as "FN_DSA_512" or "ML_DSA_44",
@@ -189,9 +192,9 @@ func FromJSON(jsonData []byte) (*core.Transaction, error) {
 	// Decode signatures from hex strings
 	var sigs [][]byte
 	for i, sigHex := range jtx.Signature {
-		sig, err := hex.DecodeString(sigHex)
+		sig, err := decodeJSONHex(sigHex, fmt.Sprintf("signature[%d]", i), "")
 		if err != nil {
-			return nil, fmt.Errorf("failed to decode signature[%d]: %w", i, err)
+			return nil, err
 		}
 		sigs = append(sigs, sig)
 	}
@@ -233,11 +236,11 @@ func decodePQAuthSigs(entries []jsonPQAuthSig) ([]*core.PQAuthSig, error) {
 		if err != nil {
 			return nil, err
 		}
-		pk, err := decodePQHex(e.PublicKey, i, "public_key")
+		pk, err := decodeJSONHex(e.PublicKey, fmt.Sprintf("pq_auth_sig[%d]", i), "public_key")
 		if err != nil {
 			return nil, err
 		}
-		sig, err := decodePQHex(e.Signature, i, "signature")
+		sig, err := decodeJSONHex(e.Signature, fmt.Sprintf("pq_auth_sig[%d]", i), "signature")
 		if err != nil {
 			return nil, err
 		}
@@ -250,19 +253,28 @@ func decodePQAuthSigs(entries []jsonPQAuthSig) ([]*core.PQAuthSig, error) {
 	return out, nil
 }
 
-// decodePQHex decodes one non-empty hex field of a pq_auth_sig entry,
-// accepting an optional "0x" or "0X" prefix.
-func decodePQHex(s string, index int, field string) ([]byte, error) {
-	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
+// decodeJSONHex decodes one non-empty hex field of a JSON transaction,
+// accepting an optional "0x" or "0X" prefix. at names the entry (for example
+// "signature[0]") and field the part of it, if any. Errors wrap
+// ErrInvalidTxJSON and never include the offending value.
+func decodeJSONHex(s, at, field string) ([]byte, error) {
+	if common.Has0xPrefix(s) {
 		s = s[2:]
 	}
+	name := "hex"
+	if field != "" {
+		name = field + " hex"
+	}
 	if s == "" {
-		return nil, fmt.Errorf("%w: pq_auth_sig[%d]: empty %s", ErrInvalidTxJSON, index, field)
+		if field == "" {
+			return nil, fmt.Errorf("%w: %s: empty", ErrInvalidTxJSON, at)
+		}
+		return nil, fmt.Errorf("%w: %s: empty %s", ErrInvalidTxJSON, at, field)
 	}
 	b, err := hex.DecodeString(s)
 	if err != nil {
 		// The decoder error quotes the offending byte; report only the location.
-		return nil, fmt.Errorf("%w: pq_auth_sig[%d]: invalid %s hex", ErrInvalidTxJSON, index, field)
+		return nil, fmt.Errorf("%w: %s: invalid %s", ErrInvalidTxJSON, at, name)
 	}
 	return b, nil
 }
