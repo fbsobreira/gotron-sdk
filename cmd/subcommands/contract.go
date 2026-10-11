@@ -321,11 +321,11 @@ func contractTriggerCmd() *cobra.Command {
 				}
 
 				result := make(map[string]interface{})
-				result["EnergyRequired"] = estimate.EnergyRequired
+				result["EnergyRequired"] = estimate.GetEnergyRequired()
 				result["result"] = map[string]interface{}{
-					"code":    estimate.Result.Code.String(),
-					"message": string(estimate.Result.Message),
-					"result":  estimate.Result.Result,
+					"code":    estimate.GetResult().GetCode().String(),
+					"message": string(estimate.GetResult().GetMessage()),
+					"result":  estimate.GetResult().GetResult(),
 				}
 
 				asJSON, err := json.Marshal(result)
