@@ -1,8 +1,12 @@
 package cmd
 
 import (
+	"fmt"
+	"io"
 	"net"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -102,9 +106,92 @@ func (r *Runtime) applyEnvOverrides(flagNode, flagSigner string, flagTLS bool) s
 	return signer
 }
 
-// setupKeystore sets the default keystore directory if provided.
-func (r *Runtime) setupKeystore() {
-	if len(r.DefaultKeystoreDir) > 0 {
-		store.SetDefaultLocation(r.DefaultKeystoreDir)
+// setupKeystore points the store at the --ks-dir / TRONCTL_KS_DIR value, if
+// one was given. The value is the config root that holds the account-keys
+// and pq-keys folders, not a keystore folder itself; see resolveKsDir for how
+// it becomes a path. Warnings go to w, best effort:
+//   - a value whose last element is account-keys or pq-keys is almost always
+//     meant as a key folder, so the warning names the folders actually read
+//     and suggests the parent;
+//   - a relative value used to be resolved against the home directory, so
+//     while only that old location holds keys the warning names both paths.
+func (r *Runtime) setupKeystore(w io.Writer) error {
+	if len(r.DefaultKeystoreDir) == 0 {
+		return nil
 	}
+	root, err := resolveKsDir(r.DefaultKeystoreDir)
+	if err != nil {
+		return err
+	}
+	if b := filepath.Base(root); b == c.DefaultConfigAccountAliasesDirName || b == c.DefaultConfigPQKeysDirName {
+		_, _ = fmt.Fprintf(w, "warning: --ks-dir/TRONCTL_KS_DIR %s looks like a key folder, but it is used as the config root: "+
+			"keys are read from %s and %s; pass the parent, %s, to use the folder itself\n",
+			root, filepath.Join(root, c.DefaultConfigAccountAliasesDirName),
+			filepath.Join(root, c.DefaultConfigPQKeysDirName), filepath.Dir(root))
+	}
+	if old, ok := legacyKsDir(r.DefaultKeystoreDir, root); ok {
+		_, _ = fmt.Fprintf(w, "warning: --ks-dir/TRONCTL_KS_DIR %q now means %s (relative to the current directory), "+
+			"but keys exist under %s; use an absolute path or ~/%s to keep using them\n",
+			r.DefaultKeystoreDir, root, old, r.DefaultKeystoreDir)
+	}
+	store.SetDefaultLocation(root)
+	return nil
+}
+
+// legacyKsDir reports the home-relative path a relative --ks-dir value used
+// to mean, when that old path holds keys and root holds none.
+func legacyKsDir(dir, root string) (string, bool) {
+	if filepath.IsAbs(dir) || hasHomePrefix(dir, os.PathSeparator) || hasKeyFolders(root) {
+		return "", false
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", false
+	}
+	old := filepath.Join(home, dir)
+	if old == root || !hasKeyFolders(old) {
+		return "", false
+	}
+	return old, true
+}
+
+// hasKeyFolders reports whether the account-keys or pq-keys folder under
+// root has any entry.
+func hasKeyFolders(root string) bool {
+	for _, sub := range []string{c.DefaultConfigAccountAliasesDirName, c.DefaultConfigPQKeysDirName} {
+		if entries, err := os.ReadDir(filepath.Join(root, sub)); err == nil && len(entries) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// hasHomePrefix reports whether dir is ~ or starts with ~ and a separator:
+// / on any system, and also \ when sep is \ (Windows), since elsewhere \ is
+// an ordinary filename character. ~user forms are not recognised.
+func hasHomePrefix(dir string, sep byte) bool {
+	if dir == "~" || strings.HasPrefix(dir, "~/") {
+		return true
+	}
+	return sep == '\\' && strings.HasPrefix(dir, `~\`)
+}
+
+// resolveKsDir turns a --ks-dir / TRONCTL_KS_DIR value into an absolute
+// path. A leading ~ is the home directory (see hasHomePrefix), and any other
+// relative path is resolved against the current directory, the same
+// directory a .env file is loaded from. (The store itself would resolve a
+// relative path against the home directory.)
+func resolveKsDir(dir string) (string, error) {
+	if hasHomePrefix(dir, os.PathSeparator) {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolve --ks-dir %q: %w", dir, err)
+		}
+		return filepath.Join(home, dir[1:]), nil
+	}
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolve --ks-dir %q: %w", dir, err)
+	}
+	return abs, nil
 }

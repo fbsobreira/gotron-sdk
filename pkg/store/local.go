@@ -198,7 +198,8 @@ func (s *Store) DefaultLocation() string {
 }
 
 // SetDefaultLocation updates the config directory and creates the account-keys
-// subdirectory if needed.
+// subdirectory if needed. A relative directory is resolved against the home
+// directory.
 func (s *Store) SetDefaultLocation(directory string) {
 	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Lock()
@@ -370,7 +371,10 @@ func DefaultLocation() string {
 	return configAccountsDir()
 }
 
-// SetDefaultLocation updates the default keystore directory and creates it if needed.
+// SetDefaultLocation sets the config root, the folder that holds the
+// account-keys and pq-keys folders, and creates its account-keys folder if
+// needed. A relative directory is resolved against the home directory, not
+// the current one (tronctl makes --ks-dir absolute before calling it).
 func SetDefaultLocation(directory string) {
 	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Lock()

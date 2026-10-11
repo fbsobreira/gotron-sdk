@@ -108,7 +108,7 @@ Reference docs live in `docs/` (`cli-usage.md`, `sdk-usage.md`, `api-reference.m
 | `TRONCTL_NODE` | Default node endpoint |
 | `TRONCTL_TLS` | `true`/`1` enables TLS |
 | `TRONCTL_SIGNER` | Default signer address |
-| `TRONCTL_KS_DIR` | Keystore directory |
+| `TRONCTL_KS_DIR` | Config root holding `account-keys/` and `pq-keys/` (default `~/.tronctl`) |
 | `TRONGRID_APIKEY` | TronGrid API key (`TRON-PRO-API-KEY` header) |
 
 ## Go conventions

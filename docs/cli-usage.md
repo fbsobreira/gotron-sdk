@@ -27,7 +27,7 @@ These options are accepted by every command:
 -k, --apiKey <key>         TronGrid API key
     --withTLS              Use TLS connection
 -s, --signer <signer>      Signer account name or address
-    --ks-dir <path>        Keystore directory
+    --ks-dir <path>        Config root holding account-keys/ and pq-keys/ (default: ~/.tronctl)
     --passphrase           Prompt for the keystore passphrase
     --passphrase-file <path>  Read the keystore passphrase from a file
 -e, --ledger               Use a Ledger hardware wallet
@@ -678,7 +678,10 @@ The following environment variables affect tronctl behavior:
 - `TRONCTL_NODE`: Default node address
 - `TRONCTL_TLS`: Enable TLS (true/1)
 - `TRONCTL_SIGNER`: Default signer (account name or address)
-- `TRONCTL_KS_DIR`: Keystore directory
+- `TRONCTL_KS_DIR`: Config root, same as `--ks-dir`. Keystores are read from its
+  `account-keys` folder and post-quantum keys from `pq-keys`, so the path should not end
+  in `account-keys`. A relative path is resolved against the current directory, `~`
+  against the home directory.
 - `TRONGRID_APIKEY`: Trongrid API key
 - `GOTRON_SDK_DEBUG`: Enable debug output
 
