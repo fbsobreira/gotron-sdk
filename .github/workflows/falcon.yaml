@@ -10,6 +10,9 @@ jobs:
   falcon:
     name: FN-DSA-512 liboqs backend (Go 1.26)
     runs-on: ubuntu-latest
+    # The job only reads the repository.
+    permissions:
+      contents: read
     # Pin the toolchain to the setup-go version — see the note in test.yaml.
     env:
       GOTOOLCHAIN: local
@@ -23,6 +26,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v6
