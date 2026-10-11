@@ -24,25 +24,27 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 			return "", fmt.Errorf("generate account name: %w", err)
 		}
 		name = base + "-imported"
-		for store.DoesNamedAccountExist(name) {
+		for nameTaken(DefaultStore(), name) {
 			base, err = generateName()
 			if err != nil {
 				return "", fmt.Errorf("generate account name: %w", err)
 			}
 			name = base + "-imported"
 		}
-	} else if store.DoesNamedAccountExist(name) {
-		return "", fmt.Errorf("account %s already exists", name)
+	} else {
+		if err := store.ValidateAccountName(name); err != nil {
+			return "", err
+		}
+		// Names are unique across ECDSA and post-quantum accounts.
+		if nameTaken(DefaultStore(), name) {
+			return "", fmt.Errorf("account %s already exists", name)
+		}
 	}
 
 	// private key from bytes
 	sk, err := keys.GetPrivateKeyFromHex(privateKey)
 	if err != nil {
 		return "", err
-	}
-
-	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
-		return "", fmt.Errorf("invalid account name %q", name)
 	}
 
 	ks := store.FromAccountName(name)
@@ -118,20 +120,21 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 			return "", fmt.Errorf("generate account name: %w", err)
 		}
 		name = base + "-imported"
-		for store.DoesNamedAccountExist(name) {
+		for nameTaken(DefaultStore(), name) {
 			base, err = generateName()
 			if err != nil {
 				return "", fmt.Errorf("generate account name: %w", err)
 			}
 			name = base + "-imported"
 		}
-	} else if store.DoesNamedAccountExist(name) {
-		return "", fmt.Errorf("account %s already exists", name)
-	}
-
-	// Prevent path traversal via account name.
-	if name == "." || name == ".." || strings.ContainsAny(name, `/\`) || filepath.IsAbs(name) {
-		return "", fmt.Errorf("invalid account name %q", name)
+	} else {
+		if err := store.ValidateAccountName(name); err != nil {
+			return "", err
+		}
+		// Names are unique across ECDSA and post-quantum accounts.
+		if nameTaken(DefaultStore(), name) {
+			return "", fmt.Errorf("account %s already exists", name)
+		}
 	}
 
 	key, err := keystore.DecryptKey(keyJSON, passphrase)
