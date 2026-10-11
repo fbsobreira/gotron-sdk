@@ -86,10 +86,10 @@ var (
 
 			return nil
 		},
-		// Zero decrypted PQ signing keys after a successful run; Execute
+		// Drop decrypted signing keys after a successful run; Execute
 		// also does it, which covers failed runs.
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
-			destroyPQSigningKeys()
+			releaseSigningKeys()
 		},
 		Long: fmt.Sprintf(`
 CLI interface to Tron blockchain
@@ -296,9 +296,9 @@ func getGitVersion() (string, error) {
 func Execute() {
 	RootCmd.SilenceErrors = true
 	err := RootCmd.Execute()
-	// Zero any decrypted PQ signing key now, failed runs included: cobra
+	// Drop any decrypted signing key now, failed runs included: cobra
 	// skips PersistentPostRun on error and os.Exit below skips defers.
-	destroyPQSigningKeys()
+	releaseSigningKeys()
 	if err != nil {
 		if tag, errGit := getGitVersion(); errGit == nil {
 			VersionWrapDump += ":" + tag

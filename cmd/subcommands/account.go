@@ -773,7 +773,13 @@ func accountSignCmd() *cobra.Command {
 					}
 					return err
 				}
-				signature, err = ks.Wallets()[0].SignText(*acct, []byte(message), useFixedLength)
+				// Closing zeroes the unlocked key.
+				defer ks.Close()
+				wallets := ks.Wallets()
+				if len(wallets) == 0 {
+					return fmt.Errorf("no wallet in the keystore for %s", signerAddress.String())
+				}
+				signature, err = wallets[0].SignText(*acct, []byte(message), useFixedLength)
 				if err != nil {
 					return err
 				}
