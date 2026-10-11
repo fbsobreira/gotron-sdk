@@ -759,16 +759,18 @@ func accountSignCmd() *cobra.Command {
 			} else {
 				// TIP-899 defines transaction signatures only, so a PQ
 				// account has no message signature to produce.
-				_, isPQ, err := lookupPQAccount(signerAddress.String())
-				if err != nil {
-					return err
-				}
-				if isPQ {
+				// An unreadable pq-keys folder must not block an ECDSA
+				// account; report it only if the ECDSA lookup fails too.
+				_, isPQ, pqErr := lookupPQAccount(signerAddress.String())
+				if pqErr == nil && isPQ {
 					return errors.New("account sign does not support post-quantum keys " +
 						"(TIP-899 defines no message signature)")
 				}
 				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
 				if err != nil {
+					if pqErr != nil {
+						return fmt.Errorf("%w; post-quantum account lookup also failed: %w", err, pqErr)
+					}
 					return err
 				}
 				signature, err = ks.Wallets()[0].SignText(*acct, []byte(message), useFixedLength)

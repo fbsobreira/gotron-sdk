@@ -687,3 +687,16 @@ func TestResolveSignerECDSAWhenPQStoreUnreadable(t *testing.T) {
 	assert.Contains(t, err.Error(), "post-quantum")
 	assert.Contains(t, err.Error(), c.DefaultConfigPQKeysDirName)
 }
+
+func TestAccountSignECDSAWhenPQStoreUnreadable(t *testing.T) {
+	root := pqTestEnv(t, "pw")
+	ecdsaAddr := addECDSAAccount(t, "alice", "pw")
+	require.NoError(t, os.WriteFile(filepath.Join(root, c.DefaultConfigPQKeysDirName), []byte("x"), 0600))
+	prevSigner := signerAddress
+	t.Cleanup(func() { signerAddress = prevSigner })
+	require.NoError(t, signerAddress.Set(ecdsaAddr))
+
+	// account sign prints with fmt.Println; success here is "no error".
+	_, _, err := runKeysCmd(t, accountSignCmd(), "hello")
+	require.NoError(t, err, "an unreadable pq-keys folder must not block ECDSA message signing")
+}
