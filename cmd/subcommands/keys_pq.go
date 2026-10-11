@@ -167,8 +167,12 @@ func addPQKey(cmd *cobra.Command, name string, scheme core.PQScheme) error {
 // importPQKeystore stores a TIP-899 keystore under name, or under a
 // generated name when name is empty.
 func importPQKeystore(cmd *cobra.Command, data []byte, name string) error {
-	if name != "" && store.NameExists(name) {
-		return accountExistsError(name)
+	// Validate the name and check both stores before prompting, so a bad
+	// name is not rejected only after the passphrase was typed.
+	if name != "" {
+		if err := checkNewAccountName(name); err != nil {
+			return err
+		}
 	}
 	pass, err := getPassphrase()
 	if err != nil {
@@ -208,8 +212,9 @@ func importToolkitKey(cmd *cobra.Command, path, name string) error {
 		if name, err = generateImportName(); err != nil {
 			return err
 		}
-	} else if store.NameExists(name) {
-		return accountExistsError(name)
+	} else if err := checkNewAccountName(name); err != nil {
+		// Checked before the passphrase prompt.
+		return err
 	}
 	pass, err := getPassphraseWithConfirm()
 	if err != nil {

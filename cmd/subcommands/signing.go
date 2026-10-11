@@ -15,19 +15,23 @@ import (
 // set, the decrypted TIP-899 post-quantum key when addr is a PQ account,
 // otherwise the unlocked keystore account. A PQ key stays decrypted until
 // destroyPQSigningKeys runs at the end of the command.
+//
+// A failed PQ lookup (pq-keys unreadable, or a stray file in its place) does
+// not block ECDSA accounts: the keystore is tried next, and only if that
+// fails too is the error returned, carrying both causes.
 func resolveSigner(addr tronAddress) (pkgsigner.Signer, error) {
 	if useLedgerWallet {
 		return pkgsigner.NewLedgerSignerWithAddress(addr.GetAddress()), nil
 	}
-	pqAcct, isPQ, err := lookupPQAccount(addr.String())
-	if err != nil {
-		return nil, err
-	}
-	if isPQ {
+	pqAcct, isPQ, pqErr := lookupPQAccount(addr.String())
+	if pqErr == nil && isPQ {
 		return resolvePQSigner(pqAcct)
 	}
 	ks, acct, err := store.UnlockedKeystore(addr.String(), passphrase)
 	if err != nil {
+		if pqErr != nil {
+			return nil, fmt.Errorf("%w; post-quantum account lookup also failed: %w", err, pqErr)
+		}
 		return nil, err
 	}
 	return pkgsigner.NewKeystoreSigner(ks, *acct), nil

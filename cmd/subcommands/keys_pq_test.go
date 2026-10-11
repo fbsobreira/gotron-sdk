@@ -629,3 +629,61 @@ func TestResolveSignerFNDSAWithoutFalcon(t *testing.T) {
 	assert.True(t, errors.Is(err, pqc.ErrFalconUnavailable), "got %v", err)
 	assert.Contains(t, err.Error(), "-tags falcon")
 }
+
+// TestPQImportRejectsInvalidNameBeforePrompt checks that import-toolkit and a
+// PQ import-ks validate an explicit account name before asking for a
+// passphrase. --passphrase is set and stdin is not a terminal, so reaching
+// the prompt would fail with a terminal error instead.
+func TestPQImportRejectsInvalidNameBeforePrompt(t *testing.T) {
+	pqTestEnv(t, "pw")
+	passphraseFilePath, userProvidesPassphrase = "", true
+
+	k := newMLKey(t)
+	toolkit, err := pqc.MarshalToolkitJSON(k)
+	require.NoError(t, err)
+	toolkitFile := writeTempFile(t, "toolkit.json", toolkit)
+	ksFile, _ := mlKeystoreFile(t, "pw")
+
+	tests := []struct {
+		name string
+		cmd  string
+		file string
+	}{
+		{name: "import-toolkit", cmd: "import-toolkit", file: toolkitFile},
+		{name: "import-ks post-quantum", cmd: "import-ks", file: ksFile},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, _, err := runKeysCmd(t, keysSubCmd(t, tt.cmd), tt.file, "../x")
+			require.Error(t, err)
+			assert.True(t, errors.Is(err, store.ErrInvalidAccountName), "got %v", err)
+			assert.NotContains(t, out, "passphrase", "no passphrase prompt before the name check")
+			assert.Empty(t, pqAccountNames(t))
+		})
+	}
+}
+
+// TestResolveSignerECDSAWhenPQStoreUnreadable checks that an unreadable
+// pq-keys folder does not stop an ECDSA account from signing, and that when
+// the ECDSA lookup fails too the error names both causes.
+func TestResolveSignerECDSAWhenPQStoreUnreadable(t *testing.T) {
+	root := pqTestEnv(t, "pw")
+	ecdsaAddr := addECDSAAccount(t, "alice", "pw")
+	// pq-keys as a plain file cannot be read as a directory.
+	require.NoError(t, os.WriteFile(filepath.Join(root, c.DefaultConfigPQKeysDirName), []byte("x"), 0600))
+
+	var a tronAddress
+	require.NoError(t, a.Set(ecdsaAddr))
+	s, err := resolveSigner(a)
+	require.NoError(t, err)
+	require.NotNil(t, s)
+	assert.Equal(t, ecdsaAddr, s.Address().String())
+
+	var unknown tronAddress
+	require.NoError(t, unknown.Set("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8"))
+	s, err = resolveSigner(unknown)
+	require.Error(t, err)
+	assert.Nil(t, s)
+	assert.Contains(t, err.Error(), "post-quantum")
+	assert.Contains(t, err.Error(), c.DefaultConfigPQKeysDirName)
+}

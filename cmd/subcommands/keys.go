@@ -147,7 +147,7 @@ func keysMnemonicCmd() *cobra.Command {
 
 func keysRecoverMnemonicCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "recover-from-mnemonic [ACCOUNT_NAME]",
+		Use:   "recover-from-mnemonic <ACCOUNT_NAME>",
 		Short: "Recover account from mnemonic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
