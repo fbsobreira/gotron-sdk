@@ -183,7 +183,10 @@ func WaitForConfirmation(ctx context.Context, b Broadcaster, receipt *Receipt, p
 }
 
 // ApplyPermissionID sets the permission ID on all contracts in the
-// transaction.
+// transaction. Call it before signing: the permission ID is part of the
+// signed digest, so changing it on a transaction that already carries
+// signatures invalidates them and the node rejects it.
+// transaction.Controller refuses that case (see WithPermissionID).
 func ApplyPermissionID(tx *api.TransactionExtention, id int32) {
 	if tx == nil || tx.Transaction == nil || tx.Transaction.RawData == nil {
 		return

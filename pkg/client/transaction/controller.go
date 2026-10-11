@@ -87,6 +87,10 @@ func NewController(
 // WithPermissionID sets the permission ID for multi-signature transactions.
 // PermissionID = 0 is the owner permission (default), PermissionID = 2 is
 // commonly used for active permissions in multi-sig setups.
+//
+// When co-signing a transaction that already carries signatures, the ID must
+// match the one it was signed with; ExecuteTransaction refuses to change it
+// with an error wrapping ErrBadTransactionParam.
 func WithPermissionID(id int32) func(*Controller) {
 	return func(c *Controller) {
 		c.Behavior.PermissionID = &id
@@ -120,10 +124,26 @@ func setPermissionID(tx *core.Transaction, id int32) {
 	}
 }
 
+// applyPermissionID sets Behavior.PermissionID on every contract. The
+// permission ID is part of the signed digest, so changing it on a transaction
+// that already carries signatures would invalidate them; that is refused
+// with ErrBadTransactionParam. Setting the ID a signed transaction already
+// has is a no-op.
 func (C *Controller) applyPermissionID() {
-	if C.Behavior.PermissionID != nil {
-		setPermissionID(C.tx, *C.Behavior.PermissionID)
+	if C.executionError != nil || C.Behavior.PermissionID == nil {
+		return
 	}
+	id := *C.Behavior.PermissionID
+	if len(C.tx.GetSignature())+len(C.tx.GetPqAuthSig()) > 0 {
+		for i, contract := range C.tx.GetRawData().GetContract() {
+			if contract.GetPermissionId() != id {
+				C.executionError = fmt.Errorf("%w: contract[%d] has permission id %d and is already signed; setting %d would invalidate its signatures",
+					ErrBadTransactionParam, i, contract.GetPermissionId(), id)
+				return
+			}
+		}
+	}
+	setPermissionID(C.tx, id)
 }
 
 // softwareSigner returns the keystore signer used by the Software fallback.

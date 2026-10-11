@@ -532,6 +532,55 @@ func TestExecuteTransaction_MultiSignAppends(t *testing.T) {
 	}
 }
 
+// TestExecuteTransaction_PermissionIDOnSignedTransaction checks that
+// WithPermissionID cannot change the permission ID of a transaction that
+// already carries an ECDSA or post-quantum signature, since that would
+// invalidate it, while the ID it already has is accepted and co-signed.
+func TestExecuteTransaction_PermissionIDOnSignedTransaction(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	s, err := signer.NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	prior := map[string]func(*core.Transaction){
+		"ecdsa": func(tx *core.Transaction) {
+			tx.Signature = [][]byte{make([]byte, 65)}
+		},
+		"pq": func(tx *core.Transaction) {
+			tx.PqAuthSig = []*core.PQAuthSig{{PublicKey: []byte{1}, Signature: []byte{2}}}
+		},
+	}
+	for kind, sign := range prior {
+		t.Run(kind+"/different id refused", func(t *testing.T) {
+			mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
+			tx := newTestTransaction()
+			sign(tx)
+			before := len(tx.GetSignature())
+			ctrl := NewController(newMockClient(t, mock), nil, nil, tx, WithSigner(s), WithPermissionID(2))
+
+			err := ctrl.ExecuteTransaction()
+			require.ErrorIs(t, err, ErrBadTransactionParam)
+			assert.Contains(t, err.Error(), "already signed")
+			assert.Zero(t, ctrl.tx.GetRawData().GetContract()[0].GetPermissionId(), "permission id must be left as signed")
+			assert.Len(t, ctrl.tx.GetSignature(), before, "no signature may be added")
+			assert.Zero(t, mock.broadcastCalls.Load())
+		})
+		t.Run(kind+"/same id accepted", func(t *testing.T) {
+			mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
+			tx := newTestTransaction()
+			setPermissionID(tx, 2)
+			sign(tx)
+			before := len(tx.GetSignature())
+			ctrl := NewController(newMockClient(t, mock), nil, nil, tx, WithSigner(s), WithPermissionID(2))
+
+			require.NoError(t, ctrl.ExecuteTransaction())
+			assert.Equal(t, int32(2), ctrl.tx.GetRawData().GetContract()[0].GetPermissionId())
+			assert.Len(t, ctrl.tx.GetSignature(), before+1)
+			assert.Equal(t, int32(1), mock.broadcastCalls.Load())
+		})
+	}
+}
+
 // TestExecuteTransaction_PQSignerKeepsExistingECDSASignature covers a mixed
 // transaction: an ECDSA signature already present stays as is and the PQ
 // signer adds exactly one pq_auth_sig entry.
