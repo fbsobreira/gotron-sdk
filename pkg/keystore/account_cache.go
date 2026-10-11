@@ -234,6 +234,62 @@ func (ac *accountCache) close() {
 	ac.mu.Unlock()
 }
 
+// keyFileReader reads the account address from keystore files. It reuses
+// one buffer and one decode target across files, so a field one file sets
+// must be cleared before the next file is decoded. Not safe for concurrent
+// use.
+type keyFileReader struct {
+	buf *bufio.Reader
+	key struct {
+		Address string `json:"address"`
+		// Scheme is set only by TIP-899 post-quantum keystores, whose
+		// address is Base58 and which this ECDSA keystore cannot open.
+		Scheme string `json:"scheme"`
+	}
+}
+
+func newKeyFileReader() *keyFileReader {
+	return &keyFileReader{buf: new(bufio.Reader)}
+}
+
+// read returns the account in the keystore file at path, or nil when the
+// file cannot be read, is not an ECDSA keystore, or has no valid address.
+func (r *keyFileReader) read(path string) *Account {
+	fd, err := os.Open(path)
+	if err != nil {
+		fmt.Printf("NFailed to open keys: %v", err)
+		zap.L().Error("Failed to open keystore file", zap.String("path", path), zap.Error(err))
+		return nil
+	}
+	defer func() { _ = fd.Close() }()
+	r.buf.Reset(fd)
+	// Parse the address.
+	r.key.Address = ""
+	r.key.Scheme = ""
+	err = json.NewDecoder(r.buf).Decode(&r.key)
+	if err != nil {
+		fmt.Printf("Failed to decode keystore key: [%s] %+v", path, err)
+		return nil
+	}
+	if r.key.Scheme != "" {
+		// Post-quantum keystores live in their own store; skip quietly.
+		zap.L().Debug("Skipping post-quantum keystore file", zap.String("path", path))
+		return nil
+	}
+	addr, hexErr := address.HexToAddress(r.key.Address)
+
+	switch {
+	case hexErr != nil || addr == nil:
+		fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, hexErr)
+	default:
+		return &Account{
+			Address: addr,
+			URL:     URL{Scheme: KeyStoreScheme, Path: path},
+		}
+	}
+	return nil
+}
+
 // scanAccounts checks if any changes have occurred on the filesystem, and
 // updates the account cache accordingly
 func (ac *accountCache) scanAccounts() error {
@@ -248,39 +304,7 @@ func (ac *accountCache) scanAccounts() error {
 		return nil
 	}
 	// Create a helper method to scan the contents of the key files
-	var (
-		buf = new(bufio.Reader)
-		key struct {
-			Address string `json:"address"`
-		}
-	)
-	readAccount := func(path string) *Account {
-		fd, err := os.Open(path)
-		if err != nil {
-			fmt.Printf("NFailed to open keys: %v", err)
-			zap.L().Error("Failed to open keystore file", zap.String("path", path), zap.Error(err))
-			return nil
-		}
-		defer func() { _ = fd.Close() }()
-		buf.Reset(fd)
-		// Parse the address.
-		key.Address = ""
-		err = json.NewDecoder(buf).Decode(&key)
-		addr, hexErr := address.HexToAddress(key.Address)
-
-		switch {
-		case err != nil:
-			fmt.Printf("Failed to decode keystore key: [%s] %+v", path, err)
-		case hexErr != nil || addr == nil:
-			fmt.Printf("Failed to decode keystore key, missing or zero address: [%s] %+v", path, hexErr)
-		default:
-			return &Account{
-				Address: addr,
-				URL:     URL{Scheme: KeyStoreScheme, Path: path},
-			}
-		}
-		return nil
-	}
+	readAccount := newKeyFileReader().read
 	// Process all the file diffs
 	start := time.Now()
 

@@ -8,10 +8,19 @@ import (
 )
 
 // resolveSigner returns the signer for addr: the Ledger device when --ledger is
-// set, otherwise the unlocked keystore account.
+// set, the decrypted TIP-899 post-quantum key when addr is a PQ account,
+// otherwise the unlocked keystore account. A PQ key stays decrypted until
+// destroyPQSigningKeys runs at the end of the command.
 func resolveSigner(addr tronAddress) (pkgsigner.Signer, error) {
 	if useLedgerWallet {
 		return pkgsigner.NewLedgerSignerWithAddress(addr.GetAddress()), nil
+	}
+	pqAcct, isPQ, err := lookupPQAccount(addr.String())
+	if err != nil {
+		return nil, err
+	}
+	if isPQ {
+		return resolvePQSigner(pqAcct)
 	}
 	ks, acct, err := store.UnlockedKeystore(addr.String(), passphrase)
 	if err != nil {

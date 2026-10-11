@@ -84,6 +84,11 @@ var (
 
 			return nil
 		},
+		// Zero decrypted PQ signing keys after a successful run; Execute
+		// also does it, which covers failed runs.
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			destroyPQSigningKeys()
+		},
 		Long: fmt.Sprintf(`
 CLI interface to Tron blockchain
 
@@ -270,7 +275,11 @@ func getGitVersion() (string, error) {
 // Execute kicks off the tronctl CLI
 func Execute() {
 	RootCmd.SilenceErrors = true
-	if err := RootCmd.Execute(); err != nil {
+	err := RootCmd.Execute()
+	// Zero any decrypted PQ signing key now, failed runs included: cobra
+	// skips PersistentPostRun on error and os.Exit below skips defers.
+	destroyPQSigningKeys()
+	if err != nil {
 		if tag, errGit := getGitVersion(); errGit == nil {
 			VersionWrapDump += ":" + tag
 		}
@@ -295,6 +304,10 @@ func findAddress(value string) (tronAddress, error) {
 		// Check if input is valid account name
 		if acc, err := store.AddressFromAccountName(value); err == nil {
 			return tronAddress{acc}, nil
+		}
+		// Check if input is a post-quantum account name
+		if acct, err := store.PQAccountByName(value); err == nil {
+			return tronAddress{acct.Address}, nil
 		}
 		return address, fmt.Errorf("Invalid address/Invalid account name: %s", value)
 	}

@@ -50,6 +50,9 @@ func randomDigest(t *testing.T) []byte {
 
 func TestFalconLiboqs_Available(t *testing.T) {
 	require.NoError(t, falcon.availErr(), "liboqs Falcon-512 backend must be available with -tags falcon")
+	if f, ok := falcon.(*liboqsFalcon); ok {
+		t.Logf("liboqs version %s", f.version)
+	}
 }
 
 // TestFalconLiboqs_BouncyCastleKAT checks the backend against all 100 entries

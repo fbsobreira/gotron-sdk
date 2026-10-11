@@ -194,6 +194,66 @@ tronctl keys remove <account-name>
 tronctl keys remove myaccount
 ```
 
+### Post-quantum keys (experimental)
+
+> **Experimental.** TIP-899 post-quantum signatures are a draft and live only on the Nile testnet. See
+> [Post-Quantum Signatures](post-quantum.md).
+
+PQ keys have no mnemonic: the keystore file is the only backup. They are stored in
+`~/.tronctl/pq-keys/<name>/`, next to `account-keys/`, and account names are unique across both.
+
+```bash
+# Create a key (no mnemonic is shown)
+tronctl keys add <account-name> --scheme fn-dsa-512|ml-dsa-44
+
+# Import a PQ wallet-cli keystore (detected by its "scheme" field)
+tronctl keys import-ks <keystore-file> [account-name]
+
+# Import a TRON Toolkit plaintext JSON key (the source file stays unencrypted: delete it afterwards)
+tronctl keys import-toolkit <toolkit-key-file> [account-name]
+
+# List accounts; the SCHEME column comes last
+tronctl keys list
+
+# Copy the PQ keystore file to a directory
+tronctl keys export-ks <address> <directory>
+
+# Remove a key
+tronctl keys remove <account-name>
+```
+
+`keys export-private-key` refuses PQ keys; back up the keystore file with `keys export-ks`.
+
+PQ keys sign transactions (`account send`, `trc10`/`trc20` transfers, `contract`, freeze, vote, ...): pass the
+key's name or address to `-s`. The transaction carries a `pq_auth_sig` and no ECDSA signature. The node must have
+the scheme enabled (Nile today: FN-DSA-512 on, ML-DSA-44 off); otherwise `tronctl` refuses before broadcasting
+with `post-quantum signature scheme disabled on node: ML_DSA_44` (or `FN_DSA_512`).
+
+Message signing (`account sign` and `account verify`) is ECDSA-only: TIP-899 defines no post-quantum message
+signature, so `account sign` refuses a PQ signer.
+
+```bash
+# 1. Create a key and note its address
+tronctl keys add pqkey --scheme fn-dsa-512
+
+# 2. Fund the address from the Nile faucet
+
+# 3. Send 1 TRX signed with the PQ key
+tronctl -n grpc.nile.trongrid.io:50051 -s pqkey account send <to-address> 1
+```
+
+**Build requirements.** ML-DSA-44 works in every build. FN-DSA-512 key creation and signing need a Falcon build
+with [liboqs](https://openquantumsafe.org/liboqs/) installed (macOS: `brew install liboqs pkgconf`; Linux: build
+liboqs from source, see `.github/workflows/falcon.yaml`, and set `CGO_LDFLAGS=-lcrypto` for the default static
+liboqs):
+
+```bash
+CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl
+```
+
+Release binaries are built without CGO: they can import, list and export FN-DSA-512 keys but cannot create or
+sign with them.
+
 ## Blockchain Commands
 
 ### Get Node Information

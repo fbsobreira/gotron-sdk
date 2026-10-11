@@ -46,6 +46,8 @@ type liboqsFalcon struct {
 	once sync.Once
 	sig  *C.OQS_SIG
 	err  error
+	// version is the liboqs version string, recorded for diagnostics.
+	version string
 }
 
 var _ falconBackend = (*liboqsFalcon)(nil)
@@ -58,6 +60,7 @@ func (f *liboqsFalcon) init() error {
 		name := C.CString(oqsFalconAlg)
 		defer C.free(unsafe.Pointer(name))
 		version := C.GoString(C.OQS_version())
+		f.version = version
 		if C.OQS_SIG_alg_is_enabled(name) != 1 {
 			f.err = fmt.Errorf("%w: liboqs %s was built without %s", ErrFalconUnavailable, version, oqsFalconAlg)
 			return

@@ -55,8 +55,7 @@ func keysListCmd() *cobra.Command {
 				fmt.Printf("%-48s\t%s\n", "Ledger Nano S", addr)
 				return nil
 			}
-			store.DescribeLocalAccounts()
-			return nil
+			return writeAccountList(cmd.OutOrStdout())
 		},
 	}
 	return cmd
@@ -75,12 +74,20 @@ func keysLocationCmd() *cobra.Command {
 }
 
 func keysAddCmd() *cobra.Command {
+	var scheme string
 	cmd := &cobra.Command{
 		Use:   "add <ACCOUNT_NAME>",
 		Short: "Create a new keystore key",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if store.DoesNamedAccountExist(args[0]) {
+			if cmd.Flags().Changed("scheme") {
+				s, err := parsePQScheme(scheme)
+				if err != nil {
+					return err
+				}
+				return addPQKey(cmd, args[0], s)
+			}
+			if store.DoesNamedAccountExist(args[0]) || store.NameExists(args[0]) {
 				return fmt.Errorf("account %s already exists", args[0])
 			}
 			passphrase, err := getPassphraseWithConfirm()
@@ -104,6 +111,9 @@ func keysAddCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&scheme, "scheme", "",
+		"create a TIP-899 post-quantum key instead of ECDSA: fn-dsa-512 or ml-dsa-44 "+
+			"(experimental, Nile only; fn-dsa-512 needs a tronctl built with -tags falcon)")
 	return cmd
 }
 
@@ -113,10 +123,7 @@ func keysRemoveCmd() *cobra.Command {
 		Short: "Remove a key from the keystore",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := account.RemoveAccount(args[0]); err != nil {
-				return err
-			}
-			return nil
+			return removeAccountByName(args[0], account.RemoveAccount)
 		},
 	}
 	return cmd
@@ -144,8 +151,9 @@ func keysRecoverMnemonicCmd() *cobra.Command {
 		Short: "Recover account from mnemonic",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if store.DoesNamedAccountExist(args[0]) {
-				return fmt.Errorf("account %s already exists", args[0])
+			// Account names are unique across ECDSA and PQ accounts.
+			if err := checkNewAccountName(args[0]); err != nil {
+				return err
 			}
 			passphrase, err := getPassphraseWithConfirm()
 			if err != nil {
@@ -192,6 +200,21 @@ func keysImportKSCmd() *cobra.Command {
 			if len(args) == 2 {
 				userName = args[1]
 			}
+			data, err := readImportFile(args[0])
+			if err != nil {
+				return err
+			}
+			if isPQKeystore(data) {
+				return importPQKeystore(cmd, data, userName)
+			}
+			// Account names are unique across ECDSA and PQ accounts.
+			if userName == "" {
+				if userName, err = generateImportName(); err != nil {
+					return err
+				}
+			} else if store.NameExists(userName) {
+				return fmt.Errorf("account %s already exists", userName)
+			}
 			passphrase, err := getPassphrase()
 			if err != nil {
 				return err
@@ -215,9 +238,20 @@ func keysImportPKCmd() *cobra.Command {
 		Short: "Import an existing keystore key (only accept secp256k1 private keys)",
 		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			userName := ""
+			// Account names are unique across ECDSA and PQ accounts, so
+			// pick or check the name here: account.ImportFromPrivateKey
+			// only sees ECDSA accounts.
+			var userName string
 			if len(args) == 2 {
 				userName = args[1]
+				if err := checkNewAccountName(userName); err != nil {
+					return err
+				}
+			} else {
+				var err error
+				if userName, err = generateImportName(); err != nil {
+					return err
+				}
 			}
 			passphrase, err := getPassphrase()
 			if err != nil {
@@ -243,6 +277,9 @@ func keysExportPKCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := refusePQPrivateKeyExport(addr.address); err != nil {
+				return err
+			}
 			passphrase, err := getPassphrase()
 			if err != nil {
 				return err
@@ -260,6 +297,18 @@ func keysExportKSCmd() *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		PreRunE: validateAddress,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			pqAcct, isPQ, err := lookupPQAccount(addr.address)
+			if err != nil {
+				return err
+			}
+			if isPQ {
+				file, err := exportPQKeystore(pqAcct, args[1])
+				if err != nil {
+					return err
+				}
+				_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Exported keystore to", file)
+				return nil
+			}
 			passphrase, err := getPassphrase()
 			if err != nil {
 				return err
@@ -333,6 +382,7 @@ func keysSub() []*cobra.Command {
 		keysMnemonicCmd(),
 		keysRecoverMnemonicCmd(),
 		keysImportKSCmd(),
+		keysImportToolkitCmd(),
 		keysImportPKCmd(),
 		keysExportKSCmd(),
 		keysExportPKCmd(),

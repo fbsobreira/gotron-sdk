@@ -4,6 +4,7 @@ package cmd
 import (
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -756,6 +757,16 @@ func accountSignCmd() *cobra.Command {
 				// TODO:
 				// account := keystore.Account{Address: signerAddress.GetAddress()}
 			} else {
+				// TIP-899 defines transaction signatures only, so a PQ
+				// account has no message signature to produce.
+				_, isPQ, err := lookupPQAccount(signerAddress.String())
+				if err != nil {
+					return err
+				}
+				if isPQ {
+					return errors.New("account sign does not support post-quantum keys " +
+						"(TIP-899 defines no message signature)")
+				}
 				ks, acct, err := store.UnlockedKeystore(signerAddress.String(), passphrase)
 				if err != nil {
 					return err
