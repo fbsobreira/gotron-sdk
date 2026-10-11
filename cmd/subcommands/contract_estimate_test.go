@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -31,10 +32,23 @@ func TestContractTriggerEstimateNilResult(t *testing.T) {
 	t.Cleanup(func() { estimate = prevEstimate })
 	estimate = true
 
-	var err error
+	var (
+		out string
+		err error
+	)
 	require.NotPanics(t, func() {
-		_, _, err = runKeysCmd(t, cmd, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "ping()")
+		out, _, err = runKeysCmd(t, cmd, "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "ping()")
 	})
 	require.NoError(t, err)
 	assert.Zero(t, wallet.broadcastCalls.Load(), "--estimate must not broadcast")
+
+	var got struct {
+		EnergyRequired int64 `json:"EnergyRequired"`
+		Result         struct {
+			Code string `json:"code"`
+		} `json:"result"`
+	}
+	require.NoError(t, json.Unmarshal([]byte(out), &got), "stdout must be the estimate JSON:\n%s", out)
+	assert.Equal(t, int64(1234), got.EnergyRequired)
+	assert.Equal(t, "SUCCESS", got.Result.Code)
 }

@@ -316,8 +316,8 @@ func contractTriggerCmd() *cobra.Command {
 				}
 
 				if noPrettyOutput {
-					fmt.Println(estimate)
-					return nil
+					_, err = fmt.Fprintln(cmd.OutOrStdout(), estimate)
+					return err
 				}
 
 				result := make(map[string]interface{})
@@ -332,10 +332,10 @@ func contractTriggerCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
 				// --estimate is a dry run: never fall through to TriggerContract,
 				// which would sign and broadcast a real state-changing call.
-				return nil
+				_, err = fmt.Fprintln(cmd.OutOrStdout(), common.JSONPrettyFormat(string(asJSON)))
+				return err
 			}
 
 			tx, err := conn.TriggerContract(
