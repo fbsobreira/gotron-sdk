@@ -399,11 +399,11 @@ func exchangeTradeCmd() *cobra.Command {
 
 func exchangeSub() []*cobra.Command {
 	return []*cobra.Command{
-		exchangeCreateCmd(),
-		exchangeInjectCmd(),
-		exchangeWithdrawCmd(),
+		addSigningFlags(exchangeCreateCmd()),
+		addSigningFlags(exchangeInjectCmd()),
+		addSigningFlags(exchangeWithdrawCmd()),
 		exchangeListCmd(),
-		exchangeTradeCmd(),
+		addSigningFlags(exchangeTradeCmd()),
 	}
 }
 

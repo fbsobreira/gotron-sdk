@@ -401,9 +401,9 @@ func contractTriggerCmd() *cobra.Command {
 
 func contractSub() []*cobra.Command {
 	return []*cobra.Command{
-		contractDeployCmd(),
+		addSigningFlags(contractDeployCmd()),
 		contractConstantCmd(),
-		contractTriggerCmd(),
+		addSigningFlags(contractTriggerCmd()),
 	}
 }
 

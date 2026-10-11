@@ -167,7 +167,7 @@ func trc20BalanceCmd() *cobra.Command {
 
 func trc20Sub() []*cobra.Command {
 	return []*cobra.Command{
-		trc20SendCmd(),
+		addSigningFlags(trc20SendCmd()),
 		trc20BalanceCmd(),
 	}
 }

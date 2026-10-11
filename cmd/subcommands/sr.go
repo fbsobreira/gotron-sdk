@@ -183,8 +183,8 @@ func srUpdateBrokerageCmd() *cobra.Command {
 func srSub() []*cobra.Command {
 	return []*cobra.Command{
 		srListCmd(),
-		srCreateCmd(),
-		srUpdateBrokerageCmd(),
+		addSigningFlags(srCreateCmd()),
+		addSigningFlags(srUpdateBrokerageCmd()),
 	}
 }
 

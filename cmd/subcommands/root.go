@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"sync"
 	"time"
 
 	color "github.com/fatih/color"
@@ -100,8 +101,28 @@ CLI interface to Tron blockchain
 	}
 )
 
+// configOnce loads the config file once, on first use. Commands register
+// flags whose defaults come from config (addSigningFlags reads
+// config.Timeout) in init functions of files that run before root.go's, so
+// whichever comes first loads it.
+var configOnce sync.Once
+
+func ensureConfig() { configOnce.Do(initConfig) }
+
+// addSigningFlags registers --dry-run and --timeout on cmd and returns it.
+// Only commands that sign and broadcast through executeOrDryRun take them;
+// any other command rejects them as unknown flags instead of silently
+// ignoring a --dry-run. Every registration binds the same globals with the
+// same defaults, so registering them on many commands is safe.
+func addSigningFlags(cmd *cobra.Command) *cobra.Command {
+	ensureConfig()
+	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "sign and print the transaction without broadcasting it")
+	cmd.Flags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
+	return cmd
+}
+
 func init() {
-	initConfig()
+	ensureConfig()
 
 	vS := "dump out debug information, same as env var GOTRON_SDK_DEBUG=true"
 	RootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", config.Verbose, vS)
@@ -113,8 +134,6 @@ func init() {
 		&noPrettyOutput, "no-pretty", config.NoPretty, "Disable pretty print JSON outputs",
 	)
 	RootCmd.PersistentFlags().BoolVar(&noWait, "no-wait", false, "do not wait for TX confirmation")
-	RootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "do not send signed transaction")
-	RootCmd.PersistentFlags().Uint32Var(&timeout, "timeout", config.Timeout, "set timeout in seconds. Set to 0 to not wait for confirm")
 
 	RootCmd.PersistentFlags().BoolVarP(&useLedgerWallet, "ledger", "e", config.Ledger, "Use ledger hardware wallet")
 	RootCmd.PersistentFlags().StringVar(&givenFilePath, "file", "", "Path to file for given command when applicable")

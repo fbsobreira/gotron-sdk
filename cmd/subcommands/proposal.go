@@ -250,9 +250,9 @@ func proposalCreateCmd() *cobra.Command {
 func proposalSub() []*cobra.Command {
 	return []*cobra.Command{
 		proposalListCmd(),
-		proposalApproveCmd(),
-		proposalWithdrawCmd(),
-		proposalCreateCmd(),
+		addSigningFlags(proposalApproveCmd()),
+		addSigningFlags(proposalWithdrawCmd()),
+		addSigningFlags(proposalCreateCmd()),
 	}
 }
 

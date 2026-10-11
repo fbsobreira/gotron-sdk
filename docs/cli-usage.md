@@ -20,7 +20,7 @@ This guide provides comprehensive documentation for the `tronctl` command-line i
 
 ## Global Options
 
-These options can be used with any command:
+These options are accepted by every command:
 
 ```
 -n, --node <host>          TRON node address (default: grpc.trongrid.io:50051)
@@ -32,14 +32,27 @@ These options can be used with any command:
     --passphrase-file <path>  Read the keystore passphrase from a file
 -e, --ledger               Use a Ledger hardware wallet
     --no-wait              Do not wait for transaction confirmation
-    --dry-run              Sign and print the transaction without broadcasting it
-    --timeout <seconds>    Confirmation wait in seconds; 0 = don't wait (default: 20)
     --no-pretty            Disable pretty-printed JSON output
 -v, --verbose              Enable verbose output (same as GOTRON_SDK_DEBUG=true)
 ```
 
 Defaults for `node`, `apiKey`, `withTLS`, `ledger`, `verbose`, `nopretty` and `timeout` come from the config file at
 `~/.config/tronctl/config.default` (see [Configuration](#configuration)).
+
+### Transaction options (signing commands)
+
+Commands that sign and broadcast a transaction also accept these options; every other command rejects
+them as unknown flags:
+
+```
+    --dry-run              Sign and print the transaction without broadcasting it
+    --timeout <seconds>    Confirmation wait in seconds; 0 = don't wait (default: 20)
+```
+
+They apply to `account activate|send|withdraw|freeze|freezeV2|unfreezeV2|vote|permission`,
+`contract deploy|trigger`, `exchange create|inject|withdraw|trade`, `proposal approve|withdraw|create`,
+`sr create|brokerage`, `trc10 issue|send|ico` and `trc20 send`. With `--dry-run` the signed transaction
+is printed as JSON on stdout and its txID on stderr; nothing is broadcast.
 
 ## Account Commands
 
@@ -155,7 +168,7 @@ tronctl account sign "Hello TRON" --signer myaccount
 tronctl keys add <account-name>
 
 # Options
---passphrase             Use passphrase encryption
+--passphrase             Global flag: prompt for the keystore passphrase (otherwise the default passphrase is used)
 
 # Example
 tronctl keys add myaccount
@@ -168,7 +181,7 @@ tronctl keys import-private-key <private-key> [account-name]
 tronctl keys import-ks <keystore-file> [account-name]
 
 # Options
---passphrase             Use passphrase encryption
+--passphrase             Global flag: prompt for the keystore passphrase (otherwise the default passphrase is used)
 --quiet                  Do not print the imported account name
 
 # Example
@@ -178,7 +191,7 @@ tronctl keys import-private-key 8f5c7e1a2b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d
 ### Recover from Mnemonic
 
 ```bash
-tronctl keys recover-from-mnemonic [account-name]
+tronctl keys recover-from-mnemonic <account-name>
 
 # Interactive prompt will ask for:
 # - Mnemonic phrase
@@ -203,10 +216,11 @@ tronctl keys export-private-key TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
 ```bash
 tronctl keys list
 
-# Example output:
-# Address                                Balance     Type
-# TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n    1000 TRX   Local
-# TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9    500 TRX    Ledger
+# Example output (tab-separated columns; SCHEME is last):
+# NAME                                  ADDRESS                               SCHEME
+#
+# alice                                 TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n    ECDSA
+# alice-pq                              TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9    FN_DSA_512
 ```
 
 ### Remove Account

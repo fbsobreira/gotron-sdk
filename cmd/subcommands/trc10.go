@@ -408,9 +408,9 @@ func trc10InfoCmd() *cobra.Command {
 
 func trc10Sub() []*cobra.Command {
 	return []*cobra.Command{
-		trc10IssueCmd(),
-		trc10SendCmd(),
-		trc10ICOCmd(),
+		addSigningFlags(trc10IssueCmd()),
+		addSigningFlags(trc10SendCmd()),
+		addSigningFlags(trc10ICOCmd()),
 		trc10ListCmd(),
 		trc10InfoCmd(),
 	}

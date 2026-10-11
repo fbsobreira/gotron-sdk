@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"net"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -16,6 +17,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	pkgsigner "github.com/fbsobreira/gotron-sdk/pkg/signer"
+	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -37,13 +39,25 @@ type dryRunWallet struct {
 }
 
 func (w *dryRunWallet) CreateTransaction2(_ context.Context, in *core.TransferContract) (*api.TransactionExtention, error) {
-	param, err := anypb.New(in)
+	return fakeTxExtension(core.Transaction_Contract_TransferContract, in)
+}
+
+// TriggerContract builds an unsigned smart-contract call, as a node would
+// for `trc20 send` and a non-constant `contract trigger`.
+func (w *dryRunWallet) TriggerContract(_ context.Context, in *core.TriggerSmartContract) (*api.TransactionExtention, error) {
+	return fakeTxExtension(core.Transaction_Contract_TriggerSmartContract, in)
+}
+
+// fakeTxExtension wraps contract msg of type ctype in an unsigned
+// transaction with fixed reference-block fields and a matching txID.
+func fakeTxExtension(ctype core.Transaction_Contract_ContractType, msg proto.Message) (*api.TransactionExtention, error) {
+	param, err := anypb.New(msg)
 	if err != nil {
 		return nil, err
 	}
 	raw := &core.TransactionRaw{
 		Contract: []*core.Transaction_Contract{{
-			Type:      core.Transaction_Contract_TransferContract,
+			Type:      ctype,
 			Parameter: param,
 		}},
 		RefBlockBytes: []byte{0x01, 0x02},
@@ -255,16 +269,197 @@ func TestExecuteOrDryRunBroadcasts(t *testing.T) {
 	require.NotNil(t, ctrlr.Receipt)
 }
 
-// TestDryRunAndTimeoutFlagsArePersistent guards the root.go change: the
-// flags must be inherited by subcommands, or `account send --dry-run` is
-// rejected as an unknown flag.
-func TestDryRunAndTimeoutFlagsArePersistent(t *testing.T) {
-	sub, _, err := RootCmd.Find([]string{"account", "send"})
-	require.NoError(t, err)
-	require.Equal(t, "send", sub.Name())
+// signingCommandPaths lists every command that signs and broadcasts a
+// transaction through executeOrDryRun. Only these accept --dry-run and
+// --timeout.
+var signingCommandPaths = [][]string{
+	{"account", "activate"},
+	{"account", "send"},
+	{"account", "withdraw"},
+	{"account", "freeze"},
+	{"account", "freezeV2"},
+	{"account", "unfreezeV2"},
+	{"account", "vote"},
+	{"account", "permission"},
+	{"contract", "deploy"},
+	{"contract", "trigger"},
+	{"exchange", "create"},
+	{"exchange", "inject"},
+	{"exchange", "withdraw"},
+	{"exchange", "trade"},
+	{"proposal", "approve"},
+	{"proposal", "withdraw"},
+	{"proposal", "create"},
+	{"sr", "create"},
+	{"sr", "brokerage"},
+	{"trc10", "issue"},
+	{"trc10", "send"},
+	{"trc10", "ico"},
+	{"trc20", "send"},
+}
+
+// TestDryRunAndTimeoutFlagsScopedToSigningCommands guards the flag scope:
+// signing commands must accept --dry-run and --timeout, and every other
+// command must reject them. When they were persistent root flags,
+// `keys remove x --dry-run` deleted the key and `upgrade --dry-run`
+// replaced the binary, both reporting success.
+func TestDryRunAndTimeoutFlagsScopedToSigningCommands(t *testing.T) {
+	prevDry, prevTimeout := dryRun, timeout
+	t.Cleanup(func() { dryRun, timeout = prevDry, prevTimeout })
+
 	for _, name := range []string{"dry-run", "timeout"} {
-		assert.NotNil(t, sub.InheritedFlags().Lookup(name), "account send must inherit --%s", name)
-		assert.NotNil(t, RootCmd.PersistentFlags().Lookup(name), "--%s must be a persistent root flag", name)
+		assert.Nil(t, RootCmd.PersistentFlags().Lookup(name), "--%s must not be a persistent root flag", name)
+	}
+
+	signing := map[string]bool{}
+	for _, path := range signingCommandPaths {
+		sub, _, err := RootCmd.Find(path)
+		require.NoError(t, err)
+		require.Equal(t, path[len(path)-1], sub.Name(), "%v is not registered", path)
+		signing[sub.CommandPath()] = true
+		for _, name := range []string{"dry-run", "timeout"} {
+			assert.NotNil(t, sub.LocalFlags().Lookup(name), "%s must accept --%s", sub.CommandPath(), name)
+		}
+		assert.Equal(t, "false", sub.Flags().Lookup("dry-run").DefValue, "%s --dry-run default", sub.CommandPath())
+		assert.Equal(t, strconv.FormatUint(uint64(config.Timeout), 10), sub.Flags().Lookup("timeout").DefValue,
+			"%s --timeout default must come from the loaded config", sub.CommandPath())
+	}
+
+	// Every other command, including ones that delete keys or replace the
+	// binary, must reject both flags.
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		if !signing[c.CommandPath()] {
+			for _, name := range []string{"dry-run", "timeout"} {
+				assert.Nil(t, c.Flags().Lookup(name), "%s must not accept --%s", c.CommandPath(), name)
+			}
+		}
+		for _, child := range c.Commands() {
+			walk(child)
+		}
+	}
+	walk(RootCmd)
+
+	for _, path := range [][]string{{"keys", "remove"}, {"keys", "add"}, {"keys", "list"}, {"upgrade"}} {
+		sub, _, err := RootCmd.Find(path)
+		require.NoError(t, err)
+		err = sub.ParseFlags([]string{"--dry-run"})
+		require.Error(t, err, "%s must reject --dry-run", sub.CommandPath())
+		assert.Contains(t, err.Error(), "unknown flag: --dry-run")
+	}
+}
+
+// TestKeysRemoveDryRunIsRejected runs `tronctl keys remove <name> --dry-run`
+// through the real command tree. It must fail with "unknown flag" and leave
+// the account in place; flag parsing fails before any hook runs, so nothing
+// is dialled or removed.
+func TestKeysRemoveDryRunIsRejected(t *testing.T) {
+	pqTestEnv(t, "pw")
+	t.Setenv("TRONCTL_KS_DIR", "")
+	addECDSAAccount(t, "dryrun-survivor", "pw")
+	savePQAccount(t, "dryrun-pq-survivor", "pw")
+
+	prevRT, prevConn, prevDry, prevNode := *rt, conn, dryRun, node
+	t.Cleanup(func() {
+		if rt.Conn != nil && rt.Conn != prevRT.Conn {
+			rt.Conn.Stop()
+		}
+		*rt, conn, dryRun, node = prevRT, prevConn, prevDry, prevNode
+		RootCmd.SetArgs(nil)
+		RootCmd.SetOut(nil)
+		RootCmd.SetErr(nil)
+	})
+	node = "127.0.0.1:50051" // never dialled: grpc.NewClient is lazy
+
+	for _, name := range []string{"dryrun-survivor", "dryrun-pq-survivor"} {
+		t.Run(name, func(t *testing.T) {
+			var out, errOut bytes.Buffer
+			RootCmd.SetOut(&out)
+			RootCmd.SetErr(&errOut)
+			RootCmd.SetArgs([]string{"keys", "remove", name, "--dry-run"})
+			err := RootCmd.Execute()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "unknown flag: --dry-run")
+		})
+	}
+	assert.True(t, store.DoesNamedAccountExist("dryrun-survivor"), "the ECDSA account must survive")
+	_, err := store.PQAccountByName("dryrun-pq-survivor")
+	assert.NoError(t, err, "the post-quantum account must survive")
+}
+
+// TestSigningCommandsDryRun runs two more executeOrDryRun command shapes,
+// `trc20 send` and a non-constant `contract trigger`, with --dry-run parsed
+// from the command line against the fake node. Each must print the signed
+// smart-contract transaction as JSON and make no broadcast or confirmation
+// call.
+func TestSigningCommandsDryRun(t *testing.T) {
+	const contractAddr = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+	tests := []struct {
+		name string
+		path []string
+		args []string
+		// setup runs after flag parsing, for globals RunE reads.
+		setup func()
+	}{
+		{
+			name: "trc20 send",
+			path: []string{"trc20", "send"},
+			args: []string{dryRunTo, "1", contractAddr},
+			// Skip the decimals() call, which the fake node does not serve.
+			setup: func() { tokenDecimalsFlag = 6 },
+		},
+		{
+			name: "contract trigger",
+			path: []string{"contract", "trigger"},
+			args: []string{contractAddr, "ping()"},
+			setup: func() {
+				tAmount, tTokenID, tTokenAmount, estimate = "0", "", "0", false
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const pw = "dry-run-pass"
+			pqTestEnv(t, pw)
+			from := addECDSAAccount(t, "dry-sc", pw)
+			wallet := &dryRunWallet{}
+			withDryRunRuntime(t, newDryRunClient(t, wallet), from, false, false)
+
+			prevDry, prevTimeout, prevDecimals := dryRun, timeout, tokenDecimalsFlag
+			prevAmount, prevTokenID, prevTokenAmount, prevEstimate, prevFeeLimit := tAmount, tTokenID, tTokenAmount, estimate, feeLimit
+			t.Cleanup(func() {
+				dryRun, timeout, tokenDecimalsFlag = prevDry, prevTimeout, prevDecimals
+				tAmount, tTokenID, tTokenAmount, estimate, feeLimit = prevAmount, prevTokenID, prevTokenAmount, prevEstimate, prevFeeLimit
+			})
+
+			sub, _, err := RootCmd.Find(tt.path)
+			require.NoError(t, err)
+			require.NoError(t, sub.ParseFlags([]string{"--dry-run", "--feeLimit", "1000000"}))
+			t.Cleanup(func() {
+				require.NoError(t, sub.Flags().Set("dry-run", "false"))
+				sub.Flags().Lookup("dry-run").Changed = false
+				sub.Flags().Lookup("feeLimit").Changed = false
+				sub.SetOut(nil)
+				sub.SetErr(nil)
+			})
+			require.True(t, dryRun, "--dry-run must set the bound global")
+			rt.DryRun = dryRun // as PersistentPreRunE does
+			tt.setup()
+
+			out, errOut, err := runKeysCmd(t, sub, tt.args...)
+			require.NoError(t, err)
+			assert.Zero(t, wallet.broadcastCalls.Load(), "dry run must not broadcast")
+			assert.Zero(t, wallet.txInfoCalls.Load(), "dry run must not wait for confirmation")
+
+			tx, err := transaction.FromJSON([]byte(out))
+			require.NoError(t, err, "stdout must be the signed transaction JSON:\n%s", out)
+			require.Len(t, tx.GetSignature(), 1)
+			assert.Len(t, tx.GetSignature()[0], 65)
+			require.Len(t, tx.GetRawData().GetContract(), 1)
+			assert.Equal(t, core.Transaction_Contract_TriggerSmartContract, tx.GetRawData().GetContract()[0].GetType())
+			assert.Equal(t, int64(1000000), tx.GetRawData().GetFeeLimit(), "--feeLimit must reach the signed transaction")
+			assert.Contains(t, errOut, "NOT broadcast")
+		})
 	}
 }
 
