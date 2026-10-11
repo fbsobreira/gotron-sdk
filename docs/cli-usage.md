@@ -606,7 +606,7 @@ tronctl config get node
 ```bash
 tronctl config set <key> <value>
 
-# Keys: node, apiKey, withTLS, ledger, verbose, nopretty
+# Keys: node, apiKey, withTLS, ledger, verbose, nopretty, timeout
 
 # Examples
 tronctl config set node grpc.trongrid.io:50051
