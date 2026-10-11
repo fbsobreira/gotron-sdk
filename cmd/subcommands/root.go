@@ -61,6 +61,9 @@ var (
 			rt.loadDotEnv()
 			rt.setupVerbose()
 			signer = rt.applyEnvOverrides(config.Node, signer, withTLS)
+			// Apply --ks-dir / TRONCTL_KS_DIR before resolving the signer:
+			// setupSigner looks account names up in the keystore.
+			rt.setupKeystore()
 
 			if err := rt.setupNetwork(); err != nil {
 				return err
@@ -79,8 +82,6 @@ var (
 				return err
 			}
 			passphrase = rt.Passphrase
-
-			rt.setupKeystore()
 
 			return nil
 		},
