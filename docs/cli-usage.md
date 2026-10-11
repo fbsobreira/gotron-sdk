@@ -23,13 +23,21 @@ This guide provides comprehensive documentation for the `tronctl` command-line i
 These options can be used with any command:
 
 ```
---node <address>           TRON node address (default: grpc.trongrid.io:50051)
---apiKey <key>            Trongrid API key
---withTLS                 Use TLS connection
---timeout <duration>      Request timeout (default: 60s)
---verbose                 Enable verbose output
---config <path>          Config file path (default: ~/.tronctl/config.yaml)
+-n, --node <host>          TRON node address (default: grpc.trongrid.io:50051)
+-k, --apiKey <key>         TronGrid API key
+    --withTLS              Use TLS connection
+-s, --signer <signer>      Signer account name or address
+    --ks-dir <path>        Keystore directory
+    --passphrase           Prompt for the keystore passphrase
+    --passphrase-file <path>  Read the keystore passphrase from a file
+-e, --ledger               Use a Ledger hardware wallet
+    --no-wait              Do not wait for transaction confirmation
+    --no-pretty            Disable pretty-printed JSON output
+-v, --verbose              Enable verbose output (same as GOTRON_SDK_DEBUG=true)
 ```
+
+Defaults for `node`, `apiKey`, `withTLS`, `ledger`, `verbose` and `nopretty` come from the config file at
+`~/.config/tronctl/config.default` (see [Configuration](#configuration)).
 
 ## Account Commands
 
@@ -37,6 +45,9 @@ These options can be used with any command:
 
 ```bash
 tronctl account balance <address>
+
+# Options
+--details                Show detailed account information
 
 # Example
 tronctl account balance TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
@@ -47,8 +58,10 @@ tronctl account balance TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
 ```bash
 tronctl account send <to-address> <amount>
 
+# <amount> is in TRX
+
 # Options
---signer <name>          Signer account name (required)
+-s, --signer <name>      Signer account name or address (required)
 
 # Example
 tronctl account send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 100.5 --signer myaccount
@@ -57,61 +70,65 @@ tronctl account send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 100.5 --signer myaccount
 ### Freeze Resources
 
 ```bash
-tronctl account freeze <amount> <resource>
+tronctl account freezeV2 <amount>
 
-# Parameters
-resource: BANDWIDTH or ENERGY
+# <amount> is in TRX. `account freeze <amount>` is the Stake 1.0 variant and also accepts --delegate <address>.
 
 # Options
---signer <name>          Account to freeze from (required)
---days <number>          Days to freeze (default: 3)
+-s, --signer <name>      Account to freeze from (required)
+-t, --type <number>      0 - Bandwidth (default) / 1 - Energy
 
 # Example
-tronctl account freeze 1000 ENERGY --signer myaccount
+tronctl account freezeV2 1000 --type 1 --signer myaccount
 ```
 
 ### Unfreeze Resources
 
 ```bash
-tronctl account unfreeze <resource>
+tronctl account unfreezeV2 <amount>
+
+# Options
+-s, --signer <name>      Account to unfreeze from (required)
+-t, --type <number>      0 - Bandwidth (default) / 1 - Energy
 
 # Example
-tronctl account unfreeze BANDWIDTH
+tronctl account unfreezeV2 1000 --type 0 --signer myaccount
 ```
 
 ### Vote for Witnesses
 
 ```bash
-tronctl account vote <witness-address> <votes>
+tronctl account vote --wv <witness-address>:<votes>[,<witness-address>:<votes>...]
 
 # Options
---signer <name>          Voter account name (required)
+-s, --signer <name>      Voter account name (required)
+--wv <list>              witness1:vote1,witness2:vote2
 
 # Example
-tronctl account vote TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH 100000 --signer myaccount
+tronctl account vote --wv TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH:100000 --signer myaccount
 ```
 
 ### Get Account Resources
 
 ```bash
-tronctl account resources <address>
+tronctl account info <address>
 
 # Example
-tronctl account resources TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
+tronctl account info TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
 ```
 
 ### Update Account Permissions
 
 ```bash
-tronctl account permission <address>
+tronctl account permission --allow <TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT>
 
 # Options
---owner <keys>           Owner permission keys (comma-separated)
---active <keys>          Active permission keys (comma-separated)
---witness <key>          Witness permission key
+-s, --signer <name>      Account whose permissions are updated (required)
+--allow <rule>           TYPE:THRESHOLD:ADDRESS1-WEIGHT+ADDRESS2-WEIGHT; TYPE is O (owner), A (active) or W (witness).
+                         Repeat the flag or comma-separate rules.
 
 # Example
-tronctl account permission TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n --active TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9,TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH
+tronctl account permission --signer myaccount --allow O:1:TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n-1 --allow A:2:TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9-1+TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH-1
 ```
 
 ### Sign Message
@@ -120,7 +137,9 @@ tronctl account permission TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n --active TN3W4H6rK
 tronctl account sign <message>
 
 # Options
---signer <name>          Signer account name (required)
+-s, --signer <name>      Signer account name (required)
+--hashMessage            Hash the message with Keccak256 before signing
+--useFixedLength         Use the fixed-length message format
 
 # Example
 tronctl account sign "Hello TRON" --signer myaccount
@@ -143,19 +162,21 @@ tronctl keys add myaccount
 ### Import Private Key
 
 ```bash
-tronctl keys import <private-key>
+tronctl keys import-private-key <private-key> [account-name]
+tronctl keys import-ks <keystore-file> [account-name]
 
 # Options
 --passphrase             Use passphrase encryption
+--quiet                  Do not print the imported account name
 
 # Example
-tronctl keys import 8f5c7e1a2b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f
+tronctl keys import-private-key 8f5c7e1a2b3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f myaccount
 ```
 
 ### Recover from Mnemonic
 
 ```bash
-tronctl keys recover-from-mnemonic <account-name>
+tronctl keys recover-from-mnemonic [account-name]
 
 # Interactive prompt will ask for:
 # - Mnemonic phrase
@@ -168,10 +189,11 @@ tronctl keys recover-from-mnemonic myaccount
 ### Export Private Key
 
 ```bash
-tronctl keys export <account-name>
+tronctl keys export-private-key <address>
+tronctl keys export-ks <address> <directory>
 
 # Example
-tronctl keys export myaccount
+tronctl keys export-private-key TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
 ```
 
 ### List Accounts
@@ -259,7 +281,7 @@ sign with them.
 ### Get Node Information
 
 ```bash
-tronctl bc getnodeinfo
+tronctl bc node
 
 # Example output shows node version, network, and configuration
 ```
@@ -267,31 +289,16 @@ tronctl bc getnodeinfo
 ### Get Transaction by ID
 
 ```bash
-tronctl bc gettransaction <transaction-id>
+tronctl bc tx <transaction-id>
 
 # Example
-tronctl bc gettransaction 7c2d4206c03a883dd9066d620335dc1be272a8dc733cfa3f6d10308faa37facc
-```
-
-### Get Block by Number
-
-```bash
-tronctl bc getblock <block-number>
-
-# Example
-tronctl bc getblock 30000000
-```
-
-### Get Latest Block
-
-```bash
-tronctl bc getblockbylatest
+tronctl bc tx 7c2d4206c03a883dd9066d620335dc1be272a8dc733cfa3f6d10308faa37facc
 ```
 
 ### Get Next Maintenance Time
 
 ```bash
-tronctl bc nextmaintenancetime
+tronctl bc mt
 ```
 
 ## Smart Contract Commands
@@ -299,53 +306,45 @@ tronctl bc nextmaintenancetime
 ### Deploy Contract
 
 ```bash
-tronctl contract deploy <contract.bin> <abi.json>
+tronctl contract deploy <contract-name>
 
 # Options
---signer <name>          Deployer account name (required)
---name <string>          Contract name
---consume-user-energy <percent>  User energy consumption percentage
---fee-limit <amount>     Maximum TRX to spend
---constructor <args>     Constructor arguments (JSON format)
+-s, --signer <name>      Deployer account name (required)
+--bcFile <file>          Bytecode file (or --bc <hex>)
+--abiFile <file>         ABI file (or --abi <json>)
+--params <json>          Constructor parameters as JSON
+--curPercent <percent>   User resource consumption percentage (default: 100)
+--feeLimit <sun>         Maximum fee in SUN (default: 1000000000)
+--oeLimit <energy>       Origin energy limit (default: 1000000)
 
 # Example
-tronctl contract deploy Token.bin Token.abi --signer myaccount --name "MyToken" --constructor '["My Token", "MTK", 1000000]'
+tronctl contract deploy MyToken --bcFile Token.bin --abiFile Token.abi --signer myaccount --params '["My Token", "MTK", 1000000]'
 ```
 
 ### Call Contract (Read)
 
 ```bash
-tronctl contract call <contract-address> <method> <args>
-
-# Options
---abi <file>            ABI file path
+tronctl contract constant <contract-address> <method> [parameters]
 
 # Example
-tronctl contract call TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 balanceOf '["TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n"]'
+tronctl contract constant TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 "balanceOf(address)" '[{"address": "TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n"}]'
 ```
 
 ### Trigger Contract (Write)
 
 ```bash
-tronctl contract trigger <contract-address> <method> <args>
+tronctl contract trigger <contract-address> <method> [parameters]
 
 # Options
---signer <name>         Caller account name (required)
---abi <file>            ABI file path
---fee-limit <amount>    Maximum TRX to spend
---call-value <amount>   TRX to send with call
+-s, --signer <name>     Caller account name (required)
+--feeLimit <sun>        Maximum fee in SUN (default: 10000000)
+--value <amount>        TRX to send with the call (default: 0)
+--token <id>            TRC10 token id to send with the call
+--tokenValue <amount>   TRC10 token amount (default: 0)
+--estimate              Only estimate the energy required; do not sign or broadcast
 
 # Example
-tronctl contract trigger TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 transfer '["TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH", 1000]' --signer myaccount --fee-limit 10
-```
-
-### Get Contract Info
-
-```bash
-tronctl contract get <contract-address>
-
-# Example
-tronctl contract get TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9
+tronctl contract trigger TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 "transfer(address,uint256)" '[{"address": "TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH"}, {"uint256": "1000"}]' --signer myaccount --feeLimit 10000000
 ```
 
 ## TRC10 Token Commands
@@ -353,30 +352,28 @@ tronctl contract get TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9
 ### Issue Token
 
 ```bash
-tronctl trc10 issue
+tronctl trc10 issue <name> <description> <symbol> <url> <total-supply> <ratio>
+
+# <ratio> is TRX:TOKEN, e.g. 1:100
 
 # Options
---name <string>          Token name
---abbr <string>          Token abbreviation
---supply <amount>        Total supply
---decimal <number>       Decimal places
---description <text>     Token description
---url <string>          Project URL
---start-time <time>      ICO start time
---end-time <time>        ICO end time
---frozen-supply <list>   Frozen supply schedule
+-s, --signer <name>      Issuer account name (required)
+-p, --decimals <number>  Decimal places (max 6)
+-d, --duration <days>    ICO duration in days (default: 30)
+--start <time>           ICO start time (default: now)
+-0, --frozen <list>      Frozen supply day1:amount1,day2:amount2
 
 # Example
-tronctl trc10 issue --name "MyToken" --abbr "MTK" --supply 1000000 --decimal 6
+tronctl trc10 issue MyToken "My token" MTK https://example.com 1000000 1:100 --decimals 6 --signer myaccount
 ```
 
 ### Transfer TRC10 Token
 
 ```bash
-tronctl trc10 send <to-address> <amount> <token-id>
+tronctl trc10 send <to-address> <amount> <token-id-or-name>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
 
 # Example
 tronctl trc10 send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 1000 1000001 --signer myaccount
@@ -385,13 +382,13 @@ tronctl trc10 send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 1000 1000001 --signer myac
 ### Participate in Token ICO
 
 ```bash
-tronctl trc10 participate <issuer-address> <token-id> <amount>
+tronctl trc10 ico <token-id-or-name> <amount>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
 
 # Example
-tronctl trc10 participate TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n 1000001 100 --signer myaccount
+tronctl trc10 ico 1000001 100 --signer myaccount
 ```
 
 ### Get Asset List
@@ -399,12 +396,8 @@ tronctl trc10 participate TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n 1000001 100 --signe
 ```bash
 tronctl trc10 list
 
-# Options
---limit <number>         Number of results (default: 20)
---offset <number>        Starting offset
-
-# Example
-tronctl trc10 list --limit 50
+# Details of one token
+tronctl trc10 info <token-id-or-issuer-address-or-name>
 ```
 
 ## TRC20 Token Commands
@@ -412,32 +405,24 @@ tronctl trc10 list --limit 50
 ### Send TRC20 Token
 
 ```bash
-tronctl trc20 send <contract-address> <to-address> <amount>
+tronctl trc20 send <to-address> <amount> <contract-address>
 
 # Options
---signer <name>          Account name (required)
---fee-limit <amount>    Maximum TRX to spend
+-s, --signer <name>      Account name (required)
+--feeLimit <sun>         Maximum fee in SUN (default: 10000000)
+--decimals <number>      Token decimals override (default: query the contract's decimals())
 
 # Example
-tronctl trc20 send TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 100 --signer myaccount --fee-limit 10
+tronctl trc20 send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 100 TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t --signer myaccount --feeLimit 10000000
 ```
 
 ### Get TRC20 Balance
 
 ```bash
-tronctl trc20 balance <contract-address> <account-address>
+tronctl trc20 balance <account-address> <contract-address>
 
 # Example
-tronctl trc20 balance TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
-```
-
-### Get TRC20 Token Info
-
-```bash
-tronctl trc20 info <contract-address>
-
-# Example
-tronctl trc20 info TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
+tronctl trc20 balance TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 ```
 
 ## Super Representative Commands
@@ -446,6 +431,10 @@ tronctl trc20 info TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t
 
 ```bash
 tronctl sr list
+
+# Options
+--elected                Return elected SRs only
+--brokerage              Add each SR's brokerage
 
 # Example output shows SR addresses, votes, and URLs
 ```
@@ -456,44 +445,29 @@ tronctl sr list
 tronctl sr create <url>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
 
 # Example
 tronctl sr create "https://my-sr.com" --signer myaccount
 ```
 
-### Update Super Representative
-
-```bash
-tronctl sr update <url>
-
-# Options
---signer <name>          Account name (required)
-
-# Example
-tronctl sr update "https://my-new-sr-url.com" --signer myaccount
-```
-
 ### Get Brokerage Info
 
 ```bash
-tronctl sr brokerage <address>
-
-# Example
-tronctl sr brokerage TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH
+tronctl sr list --brokerage
 ```
 
 ### Update Brokerage Rate
 
 ```bash
-tronctl sr update-brokerage <rate>
+tronctl sr brokerage <rate>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
 
 # Note: Rate is 0-100 (percentage)
 # Example
-tronctl sr update-brokerage 20 --signer myaccount
+tronctl sr brokerage 20 --signer myaccount
 ```
 
 ## Proposal Commands
@@ -504,47 +478,47 @@ tronctl sr update-brokerage 20 --signer myaccount
 tronctl proposal list
 
 # Options
---status <string>       Filter by status (pending, approved, canceled)
+--new                   Show only new proposals
 
 # Example
-tronctl proposal list --status pending
+tronctl proposal list --new
 ```
 
 ### Create Proposal
 
 ```bash
-tronctl proposal create
+tronctl proposal create --params <id:value>[,<id:value>...]
 
 # Options
---param <key=value>     Parameter to change (can use multiple times)
---signer <name>          Account name (required)(must be SR)
+--params <list>         Parameters to change: ID:VALUE,ID:VALUE
+-s, --signer <name>     Account name (required)(must be SR)
 
 # Example
-tronctl proposal create --param 0=100000 --param 1=200000 --signer myaccount
+tronctl proposal create --params 0:100000,1:200000 --signer myaccount
 ```
 
 ### Approve Proposal
 
 ```bash
-tronctl proposal approve <proposal-id>
+tronctl proposal approve <proposal-id> <true|false>
 
 # Options
---signer <name>          Account name (required)(must be SR)
+-s, --signer <name>      Account name (required)(must be SR)
 
 # Example
-tronctl proposal approve 15 --signer myaccount
+tronctl proposal approve 15 true --signer myaccount
 ```
 
 ### Delete Proposal
 
 ```bash
-tronctl proposal delete <proposal-id>
+tronctl proposal withdraw <proposal-id>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
 
 # Example
-tronctl proposal delete 15 --signer myaccount
+tronctl proposal withdraw 15 --signer myaccount
 ```
 
 ## Exchange Commands
@@ -588,35 +562,27 @@ tronctl exchange withdraw 1 1000001 500 --signer myaccount
 ### Trade on Exchange
 
 ```bash
-tronctl exchange trade <exchange-id> <token-id> <amount> <expected>
+tronctl exchange trade <exchange-id> <token-id> <amount>
 
 # Options
---signer <name>          Account name (required)
+-s, --signer <name>      Account name (required)
+-x, --expected <amount>  Expected amount in return (default: 0)
 
 # Example
-tronctl exchange trade 1 TRX 100 45 --signer myaccount
+tronctl exchange trade 1 TRX 100 --expected 45 --signer myaccount
 ```
 
 ## Configuration
 
-### Initialize Configuration
-
-```bash
-tronctl config init
-
-# Creates default config at ~/.tronctl/config.yaml
-```
+The config file is created with defaults at `~/.config/tronctl/config.default` on first run.
 
 ### Show Configuration
 
 ```bash
-tronctl config show
+tronctl config get <key>
 
-# Example output:
-# node: grpc.trongrid.io:50051
-# network: mainnet
-# timeout: 60s
-# tls: true
+# Example
+tronctl config get node
 ```
 
 ### Set Configuration Value
@@ -624,9 +590,11 @@ tronctl config show
 ```bash
 tronctl config set <key> <value>
 
+# Keys: node, apiKey, withTLS, ledger, verbose, nopretty
+
 # Examples
 tronctl config set node grpc.trongrid.io:50051
-tronctl config set tls true
+tronctl config set withTLS true
 tronctl config set apiKey your-api-key
 ```
 
@@ -635,25 +603,12 @@ tronctl config set apiKey your-api-key
 ### Convert Address
 
 ```bash
-tronctl utils addr2hex <base58-address>
-tronctl utils hex2addr <hex-address>
+tronctl utility base58-to-addr <base58-address>
+tronctl utility addr-to-base58 <hex-address>
 
 # Examples
-tronctl utils addr2hex TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
-tronctl utils hex2addr 41928c9af0651632157ef27a2cf17ca72c575a4d21
-```
-
-### Generate Address
-
-```bash
-tronctl utils genaddr
-
-# Options
---count <number>        Number of addresses to generate
---prefix <string>       Desired address prefix
-
-# Example
-tronctl utils genaddr --count 10 --prefix TR
+tronctl utility base58-to-addr TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
+tronctl utility addr-to-base58 41928c9af0651632157ef27a2cf17ca72c575a4d21
 ```
 
 ## Examples
@@ -671,30 +626,30 @@ tronctl account balance TPjGUuQfq6R3FMBmsacd6Z5dvAgrD2rz4n
 tronctl account send TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9 100 --signer myaccount
 
 # 4. Check transaction
-tronctl bc gettransaction <tx-id>
+tronctl bc tx <tx-id>
 ```
 
 ### Deploy and Interact with Contract
 
 ```bash
 # 1. Deploy contract
-tronctl contract deploy Token.bin Token.abi --signer myaccount --name "MyToken" --constructor '["My Token", "MTK", 1000000]'
+tronctl contract deploy MyToken --bcFile Token.bin --abiFile Token.abi --signer myaccount --params '["My Token", "MTK", 1000000]'
 
 # 2. Call read method
-tronctl contract call <contract-address> totalSupply '[]'
+tronctl contract constant <contract-address> "totalSupply()"
 
 # 3. Trigger write method
-tronctl contract trigger <contract-address> transfer '["TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9", 1000]' --signer myaccount --fee-limit 10
+tronctl contract trigger <contract-address> "transfer(address,uint256)" '[{"address": "TN3W4H6rK2ce4vX9YnFQHwKENnHjoxb3m9"}, {"uint256": "1000"}]' --signer myaccount --feeLimit 10000000
 ```
 
 ### Participate in Network Governance
 
 ```bash
 # 1. Freeze TRX for voting power
-tronctl account freeze 10000 BANDWIDTH --signer myaccount
+tronctl account freezeV2 10000 --type 0 --signer myaccount
 
 # 2. Vote for SR
-tronctl account vote TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH 10000 --signer myaccount
+tronctl account vote --wv TLyqzVGLV1srkB7dToTAEqgDSfPtXRJZYH:10000 --signer myaccount
 
 # 3. Check vote status
 tronctl sr list
@@ -704,8 +659,10 @@ tronctl sr list
 
 The following environment variables affect tronctl behavior:
 
-- `TRON_NODE`: Default node address
-- `TRON_NODE_TLS`: Enable TLS (true/false)
+- `TRONCTL_NODE`: Default node address
+- `TRONCTL_TLS`: Enable TLS (true/1)
+- `TRONCTL_SIGNER`: Default signer (account name or address)
+- `TRONCTL_KS_DIR`: Keystore directory
 - `TRONGRID_APIKEY`: Trongrid API key
 - `GOTRON_SDK_DEBUG`: Enable debug output
 
@@ -713,5 +670,5 @@ The following environment variables affect tronctl behavior:
 
 - Most commands that modify blockchain state require a signer (account with private key)
 - Transaction fees apply to most operations
-- Use `--fee-limit` to control maximum fees for smart contract interactions
+- Use `--feeLimit` (in SUN) to control maximum fees for smart contract interactions
 - Always test on testnet before mainnet operations
