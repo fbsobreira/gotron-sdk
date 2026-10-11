@@ -454,19 +454,21 @@ func TestResolveSigner_LedgerFallbackIsLazy(t *testing.T) {
 	assert.Empty(t, s.Address())
 }
 
-// TestExecuteTransaction_UnknownSigningImplSkipsSigning pins the pre-existing
-// behaviour: an unrecognised SigningImpl without WithSigner signs nothing and
-// the transaction is broadcast as given.
-func TestExecuteTransaction_UnknownSigningImplSkipsSigning(t *testing.T) {
+// TestExecuteTransaction_UnknownSigningImplRefused checks that an
+// unrecognised SigningImpl without WithSigner is refused before broadcast,
+// instead of sending the transaction unsigned.
+func TestExecuteTransaction_UnknownSigningImplRefused(t *testing.T) {
 	mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
 	c := newMockClient(t, mock)
 
 	ctrl := NewController(c, nil, nil, newTestTransaction())
 	ctrl.Behavior.SigningImpl = SignerImpl(99)
 
-	require.NoError(t, ctrl.ExecuteTransaction())
+	err := ctrl.ExecuteTransaction()
+	require.ErrorIs(t, err, ErrBadTransactionParam)
+	assert.Contains(t, err.Error(), "unknown signing implementation 99")
 	assert.Empty(t, ctrl.tx.GetSignature())
-	assert.Equal(t, int32(1), mock.broadcastCalls.Load())
+	assert.Zero(t, mock.broadcastCalls.Load())
 }
 
 func TestWithSigner_NilIsIgnored(t *testing.T) {

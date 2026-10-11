@@ -145,9 +145,9 @@ func (C *Controller) ledgerSigner() signer.Signer {
 }
 
 // resolveSigner picks the signer for ExecuteTransaction: the WithSigner
-// signer if set, otherwise the one Behavior.SigningImpl selects. It returns
-// a nil signer and no error for an unrecognised SigningImpl, which signs
-// nothing, as before signers were introduced.
+// signer if set, otherwise the one Behavior.SigningImpl selects. An
+// unrecognised SigningImpl is an error wrapping ErrBadTransactionParam, so
+// the transaction is never broadcast unsigned.
 func (C *Controller) resolveSigner() (signer.Signer, error) {
 	if C.signer != nil {
 		return C.signer, nil
@@ -158,7 +158,7 @@ func (C *Controller) resolveSigner() (signer.Signer, error) {
 	case Ledger:
 		return C.ledgerSigner(), nil
 	}
-	return nil, nil
+	return nil, fmt.Errorf("%w: unknown signing implementation %d", ErrBadTransactionParam, C.Behavior.SigningImpl)
 }
 
 // signTx signs C.tx with the resolved signer.
@@ -169,9 +169,6 @@ func (C *Controller) signTx() {
 	s, err := C.resolveSigner()
 	if err != nil {
 		C.executionError = err
-		return
-	}
-	if s == nil {
 		return
 	}
 	C.signWith(s)
