@@ -112,12 +112,12 @@ func proposalApproveCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -162,12 +162,12 @@ func proposalWithdrawCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -230,12 +230,12 @@ func proposalCreateCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["from"] = signerAddress.String()
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)

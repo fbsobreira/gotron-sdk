@@ -91,12 +91,12 @@ func exchangeCreateCmd() *cobra.Command {
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":      ctrlr.Receipt.Fee,
-				"netFee":   ctrlr.Receipt.Receipt.NetFee,
-				"netUsage": ctrlr.Receipt.Receipt.NetUsage,
+				"fee":      ctrlr.Receipt.GetFee(),
+				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -154,14 +154,14 @@ func exchangeInjectCmd() *cobra.Command {
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":          ctrlr.Receipt.Fee,
-				"netFee":       ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":     ctrlr.Receipt.Receipt.NetUsage,
+				"fee":          ctrlr.Receipt.GetFee(),
+				"netFee":       ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":     ctrlr.Receipt.GetReceipt().GetNetUsage(),
 				"TokenAmount1": tokenValue1,
-				"TokenAmount2": ctrlr.Receipt.ExchangeInjectAnotherAmount,
+				"TokenAmount2": ctrlr.Receipt.GetExchangeInjectAnotherAmount(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -219,14 +219,14 @@ func exchangeWithdrawCmd() *cobra.Command {
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":          ctrlr.Receipt.Fee,
-				"netFee":       ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":     ctrlr.Receipt.Receipt.NetUsage,
+				"fee":          ctrlr.Receipt.GetFee(),
+				"netFee":       ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":     ctrlr.Receipt.GetReceipt().GetNetUsage(),
 				"TokenAmount1": tokenValue1,
-				"TokenAmount2": ctrlr.Receipt.ExchangeWithdrawAnotherAmount,
+				"TokenAmount2": ctrlr.Receipt.GetExchangeWithdrawAnotherAmount(),
 			}
 
 			asJSON, _ := json.Marshal(result)
@@ -377,14 +377,14 @@ func exchangeTradeCmd() *cobra.Command {
 
 			result := make(map[string]interface{})
 			result["txID"] = common.BytesToHexString(tx.GetTxid())
-			result["blockNumber"] = ctrlr.Receipt.BlockNumber
-			result["message"] = string(ctrlr.Result.Message)
+			result["blockNumber"] = ctrlr.Receipt.GetBlockNumber()
+			result["message"] = string(ctrlr.Result.GetMessage())
 			result["receipt"] = map[string]interface{}{
-				"fee":           ctrlr.Receipt.Fee,
-				"netFee":        ctrlr.Receipt.Receipt.NetFee,
-				"netUsage":      ctrlr.Receipt.Receipt.NetUsage,
+				"fee":           ctrlr.Receipt.GetFee(),
+				"netFee":        ctrlr.Receipt.GetReceipt().GetNetFee(),
+				"netUsage":      ctrlr.Receipt.GetReceipt().GetNetUsage(),
 				"TokenAmount1":  tokenValue1,
-				"TokenAmount2":  ctrlr.Receipt.ExchangeReceivedAmount,
+				"TokenAmount2":  ctrlr.Receipt.GetExchangeReceivedAmount(),
 				"TokenExpected": expectedInt,
 			}
 

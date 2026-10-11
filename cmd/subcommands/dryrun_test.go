@@ -32,6 +32,8 @@ type dryRunWallet struct {
 	api.UnimplementedWalletServer
 	broadcastCalls atomic.Int32
 	txInfoCalls    atomic.Int32
+	// confirm makes GetTransactionInfoById return a confirmed info.
+	confirm bool
 }
 
 func (w *dryRunWallet) CreateTransaction2(_ context.Context, in *core.TransferContract) (*api.TransactionExtention, error) {
@@ -66,8 +68,12 @@ func (w *dryRunWallet) BroadcastTransaction(context.Context, *core.Transaction) 
 	return &api.Return{Result: true, Code: api.Return_SUCCESS}, nil
 }
 
-func (w *dryRunWallet) GetTransactionInfoById(context.Context, *api.BytesMessage) (*core.TransactionInfo, error) { //nolint:staticcheck,revive // matches proto-generated method name
+func (w *dryRunWallet) GetTransactionInfoById(_ context.Context, in *api.BytesMessage) (*core.TransactionInfo, error) { //nolint:staticcheck,revive // matches proto-generated method name
 	w.txInfoCalls.Add(1)
+	if w.confirm {
+		// A confirmed info without the inner resource Receipt.
+		return &core.TransactionInfo{Id: in.GetValue(), BlockNumber: 1}, nil
+	}
 	return &core.TransactionInfo{}, nil
 }
 
@@ -260,4 +266,24 @@ func TestDryRunAndTimeoutFlagsArePersistent(t *testing.T) {
 		assert.NotNil(t, sub.InheritedFlags().Lookup(name), "account send must inherit --%s", name)
 		assert.NotNil(t, RootCmd.PersistentFlags().Lookup(name), "--%s must be a persistent root flag", name)
 	}
+}
+
+// TestAccountSendConfirmedWithoutResourceReceipt runs a real (non-dry-run)
+// `account send` whose confirmation returns a TransactionInfo with no inner
+// resource Receipt, as a node may. The command reads receipt fields through
+// the nil-safe getters, so it must print the result instead of panicking.
+func TestAccountSendConfirmedWithoutResourceReceipt(t *testing.T) {
+	const pw = "confirm-pass"
+	pqTestEnv(t, pw)
+	from := addECDSAAccount(t, "confirm-ecdsa", pw)
+	wallet := &dryRunWallet{confirm: true}
+	withDryRunRuntime(t, newDryRunClient(t, wallet), from, false, false)
+	rt.NoWait, rt.Timeout = false, 1
+
+	// The command prints its result to os.Stdout; the point here is that it
+	// gets that far without a nil-pointer panic.
+	_, _, err := runKeysCmd(t, accountSendCmd(), dryRunTo, "1")
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), wallet.broadcastCalls.Load())
+	assert.Positive(t, wallet.txInfoCalls.Load(), "the command must wait for confirmation")
 }
