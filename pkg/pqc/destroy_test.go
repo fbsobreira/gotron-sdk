@@ -20,6 +20,7 @@ func assertDestroyed(t *testing.T, k PrivateKey, pub *PublicKey) {
 	assert.Nil(t, sig)
 	assert.Nil(t, k.Bytes())
 	assert.Nil(t, k.Seed())
+	assert.True(t, k.Destroyed())
 	assert.True(t, pub.Equal(k.Public()))
 	assert.Equal(t, pub.Address(), k.Public().Address())
 	assert.Contains(t, fmt.Sprint(k), pub.Address().String())
@@ -48,6 +49,7 @@ func TestMLDSA44_Destroy(t *testing.T) {
 			pub := k.Public()
 			_, err := k.Sign(testDigest(1))
 			require.NoError(t, err)
+			assert.False(t, k.Destroyed())
 
 			k.Destroy()
 
@@ -79,6 +81,7 @@ func TestFNDSA512_Destroy(t *testing.T) {
 		require.Len(t, secret, FNDSA512PrivateKeySize)
 		pub := k.Public()
 		signCalls := f.signCalls
+		assert.False(t, k.Destroyed())
 
 		k.Destroy()
 
@@ -92,6 +95,7 @@ func TestFNDSA512_Destroy(t *testing.T) {
 		k, err := ParsePrivateKey(core.PQScheme_FN_DSA_512, sk, pk)
 		require.NoError(t, err)
 		pub := k.Public()
+		assert.False(t, k.Destroyed())
 
 		k.Destroy()
 

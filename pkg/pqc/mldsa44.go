@@ -205,6 +205,9 @@ func (k *mldsaKey) Destroy() {
 	k.destroyed = true
 }
 
+// Destroyed reports whether Destroy has been called.
+func (k *mldsaKey) Destroyed() bool { return k.destroyed }
+
 // String describes the key without revealing key material.
 func (k *mldsaKey) String() string { return formatPrivateKey(k) }
 

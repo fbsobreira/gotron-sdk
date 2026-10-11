@@ -515,7 +515,7 @@ JSON shape returned by the node (bytes are lowercase hex, the enum is printed by
 |---|---|
 | Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON`, `EncryptKeystore`) |
 | Sign a transaction | `signer.NewPQSigner(key)` (implements `signer.Signer`), or `signer.SignTransactionPQ` / `transaction.SignTransactionPQ` |
-| Ask the node which schemes are enabled | `client.GetPQCapabilities`, `PQSchemeAllowed` / `PQSchemeAllowedCtx` |
+| Ask the node which schemes are enabled | `client.GetPQCapabilities`, `PQSchemeAllowed` / `PQSchemeAllowedCtx`. A successful answer is cached on the client for `client.DefaultPQCapabilitiesTTL` (1 minute); errors are not cached. `SetPQCapabilitiesTTL` changes the TTL (0 or less disables caching), `InvalidatePQCapabilities` forces the next call to ask the node, and `Start`, `Stop` and `Reconnect` invalidate it |
 | Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask |
 | Transaction JSON with `pq_auth_sig` | `transaction.ToJSON` / `FromJSON` |
 | Bandwidth estimate for PQ | `client.GetCanDelegatedMaxSizePQ` |

@@ -10,7 +10,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// GrpcClient provides access to the TRON network via gRPC.
+// GrpcClient provides access to the TRON network via gRPC. Use it through a
+// pointer, as NewGrpcClient returns it: it holds a mutex and must not be
+// copied after first use.
 type GrpcClient struct {
 	Address     string
 	Conn        *grpc.ClientConn
@@ -19,6 +21,10 @@ type GrpcClient struct {
 	opts        []grpc.DialOption
 	apiKey      string
 	baseCtx     context.Context
+
+	// pqCache holds the last successful TIP-899 capability probe; see
+	// GetPQCapabilitiesCtx.
+	pqCache pqCapsCache
 }
 
 // NewGrpcClient creates a new GrpcClient with a default timeout of 5 seconds.
@@ -47,6 +53,9 @@ func (g *GrpcClient) SetTimeout(timeout time.Duration) {
 // Start establishes the gRPC connection. If no address was provided, it
 // defaults to grpc.trongrid.io:50051.
 func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
+	// The connection may reach a different node, with different TIP-899
+	// capabilities, than the one the cached probe came from.
+	g.InvalidatePQCapabilities()
 	var err error
 	if len(g.Address) == 0 {
 		g.Address = "grpc.trongrid.io:50051"
@@ -57,6 +66,9 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
 	g.Client = api.NewWalletClient(g.Conn)
+	// Again once the new client is in place, so a probe that read the old
+	// client while dialling cannot store its answer for the new node.
+	g.InvalidatePQCapabilities()
 	return nil
 }
 
@@ -106,11 +118,17 @@ func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
 	return metadata.NewOutgoingContext(ctx, md)
 }
 
-// Stop closes the underlying gRPC connection.
+// Stop closes the underlying gRPC connection and drops the cached TIP-899
+// capability probe, so a stopped client is never reported as allowing a
+// scheme without asking a node.
 func (g *GrpcClient) Stop() {
+	g.InvalidatePQCapabilities()
 	if g.Conn != nil {
 		_ = g.Conn.Close()
 	}
+	// Again after closing, so a probe that finished on the connection while
+	// it was closing cannot leave its answer behind.
+	g.InvalidatePQCapabilities()
 }
 
 // Reconnect closes the current connection and re-establishes it.

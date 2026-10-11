@@ -126,13 +126,17 @@ type pqSigner struct {
 //
 // An FN-DSA-512 key is rejected with an error wrapping
 // pqc.ErrFalconUnavailable when this build has no Falcon backend, rather than
-// failing on the first Sign. The signer does not copy the key: destroying the
-// key also disables the signer.
+// failing on the first Sign. A key that has already been destroyed is
+// rejected with an error wrapping pqc.ErrKeyDestroyed. The signer does not
+// copy the key: destroying the key later also disables the signer.
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 func NewPQSigner(key pqc.PrivateKey) (Signer, error) {
 	if key == nil {
 		return nil, errors.New("signer: nil post-quantum key")
+	}
+	if key.Destroyed() {
+		return nil, fmt.Errorf("signer: %s: %w", key.Scheme(), pqc.ErrKeyDestroyed)
 	}
 	if err := pqc.SchemeAvailable(key.Scheme()); err != nil {
 		return nil, fmt.Errorf("signer: %s: %w", key.Scheme(), err)

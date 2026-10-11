@@ -276,6 +276,14 @@ func TestNewPQSigner(t *testing.T) {
 		assert.Nil(t, s)
 	})
 
+	t.Run("destroyed key", func(t *testing.T) {
+		key := newMLDSAKey(t)
+		key.Destroy()
+		s, err := NewPQSigner(key)
+		require.ErrorIs(t, err, pqc.ErrKeyDestroyed)
+		assert.Nil(t, s)
+	})
+
 	t.Run("ML-DSA-44", func(t *testing.T) {
 		key := newMLDSAKey(t)
 		s, err := NewPQSigner(key)
