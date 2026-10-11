@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -180,7 +181,11 @@ func (g *GrpcClient) GetCanDelegatedMaxSizePQCtx(ctx context.Context, address st
 		PqScheme:     scheme,
 	}
 
-	return g.Client.GetCanDelegatedMaxSize(ctx, dm)
+	response, err := g.Client.GetCanDelegatedMaxSize(ctx, dm)
+	if err != nil {
+		return nil, fmt.Errorf("get can-delegated max size: %w", err)
+	}
+	return response, nil
 }
 
 // DelegateResource from BASE58 address

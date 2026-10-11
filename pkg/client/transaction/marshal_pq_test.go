@@ -305,16 +305,26 @@ func TestFromRawDataHex_CarriesNoPQ(t *testing.T) {
 	assert.Empty(t, tx.GetPqAuthSig())
 }
 
-func TestToJSON_PQUnknownSchemeRoundTripRejected(t *testing.T) {
-	for _, scheme := range []core.PQScheme{core.PQScheme_UNKNOWN_PQ_SCHEME, core.PQScheme(99)} {
-		tx := makeTestTx()
-		tx.PqAuthSig = []*core.PQAuthSig{{Scheme: scheme, PublicKey: []byte{1}, Signature: []byte{2}}}
-
-		out, err := ToJSON(tx)
-		require.NoError(t, err, "ToJSON must not alter or drop the entry")
-		assert.Contains(t, string(out), `"pq_auth_sig"`)
-
-		_, err = FromJSON(out)
-		require.Error(t, err, "FromJSON must reject scheme %d", scheme)
+// ToJSON refuses every entry FromJSON would reject, so its output always
+// round-trips.
+func TestToJSON_PQInvalidEntryRefused(t *testing.T) {
+	tests := []struct {
+		name    string
+		entry   *core.PQAuthSig
+		wantErr string
+	}{
+		{"unknown scheme 0", &core.PQAuthSig{Scheme: core.PQScheme_UNKNOWN_PQ_SCHEME, PublicKey: []byte{1}, Signature: []byte{2}}, "pq_auth_sig[0]: unknown scheme 0"},
+		{"out-of-range scheme", &core.PQAuthSig{Scheme: core.PQScheme(99), PublicKey: []byte{1}, Signature: []byte{2}}, "pq_auth_sig[0]: unknown scheme 99"},
+		{"empty public key", &core.PQAuthSig{Scheme: core.PQScheme_FN_DSA_512, Signature: []byte{2}}, "pq_auth_sig[0]: empty public_key"},
+		{"empty signature", &core.PQAuthSig{Scheme: core.PQScheme_ML_DSA_44, PublicKey: []byte{1}}, "pq_auth_sig[0]: empty signature"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tx := makeTestTx()
+			tx.PqAuthSig = []*core.PQAuthSig{tt.entry}
+			out, err := ToJSON(tx)
+			require.EqualError(t, err, tt.wantErr)
+			assert.Nil(t, out)
+		})
 	}
 }

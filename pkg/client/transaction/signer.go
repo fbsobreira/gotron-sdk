@@ -40,16 +40,16 @@ func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transact
 }
 
 // SignTransaction signs a transaction using a btcec private key.
-func SignTransaction(tx *core.Transaction, signer *btcec.PrivateKey) (*core.Transaction, error) {
-	return SignTransactionECDSA(tx, signer.ToECDSA())
+func SignTransaction(tx *core.Transaction, key *btcec.PrivateKey) (*core.Transaction, error) {
+	return SignTransactionECDSA(tx, key.ToECDSA())
 }
 
 // SignTransactionECDSA signs a transaction using an ECDSA private key.
-func SignTransactionECDSA(tx *core.Transaction, signer *ecdsa.PrivateKey) (*core.Transaction, error) {
+func SignTransactionECDSA(tx *core.Transaction, key *ecdsa.PrivateKey) (*core.Transaction, error) {
 	// Ensure the private key uses go-ethereum's secp256k1 curve.
 	// Keys from btcec.ToECDSA() use a different curve instance that fails
 	// validation in go-ethereum's non-CGO Sign() (e.g., on Windows).
-	signer, err := crypto.ToECDSA(crypto.FromECDSA(signer))
+	key, err := crypto.ToECDSA(crypto.FromECDSA(key))
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func SignTransactionECDSA(tx *core.Transaction, signer *ecdsa.PrivateKey) (*core
 	h256h.Write(rawData)
 	hash := h256h.Sum(nil)
 
-	signature, err := crypto.Sign(hash, signer)
+	signature, err := crypto.Sign(hash, key)
 	if err != nil {
 		return nil, err
 	}

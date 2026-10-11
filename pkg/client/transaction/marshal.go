@@ -56,13 +56,28 @@ type jsonPQAuthSig struct {
 	Signature string          `json:"signature"`
 }
 
-// pqSchemeJSON prints a scheme by enum name. A value outside the known enum is
-// printed as an integer so it is never silently altered; FromJSON rejects it.
-func pqSchemeJSON(s core.PQScheme) json.RawMessage {
-	if name, ok := core.PQScheme_name[int32(s)]; ok {
-		return json.RawMessage(strconv.Quote(name))
+// encodePQAuthSig converts one entry for ToJSON. It refuses what FromJSON
+// would reject (a nil entry, an unknown or zero scheme, an empty key or
+// signature), so ToJSON output always round-trips.
+func encodePQAuthSig(pq *core.PQAuthSig, index int) (jsonPQAuthSig, error) {
+	if pq == nil {
+		return jsonPQAuthSig{}, fmt.Errorf("pq_auth_sig[%d] is nil", index)
 	}
-	return json.RawMessage(strconv.FormatInt(int64(s), 10))
+	name, ok := core.PQScheme_name[int32(pq.GetScheme())]
+	if !ok || pq.GetScheme() == core.PQScheme_UNKNOWN_PQ_SCHEME {
+		return jsonPQAuthSig{}, fmt.Errorf("pq_auth_sig[%d]: unknown scheme %d", index, int32(pq.GetScheme()))
+	}
+	if len(pq.GetPublicKey()) == 0 {
+		return jsonPQAuthSig{}, fmt.Errorf("pq_auth_sig[%d]: empty public_key", index)
+	}
+	if len(pq.GetSignature()) == 0 {
+		return jsonPQAuthSig{}, fmt.Errorf("pq_auth_sig[%d]: empty signature", index)
+	}
+	return jsonPQAuthSig{
+		Scheme:    json.RawMessage(strconv.Quote(name)),
+		PublicKey: hex.EncodeToString(pq.GetPublicKey()),
+		Signature: hex.EncodeToString(pq.GetSignature()),
+	}, nil
 }
 
 // parsePQScheme accepts an exact enum name or a JSON integer, as java-tron
@@ -271,7 +286,8 @@ func ToRawDataHex(tx *core.Transaction) (string, error) {
 // post-quantum signatures also get a pq_auth_sig array of
 // {"scheme", "public_key", "signature"} objects, with the scheme printed by
 // enum name and the bytes as lowercase hex; the field is omitted when there
-// are none. A nil pq_auth_sig entry is an error.
+// are none. An entry FromJSON would reject (nil, an unknown or zero scheme,
+// an empty public key or signature) is an error, so the output round-trips.
 //
 // The txID is computed as the SHA256 hash of the protobuf-encoded raw_data.
 // The raw_data_hex field contains the canonical protobuf serialization and
@@ -311,14 +327,11 @@ func ToJSON(tx *core.Transaction) ([]byte, error) {
 
 	var pqSigs []jsonPQAuthSig
 	for i, pq := range tx.GetPqAuthSig() {
-		if pq == nil {
-			return nil, fmt.Errorf("pq_auth_sig[%d] is nil", i)
+		e, err := encodePQAuthSig(pq, i)
+		if err != nil {
+			return nil, err
 		}
-		pqSigs = append(pqSigs, jsonPQAuthSig{
-			Scheme:    pqSchemeJSON(pq.GetScheme()),
-			PublicKey: hex.EncodeToString(pq.GetPublicKey()),
-			Signature: hex.EncodeToString(pq.GetSignature()),
-		})
+		pqSigs = append(pqSigs, e)
 	}
 
 	jtx := jsonTransaction{

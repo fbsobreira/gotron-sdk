@@ -147,13 +147,11 @@ func TestSignTransactionPQ_SelfVerifyFailureRefused(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			orig := verifyPQ
-			t.Cleanup(func() { verifyPQ = orig })
-			verifyPQ = func(*pqc.PublicKey, []byte, []byte) (bool, error) { return tt.ok, tt.err }
+			verify := func(*pqc.PublicKey, []byte, []byte) (bool, error) { return tt.ok, tt.err }
 
 			tx := newPQTestTx()
 			snapshot := proto.Clone(tx)
-			signed, err := SignTransactionPQ(tx, newMLDSAKey(t))
+			signed, err := signTransactionPQ(tx, newMLDSAKey(t), verify)
 			require.Error(t, err)
 			if tt.wantIs != nil {
 				require.ErrorIs(t, err, tt.wantIs)

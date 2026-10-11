@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/signer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -145,4 +147,16 @@ func TestSendAndConfirm_PQ_Disabled(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPQSchemeDisabled)
 	assert.Equal(t, 0, s.signed)
 	assert.Equal(t, 0, b.broadcasts)
+}
+
+// The probe keys off PQSchemeSigner; if the real PQ signer stopped
+// satisfying it, Send would silently skip the capability check.
+func TestNewPQSigner_IsPQSchemeSigner(t *testing.T) {
+	key, err := pqc.GenerateKey(core.PQScheme_ML_DSA_44, nil)
+	require.NoError(t, err)
+	s, err := signer.NewPQSigner(key)
+	require.NoError(t, err)
+	ps, ok := s.(PQSchemeSigner)
+	require.True(t, ok, "signer.NewPQSigner result must implement txcore.PQSchemeSigner")
+	assert.Equal(t, core.PQScheme_ML_DSA_44, ps.PQScheme())
 }

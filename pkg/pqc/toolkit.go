@@ -99,6 +99,7 @@ func ParseToolkitJSON(data []byte) (PrivateKey, error) {
 	}
 	if present(f.Address) {
 		if err := checkAddress(f.Address, k); err != nil {
+			k.Destroy()
 			return nil, err
 		}
 	}
@@ -146,6 +147,11 @@ func toolkitMLDSA44(f toolkitKeyJSON, hasSeed, hasPriv, hasPub bool) (PrivateKey
 	if !hasSeed {
 		return k, nil
 	}
+	// The seed-derived key is returned (it retains the seed); wipe the
+	// expanded one.
+	if k != nil {
+		defer k.Destroy()
+	}
 
 	seed, err := decodeKeyHex("seed", f.Seed, MLDSA44SeedSize)
 	if err != nil {
@@ -157,6 +163,7 @@ func toolkitMLDSA44(f toolkitKeyJSON, hasSeed, hasPriv, hasPub bool) (PrivateKey
 		return nil, err
 	}
 	if k != nil && !sk.Public().Equal(k.Public()) {
+		sk.Destroy()
 		return nil, fmt.Errorf("%w: seed and privateKey describe different keys", ErrKeyMismatch)
 	}
 	return sk, nil

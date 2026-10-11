@@ -32,13 +32,6 @@ var (
 	ErrPQAlreadySigned = errors.New("signer: post-quantum key has already signed the transaction")
 )
 
-// verifyPQ checks a fresh signature before it is attached. A variable so
-// tests can simulate a faulty backend, which the closed pqc.PrivateKey
-// interface does not allow.
-var verifyPQ = func(pub *pqc.PublicKey, digest, sig []byte) (bool, error) {
-	return pub.Verify(digest, sig)
-}
-
 // SignTransactionPQ signs tx with a TIP-899 post-quantum key and appends a
 // pq_auth_sig entry (scheme, public key, signature). The signed message is
 // the raw 32-byte transaction ID, SHA-256(raw_data), the same digest the
@@ -57,6 +50,16 @@ var verifyPQ = func(pub *pqc.PublicKey, digest, sig []byte) (bool, error) {
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error) {
+	return signTransactionPQ(tx, key, (*pqc.PublicKey).Verify)
+}
+
+// pqVerifyFunc checks a fresh signature before it is attached.
+type pqVerifyFunc func(pub *pqc.PublicKey, digest, sig []byte) (bool, error)
+
+// signTransactionPQ implements SignTransactionPQ with an injectable verifier,
+// so tests can simulate a faulty backend (the closed pqc.PrivateKey interface
+// does not allow a fake key).
+func signTransactionPQ(tx *core.Transaction, key pqc.PrivateKey, verify pqVerifyFunc) (*core.Transaction, error) {
 	if tx == nil {
 		return nil, errors.New("signer: nil transaction")
 	}
@@ -90,7 +93,7 @@ func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transact
 	if err != nil {
 		return nil, fmt.Errorf("signer: %s sign: %w", key.Scheme(), err)
 	}
-	ok, err := verifyPQ(pub, digest[:], sig)
+	ok, err := verify(pub, digest[:], sig)
 	if err != nil {
 		return nil, fmt.Errorf("signer: %s verify own signature: %w", key.Scheme(), err)
 	}
@@ -114,8 +117,9 @@ type pqSigner struct {
 
 // NewPQSigner creates a Signer from a TIP-899 post-quantum key. Sign appends
 // a pq_auth_sig entry through SignTransactionPQ and leaves the ECDSA
-// signatures alone. The returned value also has a PQScheme() core.PQScheme
-// method.
+// signatures alone. The returned value also implements txcore.PQSchemeSigner
+// (a PQScheme() core.PQScheme method), so txcore.Send can check that the node
+// has the scheme enabled before signing.
 //
 // An FN-DSA-512 key is rejected with an error wrapping
 // pqc.ErrFalconUnavailable when this build has no Falcon backend, rather than

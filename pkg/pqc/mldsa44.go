@@ -37,7 +37,12 @@ func NewMLDSA44FromSeed(seed []byte) (PrivateKey, error) {
 	copy(s[:], seed)
 	_, sk := mldsa44.NewKeyFromSeed(&s)
 	clear(s[:])
-	return newMLDSAKey(sk)
+	k, err := newMLDSAKey(sk)
+	if err != nil {
+		*sk = mldsa44.PrivateKey{}
+		return nil, err
+	}
+	return k, nil
 }
 
 func generateMLDSA44(rand io.Reader) (PrivateKey, error) {

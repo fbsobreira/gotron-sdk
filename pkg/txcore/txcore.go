@@ -57,13 +57,14 @@ func TransactionID(tx *core.Transaction) (string, error) {
 // error but sets receipt.Error. Callers MUST check receipt.Error in addition
 // to the returned error.
 //
-// Experimental: if s reports a post-quantum scheme (a PQScheme() core.PQScheme
-// method) and b can probe node capabilities (a
-// PQSchemeAllowedCtx(context.Context, core.PQScheme) (bool, error) method,
-// which *client.GrpcClient provides), Send asks the node whether the scheme
-// is enabled before signing. If it is not, Send returns an error wrapping
-// ErrPQSchemeDisabled without signing or broadcasting. If either method is
-// missing, no probe is made and Send behaves as it does for any other signer.
+// Experimental: if s is a PQSchemeSigner (as signer.NewPQSigner returns) and
+// b is a PQProber (as *client.GrpcClient is), Send asks the node whether the
+// scheme is enabled before signing. If it is not, Send returns an error
+// wrapping ErrPQSchemeDisabled without signing or broadcasting. If either
+// interface is missing, no probe is made and Send behaves as it does for any
+// other signer; the node still rejects a disabled scheme at broadcast. A
+// Broadcaster that wraps *client.GrpcClient must implement PQProber itself
+// (usually by forwarding to the client) to keep the early check.
 func Send(ctx context.Context, b Broadcaster, s signer.Signer, tx *core.Transaction) (*Receipt, error) {
 	if err := checkPQScheme(ctx, b, s); err != nil {
 		return nil, err
@@ -90,16 +91,30 @@ func Send(ctx context.Context, b Broadcaster, s signer.Signer, tx *core.Transact
 	return receipt, nil
 }
 
+// PQSchemeSigner is implemented by signers that sign with a TIP-899
+// post-quantum key, such as the one signer.NewPQSigner returns.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+type PQSchemeSigner interface {
+	PQScheme() core.PQScheme
+}
+
+// PQProber is implemented by broadcasters that can ask the node whether a
+// TIP-899 post-quantum scheme is enabled, such as *client.GrpcClient.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+type PQProber interface {
+	PQSchemeAllowedCtx(ctx context.Context, scheme core.PQScheme) (bool, error)
+}
+
 // checkPQScheme probes the node for post-quantum capability when both the
 // signer and the broadcaster opt in. It is a no-op otherwise.
 func checkPQScheme(ctx context.Context, b Broadcaster, s signer.Signer) error {
-	pqSigner, ok := s.(interface{ PQScheme() core.PQScheme })
+	pqSigner, ok := s.(PQSchemeSigner)
 	if !ok {
 		return nil
 	}
-	prober, ok := b.(interface {
-		PQSchemeAllowedCtx(context.Context, core.PQScheme) (bool, error)
-	})
+	prober, ok := b.(PQProber)
 	if !ok {
 		return nil
 	}

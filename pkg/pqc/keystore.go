@@ -84,9 +84,11 @@ func DecryptKeystore(data []byte, password string) (PrivateKey, error) {
 		return nil, err
 	}
 	if addr == "" {
+		k.Destroy()
 		return nil, fmt.Errorf("%w: keystore has no address", ErrKeyMismatch)
 	}
 	if err := checkAddress(addr, k); err != nil {
+		k.Destroy()
 		return nil, err
 	}
 	return k, nil
@@ -121,16 +123,20 @@ func keyFromSegments(scheme core.PQScheme, ext, seed []byte) (PrivateKey, error)
 	}
 	if scheme == core.PQScheme_FN_DSA_512 {
 		if len(seed) != fnPersistedSeedSize {
+			k.Destroy()
 			return nil, fmt.Errorf("%w: FN-DSA-512 keystore seed must be %d bytes, got %d",
 				ErrInvalidKey, fnPersistedSeedSize, len(seed))
 		}
 		return k, nil
 	}
+	// Keep the seed-derived key (it retains the seed); wipe the expanded one.
+	defer k.Destroy()
 	sk, err := NewMLDSA44FromSeed(seed)
 	if err != nil {
 		return nil, err
 	}
 	if !sk.Public().Equal(k.Public()) {
+		sk.Destroy()
 		return nil, fmt.Errorf("%w: keystore seed and private key describe different keys", ErrKeyMismatch)
 	}
 	return sk, nil

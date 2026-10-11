@@ -7,6 +7,7 @@ import (
 	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/txcore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -201,14 +202,24 @@ func TestGetCanDelegatedMaxSizePQ_CarriesScheme(t *testing.T) {
 	assert.Equal(t, core.PQScheme_ML_DSA_44, got.GetPqScheme())
 }
 
+func TestGetCanDelegatedMaxSizePQ_WrapsGRPCError(t *testing.T) {
+	c := newMockClient(t, &mockWalletServer{
+		GetCanDelegatedMaxSizeFunc: func(_ context.Context, _ *api.CanDelegatedMaxSizeRequestMessage) (*api.CanDelegatedMaxSizeResponseMessage, error) {
+			return nil, status.Error(codes.Unavailable, "node down")
+		},
+	})
+	_, err := c.GetCanDelegatedMaxSizePQ(accountAddress, int32(core.ResourceCode_BANDWIDTH), core.PQScheme_FN_DSA_512)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "get can-delegated max size")
+	assert.Equal(t, codes.Unavailable, status.Code(err), "the gRPC status must survive wrapping")
+}
+
 func TestGetCanDelegatedMaxSizePQ_InvalidAddress(t *testing.T) {
 	c := newMockClient(t, &mockWalletServer{})
 	_, err := c.GetCanDelegatedMaxSizePQ("not-an-address", int32(core.ResourceCode_BANDWIDTH), core.PQScheme_FN_DSA_512)
 	require.Error(t, err)
 }
 
-// txcore probes for this exact method set via a type assertion, so a
-// signature drift would silently disable the capability check.
-var _ interface {
-	PQSchemeAllowedCtx(context.Context, core.PQScheme) (bool, error)
-} = (*client.GrpcClient)(nil)
+// txcore.Send probes the broadcaster for txcore.PQProber; if GrpcClient's
+// method drifted, the capability check would silently stop running.
+var _ txcore.PQProber = (*client.GrpcClient)(nil)
