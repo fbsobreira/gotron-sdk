@@ -81,6 +81,12 @@ go install github.com/fbsobreira/gotron-sdk/cmd/tronctl@latest
 brew install fbsobreira/tap/tronctl
 ```
 
+#### FN-DSA-512 (post-quantum) builds
+The binaries above cannot create or sign with FN-DSA-512 (TIP-899, experimental, Nile only) keys. Each
+[release](https://github.com/fbsobreira/gotron-sdk/releases) also ships `tronctl-pq_*` archives that can, for
+linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64. See
+[tronctl builds with FN-DSA-512](docs/post-quantum.md#tronctl-builds-with-fn-dsa-512).
+
 #### Install from source
 ```bash
 git clone https://github.com/fbsobreira/gotron-sdk.git

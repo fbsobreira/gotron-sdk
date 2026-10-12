@@ -113,7 +113,7 @@ func keysAddCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&scheme, "scheme", "",
 		"create a TIP-899 post-quantum key instead of ECDSA: fn-dsa-512 or ml-dsa-44 "+
-			"(experimental, Nile only; fn-dsa-512 needs a tronctl built with -tags falcon)")
+			"(experimental, Nile only; fn-dsa-512 needs a tronctl-pq release build or a tronctl built with -tags falcon)")
 	return cmd
 }
 

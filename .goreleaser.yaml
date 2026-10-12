@@ -33,6 +33,14 @@ archives:
 
 checksum:
   name_template: checksums.txt
+  # The tronctl-pq_* archives (FN-DSA-512 builds from
+  # .github/workflows/tronctl-pq.yaml) are listed in checksums.txt too.
+  # release.yaml downloads them to dist-pq/ (gitignored, so the tree stays
+  # clean) and fails unless all of them are there. The glob must be relative:
+  # GoReleaser rejects absolute paths. A missing or empty dist-pq/ matches
+  # nothing without an error, which keeps local snapshots working.
+  extra_files:
+    - glob: dist-pq/tronctl-pq_*
 
 changelog:
   sort: desc
@@ -85,3 +93,14 @@ brews:
 
 release:
   prerelease: auto
+  # Attach the tronctl-pq_* archives to the same release (see checksum above).
+  extra_files:
+    - glob: dist-pq/tronctl-pq_*
+  footer: |
+    ### Which archive signs FN-DSA-512?
+
+    Only the `tronctl-pq_*` archives can create FN-DSA-512 (Falcon-512) keys and sign with them. They are built with `-tags falcon` and a statically linked [liboqs](https://openquantumsafe.org/liboqs/), for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64; there is no windows/arm64 build.
+
+    The `tronctl_*` archives and the Homebrew formula are built without CGO: they handle ML-DSA-44 fully and can import, list and export FN-DSA-512 keys, but cannot create FN-DSA-512 keys or sign with them.
+
+    Every archive is listed in `checksums.txt`. TIP-899 is experimental and live only on the Nile testnet; see [docs/post-quantum.md](https://github.com/fbsobreira/gotron-sdk/blob/master/docs/post-quantum.md#tronctl-builds-with-fn-dsa-512).

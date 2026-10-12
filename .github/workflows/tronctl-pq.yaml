@@ -1,0 +1,395 @@
+name: tronctl-pq (FN-DSA-512 release binaries)
+
+# Builds the tronctl-pq_<version>_<os>_<arch> archives: tronctl with
+# -tags falcon and a statically linked liboqs, so it can create FN-DSA-512
+# keys and sign with them. Each target builds on a native runner (cgo does not
+# cross-compile here), runs the pqc tests and an offline smoke test, and
+# uploads its archive as an artifact. release.yaml calls this workflow and
+# attaches the archives to the GitHub Release. Pushes to master and pull
+# requests that could break the static link run it too, so the whole matrix
+# is checked before a tag; run it by hand with workflow_dispatch.
+#
+# The steps live in scripts/tronctl-pq.sh and scripts/build-liboqs.sh, so a
+# local run does the same thing.
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without the leading v (for example 0.26.0)
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version for the archive names, without the leading v (empty for a snapshot)
+        type: string
+        required: false
+        default: ''
+  # Every merge that could break the static link or the release path, so a
+  # tag never meets a matrix that has not run on master.
+  push:
+    branches: [ master ]
+    paths:
+      - go.mod
+      - go.sum
+      - cmd/**
+      - pkg/**
+      - scripts/**
+      - .github/workflows/tronctl-pq.yaml
+      - .github/workflows/release.yaml
+      - .goreleaser.yaml
+  pull_request:
+    branches: [ master, develop ]
+    paths:
+      - go.mod
+      - go.sum
+      - .github/workflows/tronctl-pq.yaml
+      - .github/workflows/release.yaml
+      - .goreleaser.yaml
+      - scripts/build-liboqs.sh
+      - scripts/tronctl-pq.sh
+      - pkg/pqc/**
+
+# Every job only reads the repository.
+permissions:
+  contents: read
+
+env:
+  # Pin the toolchain to the setup-go version — see the note in test.yaml.
+  GOTOOLCHAIN: local
+  # The version in archive names and in tronctl version. Pushes, pull
+  # requests and a manual run without a version build a snapshot version that
+  # is never released.
+  TRONCTL_PQ_VERSION: ${{ inputs.version || format('0.0.0-SNAPSHOT-{0}', github.sha) }}
+
+jobs:
+  linux:
+    name: linux/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goarch: amd64
+            runner: ubuntu-latest
+            file-arch: x86-64
+          - goarch: arm64
+            runner: ubuntu-24.04-arm
+            file-arch: ARM aarch64
+    env:
+      # musl, so the binary can be linked fully static. The build runs in a
+      # docker run step rather than a job container: JavaScript actions do
+      # not run in Alpine containers on arm64.
+      # Pinned to the multi-arch index digest, so every build uses the same
+      # toolchain and Alpine; the liboqs cache key includes it. To bump, run
+      # `docker buildx imagetools inspect golang:1.26-alpine` and copy the
+      # top-level Digest (the index, not a per-platform manifest). Keep the
+      # tag on the Go minor that scripts/tronctl-pq.sh requires (GO_MINOR).
+      GO_IMAGE: golang:1.26-alpine@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          # Full history, so git abbreviates the commit as GoReleaser does.
+          fetch-depth: 0
+
+      - name: Resolve paths and commit
+        run: |
+          {
+            echo "WORK=$RUNNER_TEMP/pq-work"
+            echo "TRONCTL_PQ_COMMIT=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_ENV"
+
+      # The key hashes the scripts and this file, so a change to the liboqs
+      # pin, its cmake flags or the image digest rebuilds it. Pushes to master
+      # save this cache and tag runs may restore it; the key keeps a stale one
+      # from matching.
+      - name: Restore liboqs
+        id: liboqs-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/pq-work/liboqs
+          key: liboqs-pq-${{ runner.os }}-${{ runner.arch }}-${{ env.GO_IMAGE }}-${{ hashFiles('scripts/build-liboqs.sh', 'scripts/tronctl-pq.sh', '.github/workflows/tronctl-pq.yaml') }}
+
+      # Builds liboqs (on a cache miss), runs the pqc tests, builds a static
+      # tronctl to $WORK/tronctl and fails unless it is statically linked and
+      # the Go toolchain is go1.26.5 or a later 1.26 patch. The checkout is
+      # mounted read-only.
+      - name: Build static tronctl (Alpine)
+        env:
+          LIBOQS_CACHE_HIT: ${{ steps.liboqs-cache.outputs.cache-hit }}
+        run: |
+          mkdir -p "$WORK"
+          docker run --rm \
+            -v "$GITHUB_WORKSPACE:/src:ro" \
+            -v "$WORK:/work" \
+            -e TRONCTL_PQ_VERSION -e TRONCTL_PQ_COMMIT -e LIBOQS_CACHE_HIT \
+            -e HOST_UID="$(id -u)" -e HOST_GID="$(id -g)" \
+            "$GO_IMAGE" sh -euc '
+              apk add --no-cache bash build-base cmake ninja git pkgconf file linux-headers >/dev/null
+              bash /src/scripts/tronctl-pq.sh linux-container
+              chown -R "$HOST_UID:$HOST_GID" /work'
+
+      - name: Check binary
+        env:
+          FILE_ARCH: ${{ matrix.file-arch }}
+        run: |
+          desc=$(file "$WORK/tronctl")
+          printf '%s\n' "$desc"
+          case "$desc" in
+            *"$FILE_ARCH"*) ;;
+            *) echo "::error::expected a $FILE_ARCH binary"; exit 1 ;;
+          esac
+
+      # Runs on the Ubuntu host, not in Alpine: the static musl binary has to
+      # work on a glibc system.
+      - name: Smoke-test tronctl
+        run: bash scripts/tronctl-pq.sh smoke "$WORK/tronctl"
+
+      - name: Package
+        run: bash scripts/tronctl-pq.sh package "$WORK/tronctl" "$WORK/liboqs" linux "${{ matrix.goarch }}" "$RUNNER_TEMP/pq-out"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: tronctl-pq_${{ env.TRONCTL_PQ_VERSION }}_linux_${{ matrix.goarch }}
+          path: ${{ runner.temp }}/pq-out/tronctl-pq_*
+          if-no-files-found: error
+          retention-days: 7
+
+  macos:
+    name: darwin/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goarch: arm64
+            runner: macos-15
+            lipo-arch: arm64
+          - goarch: amd64
+            runner: macos-15-intel
+            lipo-arch: x86_64
+    env:
+      # The oldest macOS Go 1.26 supports. cgo (clang) reads it from the
+      # environment; liboqs gets it as CMAKE_OSX_DEPLOYMENT_TARGET, and Check
+      # binary asserts the linker recorded it. It must move together with the
+      # Go minor (go-version below, GO_MINOR in scripts/tronctl-pq.sh): Go 1.27
+      # drops macOS 12.
+      MACOSX_DEPLOYMENT_TARGET: '12.0'
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          # The same range as the GoReleaser build in release.yaml: later
+          # 1.26 patches, never a new minor (scripts/tronctl-pq.sh enforces
+          # it too).
+          go-version: '~1.26.5'
+          # Resolve the range against the newest release, not a Go already in
+          # the runner's tool cache: macos-15-intel otherwise built with an
+          # older 1.26 patch than the other targets.
+          check-latest: true
+          # No Go build cache: it ignores MACOSX_DEPLOYMENT_TARGET, so objects
+          # cached by another job for a newer macOS would end up in the
+          # release binary while the minos check below still passes.
+          cache: false
+
+      - name: Install build dependencies
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: '1'
+          HOMEBREW_NO_INSTALL_CLEANUP: '1'
+        run: brew install ninja pkgconf
+
+      - name: Resolve paths and commit
+        run: |
+          {
+            echo "LIBOQS_PREFIX=$RUNNER_TEMP/liboqs"
+            echo "TRONCTL_PQ_COMMIT=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_ENV"
+
+      - name: Restore liboqs
+        id: liboqs-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/liboqs
+          key: liboqs-pq-${{ runner.os }}-${{ runner.arch }}-${{ env.MACOSX_DEPLOYMENT_TARGET }}-${{ hashFiles('scripts/build-liboqs.sh', 'scripts/tronctl-pq.sh', '.github/workflows/tronctl-pq.yaml') }}
+
+      # No OpenSSL (nothing to link statically or ship) and a distributable
+      # build (portable code, run-time CPU feature detection).
+      - name: Build liboqs
+        if: steps.liboqs-cache.outputs.cache-hit != 'true'
+        run: |
+          bash scripts/build-liboqs.sh --prefix "$LIBOQS_PREFIX" --openssl off --dist-build on -- \
+            -GNinja "-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+
+      - name: Test and build tronctl
+        run: |
+          export PKG_CONFIG_PATH="$LIBOQS_PREFIX/lib/pkgconfig"
+          bash scripts/tronctl-pq.sh build "$RUNNER_TEMP/tronctl"
+
+      # liboqs is static, so only system libraries may appear.
+      - name: Check binary
+        env:
+          LIPO_ARCH: ${{ matrix.lipo-arch }}
+        run: |
+          bin="$RUNNER_TEMP/tronctl"
+          archs=$(lipo -archs "$bin")
+          echo "architectures: $archs"
+          if [ "$archs" != "$LIPO_ARCH" ]; then
+            echo "::error::expected $LIPO_ARCH, got $archs"
+            exit 1
+          fi
+          # The minimum macOS version the linker recorded must be the
+          # deployment target. Captured first, and awk reads all its input:
+          # with pipefail, a reader exiting early could fail on SIGPIPE.
+          lc=$(otool -l "$bin")
+          minos=$(printf '%s\n' "$lc" | awk '/LC_BUILD_VERSION/ { f = 1 } f && /minos/ && !done { print $2; done = 1 }')
+          echo "LC_BUILD_VERSION minos: ${minos:-none}"
+          if [ "$minos" != "$MACOSX_DEPLOYMENT_TARGET" ]; then
+            echo "::error::expected minos $MACOSX_DEPLOYMENT_TARGET, got ${minos:-no LC_BUILD_VERSION}"
+            exit 1
+          fi
+          libs=$(otool -L "$bin" | tail -n +2)
+          printf '%s\n' "$libs"
+          if printf '%s\n' "$libs" | grep -Ev '^[[:space:]]+(/usr/lib/|/System/Library/)'; then
+            echo "::error::tronctl links a library outside /usr/lib and /System/Library"
+            exit 1
+          fi
+
+      - name: Smoke-test tronctl
+        run: bash scripts/tronctl-pq.sh smoke "$RUNNER_TEMP/tronctl"
+
+      - name: Package
+        run: bash scripts/tronctl-pq.sh package "$RUNNER_TEMP/tronctl" "$LIBOQS_PREFIX" darwin "${{ matrix.goarch }}" "$RUNNER_TEMP/pq-out"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: tronctl-pq_${{ env.TRONCTL_PQ_VERSION }}_darwin_${{ matrix.goarch }}
+          path: ${{ runner.temp }}/pq-out/tronctl-pq_*
+          if-no-files-found: error
+          retention-days: 7
+
+  # windows/arm64 is not built: there is no native arm64 runner with a
+  # mingw-w64 toolchain set up for it yet.
+  windows:
+    name: windows/amd64
+    runs-on: windows-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        # MSYS2 bash with the MINGW64 gcc, cmake, ninja and pkg-config on
+        # PATH, plus the runner's own PATH (path-type: inherit) for Go.
+        shell: msys2 {0}
+    env:
+      # -static links libgcc and libwinpthread into the binary instead of
+      # shipping their DLLs. liboqs built with mingw gets randomness from
+      # CryptGenRandom (OQS_HAVE_BCRYPT needs MSVC), and liboqs.pc does not
+      # list advapi32: the mingw-w64 gcc link spec adds it (and winpthread)
+      # by default, which the pqc test link, without these flags, relies on.
+      TRONCTL_PQ_EXTLDFLAGS: -static
+    steps:
+      # The runner checks out with CRLF line endings by default, which breaks
+      # the bash scripts; keep the files as committed.
+      - name: Keep LF line endings
+        shell: bash
+        run: git config --global core.autocrlf false
+
+      - name: Check out code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '~1.26.5'
+          # The newest 1.26 patch, not the runner's cached Go, as on macOS.
+          check-latest: true
+          # Release builds start from a clean Go build cache, as on macOS.
+          cache: false
+
+      - name: Set up MSYS2
+        uses: msys2/setup-msys2@ec48f7c5447b3140e2b088413ae3a55687bccb6e # v2.33.0
+        with:
+          msystem: MINGW64
+          path-type: inherit
+          # No msys git: the runner's Git for Windows (which checked out the
+          # code) stays in use, so git and go build's VCS stamping do not hit
+          # msys git's dubious-ownership check on D:\a\.
+          install: >-
+            zip
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-pkgconf
+
+      # Forward-slash Windows paths (D:/a/_temp/...) work for both the MSYS2
+      # tools and the native cmake, gcc, pkg-config and go.
+      - name: Resolve paths and commit
+        run: |
+          tmp=$(cygpath -m "$RUNNER_TEMP")
+          {
+            echo "LIBOQS_PREFIX=$tmp/liboqs"
+            echo "PQ_TEMP=$tmp"
+            echo "TRONCTL_PQ_COMMIT=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_ENV"
+          which gcc cmake ninja pkg-config go
+          gcc --version | head -n 1
+          go version
+
+      - name: Restore liboqs
+        id: liboqs-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/liboqs
+          key: liboqs-pq-${{ runner.os }}-${{ runner.arch }}-mingw64-${{ hashFiles('scripts/build-liboqs.sh', 'scripts/tronctl-pq.sh', '.github/workflows/tronctl-pq.yaml') }}
+
+      - name: Build liboqs
+        if: steps.liboqs-cache.outputs.cache-hit != 'true'
+        run: |
+          bash scripts/build-liboqs.sh --prefix "$LIBOQS_PREFIX" --openssl off --dist-build on -- \
+            -GNinja -DCMAKE_C_COMPILER=gcc
+
+      - name: Test and build tronctl
+        run: |
+          cat "$LIBOQS_PREFIX/lib/pkgconfig/liboqs.pc"
+          export PKG_CONFIG_PATH="$LIBOQS_PREFIX/lib/pkgconfig"
+          bash scripts/tronctl-pq.sh build "$PQ_TEMP/tronctl.exe"
+
+      # Only system DLLs may be imported: a lib*.dll (libgcc_s, libwinpthread,
+      # liboqs) would not exist on a user's machine.
+      - name: Check binary
+        run: |
+          bin="$PQ_TEMP/tronctl.exe"
+          dlls=$(objdump -p "$bin" | grep 'DLL Name')
+          printf '%s\n' "$dlls"
+          if printf '%s\n' "$dlls" | grep -Ei 'DLL Name:[[:space:]]*lib'; then
+            echo "::error::tronctl.exe imports a non-system DLL"
+            exit 1
+          fi
+
+      - name: Smoke-test tronctl
+        run: bash scripts/tronctl-pq.sh smoke "$PQ_TEMP/tronctl.exe"
+
+      - name: Package
+        run: bash scripts/tronctl-pq.sh package "$PQ_TEMP/tronctl.exe" "$LIBOQS_PREFIX" windows amd64 "$PQ_TEMP/pq-out"
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: tronctl-pq_${{ env.TRONCTL_PQ_VERSION }}_windows_amd64
+          path: ${{ runner.temp }}/pq-out/tronctl-pq_*
+          if-no-files-found: error
+          retention-days: 7

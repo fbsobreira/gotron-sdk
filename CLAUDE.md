@@ -12,8 +12,9 @@ dependency genuinely requires it, and never pin a *specific* patch (`go 1.25.7` 
 on 1.25.0–1.25.6). The trailing `.0` is not a pin: `go mod tidy` canonicalizes `go 1.25` to
 `go 1.25.0`, so writing the short form only makes `make tidy` fail. Deliberately **no `toolchain`
 directive**: it would silently upgrade the CI matrix so every job ran the same Go release. Release
-binaries get a patched compiler via `go-version: '>=1.26.5'` in `release.yaml` instead, and the test
-and build matrices set `GOTOOLCHAIN: local` so each job really tests its named version.
+binaries get a patched compiler via `go-version: '~1.26.5'` in `release.yaml` and `tronctl-pq.yaml`
+instead (later 1.26 patches, never a new minor: bump it deliberately, with the test matrix), and the
+test and build matrices set `GOTOOLCHAIN: local` so each job really tests its named version.
 
 Write **GoTron** or **GoTRON** — never "Gotron".
 
@@ -143,10 +144,25 @@ Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`
 
 ### Release process
 
-1. `git tag v0.X.Y && git push origin v0.X.Y`
-2. GitHub Actions runs tests → GoReleaser builds binaries → creates the GitHub Release → pushes the
-   Homebrew formula.
-3. Edit the release notes to this format. GoReleaser already groups commits under
+1. Before tagging, check that the latest `tronctl-pq` run on master is green:
+   `gh run list --workflow tronctl-pq.yaml --branch master --limit 1`. Every push to master that
+   touches `go.mod`, `go.sum`, `cmd/`, `pkg/`, `scripts/` or the release workflows runs it; if the
+   last run is missing, stale or red, start one with `gh workflow run tronctl-pq.yaml --ref master`
+   and wait for it to pass (`gh run watch`).
+2. `git tag v0.X.Y && git push origin v0.X.Y`
+3. GitHub Actions runs tests → GoReleaser builds binaries → creates the GitHub Release → pushes the
+   Homebrew formula. In parallel, `.github/workflows/tronctl-pq.yaml` builds the `tronctl-pq_*`
+   archives (FN-DSA-512: `-tags falcon`, static liboqs pinned in `scripts/build-liboqs.sh`) on
+   native runners for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64; the
+   release job downloads them to `dist-pq/` and GoReleaser attaches them and lists them in
+   `checksums.txt`. Any failing target blocks the release. The default `tronctl_*` archives and
+   Homebrew stay CGO-free. GoReleaser OSS has no `prebuilt` builder, so these archives are built
+   outside GoReleaser.
+   If a `tronctl-pq` job fails on the tag, nothing is published (the release job never starts). Fix
+   the cause on master, then delete and re-push the tag (`git push --delete origin v0.X.Y`,
+   `git tag -d v0.X.Y`, tag the fixed commit and push again); if it was a flake, re-run the failed
+   jobs instead (`gh run rerun <run-id> --failed`).
+4. Edit the release notes to this format. GoReleaser already groups commits under
    these headings; include **only** the sections that have entries:
 
 ```markdown
@@ -185,9 +201,11 @@ One-sentence summary of what this release is about.
 **Full Changelog**: https://github.com/fbsobreira/gotron-sdk/compare/v0.PREV...v0.X.Y
 ```
 
-Rules: skip empty sections; bold name, em-dash, description; link PRs as `(#number)`; always end with
-the `**Full Changelog**` compare link. Emoji headers: ✨ Features, 🔒 Security, 🐛 Bug Fixes,
-🔨 Refactoring, 🧪 Testing, 📦 Dependencies, 📖 Documentation.
+Rules: skip empty sections; bold name, em-dash, description; link PRs as `(#number)`; always end
+with the `**Full Changelog**` compare link. GoReleaser appends a footer (`release.footer` in
+`.goreleaser.yaml`) saying which archives can sign FN-DSA-512; keep it when editing the notes. Emoji
+headers: ✨ Features, 🔒 Security, 🐛 Bug Fixes, 🔨 Refactoring, 🧪 Testing, 📦 Dependencies,
+📖 Documentation.
 
 ## Do NOT
 

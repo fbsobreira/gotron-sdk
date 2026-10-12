@@ -282,15 +282,17 @@ tronctl -n grpc.nile.trongrid.io:50051 -s pqkey account send <to-address> 1
 
 **Build requirements.** ML-DSA-44 works in every build. FN-DSA-512 key creation and signing need a Falcon build
 with [liboqs](https://openquantumsafe.org/liboqs/) installed (macOS: `brew install liboqs pkgconf`; Linux: build
-liboqs from source, see `.github/workflows/falcon.yaml`, and set `CGO_LDFLAGS=-lcrypto` for the default static
-liboqs):
+liboqs from source with `scripts/build-liboqs.sh --prefix <dir>`, and set `CGO_LDFLAGS=-lcrypto` for the default
+static liboqs):
 
 ```bash
 CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl
 ```
 
-Release binaries are built without CGO: they can import, list and export FN-DSA-512 keys but cannot create or
-sign with them.
+The default release binaries (`tronctl_*` archives, Homebrew, the install script) are built without CGO: they can
+import, list and export FN-DSA-512 keys but cannot create or sign with them. Each release also ships
+`tronctl-pq_*` archives with FN-DSA-512 built in, for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and
+windows/amd64; see [tronctl builds with FN-DSA-512](post-quantum.md#tronctl-builds-with-fn-dsa-512).
 
 ## Blockchain Commands
 

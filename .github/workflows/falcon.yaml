@@ -17,12 +17,7 @@ jobs:
     env:
       GOTOOLCHAIN: local
       CGO_ENABLED: 1
-      # The liboqs release the backend is tested against (also the Homebrew
-      # version used for local development).
-      LIBOQS_VERSION: 0.16.0
-      # The commit that tag must resolve to; the build fails if the tag moves.
-      # 0.16.0 is a lightweight tag: git ls-remote shows no ^{} entry.
-      LIBOQS_COMMIT: 5a1a854b0dc9f2141bdc771c555ee60c37950183
+      # The liboqs version and commit pin live in scripts/build-liboqs.sh.
     steps:
       - name: Check out code
         uses: actions/checkout@v6
@@ -54,14 +49,15 @@ jobs:
             echo "CGO_LDFLAGS=-lcrypto"
           } >> "$GITHUB_ENV"
 
-      # The key hashes this file, so any change to the version, the commit or
-      # the cmake flags below rebuilds liboqs.
+      # The key hashes the build script (which holds the version and commit
+      # pin) and this file, so any change to the pin or the cmake flags
+      # rebuilds liboqs.
       - name: Restore liboqs
         id: liboqs-cache
         uses: actions/cache@v6
         with:
           path: ~/liboqs
-          key: liboqs-${{ runner.os }}-${{ runner.arch }}-${{ env.LIBOQS_VERSION }}-${{ env.LIBOQS_COMMIT }}-${{ hashFiles('.github/workflows/falcon.yaml') }}
+          key: liboqs-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/build-liboqs.sh', '.github/workflows/falcon.yaml') }}
 
       # Default static library, Falcon-512 only (a full build compiles every
       # algorithm and is slow). OpenSSL stays enabled, as in a stock liboqs:
@@ -69,21 +65,7 @@ jobs:
       # CGO_LDFLAGS=-lcrypto case documented in CLAUDE.md and exercised here.
       - name: Build liboqs
         if: steps.liboqs-cache.outputs.cache-hit != 'true'
-        run: |
-          git clone --depth 1 --branch "$LIBOQS_VERSION" https://github.com/open-quantum-safe/liboqs.git "$RUNNER_TEMP/liboqs-src"
-          head=$(git -C "$RUNNER_TEMP/liboqs-src" rev-parse HEAD)
-          if [ "$head" != "$LIBOQS_COMMIT" ]; then
-            echo "::error::liboqs tag $LIBOQS_VERSION resolves to $head, expected $LIBOQS_COMMIT"
-            exit 1
-          fi
-          cmake -S "$RUNNER_TEMP/liboqs-src" -B "$RUNNER_TEMP/liboqs-build" -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_INSTALL_PREFIX="$LIBOQS_PREFIX" \
-            -DCMAKE_INSTALL_LIBDIR=lib \
-            -DOQS_MINIMAL_BUILD="SIG_falcon_512" \
-            -DOQS_BUILD_ONLY_LIB=ON
-          cmake --build "$RUNNER_TEMP/liboqs-build"
-          cmake --install "$RUNNER_TEMP/liboqs-build"
+        run: bash scripts/build-liboqs.sh --prefix "$LIBOQS_PREFIX" --openssl on -- -GNinja
 
       - name: Show liboqs
         run: |
