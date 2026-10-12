@@ -44,7 +44,7 @@ func pqTestEnv(t *testing.T, password string) string {
 	passphrase, useLedgerWallet, quietImport = password, false, false
 
 	t.Cleanup(func() {
-		destroyPQSigningKeys()
+		releaseSigningKeys()
 		store.CloseAll() // also resets the keystore factory
 		pqScryptN, pqScryptP = prevN, prevP
 		// Assign directly: SetDefaultLocation would create the real
@@ -614,7 +614,7 @@ func TestPQSigningKeyLifetime(t *testing.T) {
 	assert.True(t, errors.Is(err, pqc.ErrKeyDestroyed), "got %v", err)
 
 	// Idempotent.
-	destroyPQSigningKeys()
+	releaseSigningKeys()
 }
 
 func TestResolveSignerFNDSAWithoutFalcon(t *testing.T) {

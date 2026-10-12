@@ -36,7 +36,7 @@ clean:
 
 # Test target for CI
 test:
-	$(env) go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v -E '/pkg/proto/|/cmd')
+	$(env) go test -race -shuffle=on -coverprofile=coverage.out -covermode=atomic $$(go list ./... | grep -v -E '/pkg/proto/')
 
 # FN-DSA-512 backend tests; needs liboqs installed and discoverable via pkg-config.
 # Build liboqs shared (-DBUILD_SHARED_LIBS=ON); for a static liboqs set

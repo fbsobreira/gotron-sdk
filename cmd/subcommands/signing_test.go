@@ -1,9 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/keys"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+	"github.com/fbsobreira/gotron-sdk/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -70,4 +74,33 @@ func TestNewControllerAppliesRuntimeOptions(t *testing.T) {
 			assert.Equal(t, tt.wantWait, ctrlr.Behavior.ConfirmationWaitTime)
 		})
 	}
+}
+
+// TestKeystoreSigningLifetime checks that the keystore resolveSigner unlocks
+// stays usable until the command ends and is closed, its key zeroed, after.
+func TestKeystoreSigningLifetime(t *testing.T) {
+	pqTestEnv(t, "pw")
+	sk, err := keys.GetPrivateKeyFromHex(runtimeKSTestKey)
+	require.NoError(t, err)
+	ks := store.FromAccountName("ks-life")
+	acct, err := ks.ImportECDSA(sk.ToECDSA(), "pw")
+	require.NoError(t, err)
+	ks.Close()
+
+	var a tronAddress
+	require.NoError(t, a.Set(acct.Address.String()))
+
+	s, err := resolveSigner(a)
+	require.NoError(t, err)
+	signed, err := s.Sign(&core.Transaction{RawData: &core.TransactionRaw{Timestamp: 1}})
+	require.NoError(t, err, "the keystore must stay unlocked until the command ends")
+	require.NotNil(t, signed)
+
+	RootCmd.PersistentPostRun(RootCmd, nil)
+	_, err = s.Sign(&core.Transaction{RawData: &core.TransactionRaw{Timestamp: 2}})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, keystore.ErrLocked), "got %v", err)
+
+	// Idempotent.
+	releaseSigningKeys()
 }

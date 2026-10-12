@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/fatih/color"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
@@ -395,38 +394,8 @@ func removeAccountByName(name string, removeECDSA func(string) error) error {
 	return removeECDSA(name)
 }
 
-// Lifetime of decrypted PQ signing keys.
-//
-// A PQ signer signs with the decrypted key it wraps, so the key must stay
-// alive until the command has signed. resolveSigner records each key here,
-// and destroyPQSigningKeys zeroes them once the command is done: from
-// RootCmd's PersistentPostRun after a successful run, and from Execute after
-// RootCmd.Execute returns, which also covers runs that fail (cobra skips
-// PersistentPostRun when RunE errors, and Execute's os.Exit skips defers).
-var (
-	pqSigningKeysMu sync.Mutex
-	pqSigningKeys   []pqc.PrivateKey
-)
-
-func keepPQSigningKey(k pqc.PrivateKey) {
-	pqSigningKeysMu.Lock()
-	pqSigningKeys = append(pqSigningKeys, k)
-	pqSigningKeysMu.Unlock()
-}
-
-// destroyPQSigningKeys zeroes every key recorded by resolveSigner. It is
-// idempotent. Signers resolved earlier fail to sign afterwards.
-func destroyPQSigningKeys() {
-	pqSigningKeysMu.Lock()
-	defer pqSigningKeysMu.Unlock()
-	for _, k := range pqSigningKeys {
-		k.Destroy()
-	}
-	pqSigningKeys = nil
-}
-
 // resolvePQSigner decrypts acct with the global passphrase and returns a
-// signer for it. The key is kept until destroyPQSigningKeys.
+// signer for it. The key is kept until releaseSigningKeys.
 func resolvePQSigner(acct store.PQAccount) (pkgsigner.Signer, error) {
 	if err := pqc.SchemeAvailable(acct.Scheme); err != nil {
 		return nil, withFalconHint(err)
