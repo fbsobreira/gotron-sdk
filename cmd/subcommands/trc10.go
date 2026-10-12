@@ -319,8 +319,8 @@ func trc10ListCmd() *cobra.Command {
 					"Symbol":      string(e.GetAbbr()),
 					"Decimals":    e.GetPrecision(),
 					"Owner":       address.Address(e.GetOwnerAddress()).String(),
-					"ICOStart":    time.Unix(e.GetStartTime()/1000, 0),
-					"ICOEnd":      time.Unix(e.GetEndTime()/1000, 0),
+					"ICOStart":    assetTime(e.GetStartTime()),
+					"ICOEnd":      assetTime(e.GetEndTime()),
 					"TotalSupply": e.GetTotalSupply(),
 					"URL":         string(e.GetUrl()),
 					"Price":       float64(e.GetTrxNum()) / float64(e.GetNum()),
@@ -384,8 +384,8 @@ func trc10InfoCmd() *cobra.Command {
 				"Symbol":      string(asset.GetAbbr()),
 				"Decimals":    asset.GetPrecision(),
 				"Owner":       address.Address(asset.GetOwnerAddress()).String(),
-				"ICOStart":    time.Unix(asset.GetStartTime()/1000, 0),
-				"ICOEnd":      time.Unix(asset.GetEndTime()/1000, 0),
+				"ICOStart":    assetTime(asset.GetStartTime()),
+				"ICOEnd":      assetTime(asset.GetEndTime()),
 				"TotalSupply": asset.GetTotalSupply(),
 				"URL":         string(asset.GetUrl()),
 				"Price":       float64(asset.GetTrxNum()) / float64(asset.GetNum()),
@@ -417,4 +417,16 @@ func init() {
 
 	cmdTrc10.AddCommand(trc10Sub()...)
 	RootCmd.AddCommand(cmdTrc10)
+}
+
+// assetTime renders a TRC10 ICO start or end time, given in milliseconds, the
+// way encoding/json renders a time.Time. Some assets on chain carry times
+// outside the years 0-9999 that time.Time can encode; those are returned as
+// the raw millisecond value so the listing still prints.
+func assetTime(ms int64) interface{} {
+	t := time.Unix(ms/1000, 0)
+	if y := t.Year(); y < 0 || y > 9999 {
+		return ms
+	}
+	return t
 }
