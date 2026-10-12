@@ -105,7 +105,10 @@ func keysAddCmd() *cobra.Command {
 				color.Red(seedPhraseWarning)
 				fmt.Println(acc.Mnemonic)
 			}
-			addr, _ := store.AddressFromAccountName(acc.Name)
+			addr, err := store.AddressFromAccountName(acc.Name)
+			if err != nil {
+				return err
+			}
 			fmt.Printf("Tron Address: %s\n", addr)
 			return nil
 		},
@@ -181,7 +184,10 @@ func keysRecoverMnemonicCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println("Successfully recovered account from mnemonic!")
-			addr, _ := store.AddressFromAccountName(acc.Name)
+			addr, err := store.AddressFromAccountName(acc.Name)
+			if err != nil {
+				return err
+			}
 			fmt.Printf("Tron Address: %s\n", addr)
 			return nil
 		},
@@ -221,7 +227,10 @@ func keysImportKSCmd() *cobra.Command {
 			name, err := account.ImportKeyStore(args[0], userName, passphrase)
 			if !quietImport && err == nil {
 				fmt.Printf("Imported keystore given account alias of `%s`\n", name)
-				addr, _ := store.AddressFromAccountName(name)
+				addr, err := store.AddressFromAccountName(name)
+				if err != nil {
+					return err
+				}
 				fmt.Printf("Tron Address: %s\n", addr)
 			}
 			return err
@@ -259,7 +268,10 @@ func keysImportPKCmd() *cobra.Command {
 			name, err := account.ImportFromPrivateKey(args[0], userName, passphrase)
 			if !quietImport && err == nil {
 				fmt.Printf("Imported keystore given account alias of `%s`\n", name)
-				addr, _ := store.AddressFromAccountName(name)
+				addr, err := store.AddressFromAccountName(name)
+				if err != nil {
+					return err
+				}
 				fmt.Printf("Tron Address: %s\n", addr)
 			}
 			return err
