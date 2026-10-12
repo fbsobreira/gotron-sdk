@@ -14,9 +14,9 @@ assignees: ''
 
 ## Environment
  - OS: [e.g. Ubuntu 22.04, macOS 13.0, Windows 11]
- - Go version: [e.g. 1.20.4]
+ - Go version: [output of `go version`]
  - TRON node version: 
- - SDK version: [e.g. v2.3.0]
+ - SDK version: [e.g. v0.26.0, from go.mod]
 
 ## Code Example
 <!-- If applicable, provide code samples related to your question -->
