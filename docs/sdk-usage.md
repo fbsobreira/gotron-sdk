@@ -298,6 +298,12 @@ if err != nil {
 	return err
 }
 receipt, err := txbuilder.New(c).Transfer(s.Address().String(), to, amount).SendAndConfirm(ctx, s)
+if err != nil {
+	return err
+}
+if receipt.Error != "" {
+	return fmt.Errorf("rejected: %s (txid %s)", receipt.Error, receipt.TxID)
+}
 ```
 
 `SendAndConfirm` refuses to sign if the node has the scheme switched off. Key storage, the capability check,

@@ -724,6 +724,12 @@ if err != nil {
 	return err
 }
 receipt, err = txbuilder.New(conn).Transfer(owner, to, 1_000_000).SendAndConfirm(ctx, pqSigner)
+if err != nil {
+	return err
+}
+if receipt.Error != "" {
+	return fmt.Errorf("PQ-signed transfer rejected: %s (txid %s)", receipt.Error, receipt.TxID)
+}
 ```
 
 Notes:
