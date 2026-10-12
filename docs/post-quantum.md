@@ -673,7 +673,8 @@ acc, err := conn.GetAccountCtx(ctx, owner)
 if err != nil {
 	return err
 }
-fmt.Println(acc.GetOwnerPermission().GetKeys()) // nil on an account with the default owner permission
+// A new account's owner permission holds only its own address, with weight 1.
+fmt.Println(len(acc.GetOwnerPermission().GetKeys()))
 
 // 2. Keep what the active permission may do today. The update replaces every permission, so
 // operations left out here are lost. Operations is a 32-byte bitmap: bit n is contract type n.
