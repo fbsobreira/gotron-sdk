@@ -1,6 +1,7 @@
 package keystore_test
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/ecdsa"
@@ -186,4 +187,60 @@ func TestDecryptKey_ShortDKLenIsRejected(t *testing.T) {
 	_, err := keystore.DecryptKey(doc, compatPassphrase)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "dklen")
+}
+
+// buildV1Keystore produces a version 1 keystore the way go-ethereum's V1 format
+// did: AES-128-CBC with PKCS#7 padding, keyed by Keccak256(derivedKey[:16])[:16],
+// with the MAC over derivedKey[16:32] || ciphertext.
+func buildV1Keystore(t *testing.T) []byte {
+	t.Helper()
+
+	keyBytes := ethcrypto.FromECDSA(compatTestKey(t))
+	salt, err := hex.DecodeString(compatSalt())
+	require.NoError(t, err)
+	derivedKey, err := scrypt.Key([]byte(compatPassphrase), salt, 4096, 8, 1, 32)
+	require.NoError(t, err)
+
+	pad := aes.BlockSize - len(keyBytes)%aes.BlockSize
+	padded := append(append([]byte{}, keyBytes...), bytes.Repeat([]byte{byte(pad)}, pad)...)
+	iv := make([]byte, aes.BlockSize)
+	block, err := aes.NewCipher(ethcrypto.Keccak256(derivedKey[:16])[:16])
+	require.NoError(t, err)
+	cipherText := make([]byte, len(padded))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(cipherText, padded)
+
+	doc := map[string]interface{}{
+		"address": hex.EncodeToString(address.PubkeyToAddress(compatTestKey(t).PublicKey)),
+		"crypto": map[string]interface{}{
+			"cipher":       "aes-128-cbc",
+			"ciphertext":   hex.EncodeToString(cipherText),
+			"cipherparams": map[string]interface{}{"iv": hex.EncodeToString(iv)},
+			"kdf":          "scrypt",
+			"kdfparams": map[string]interface{}{
+				"n": 4096, "r": 8, "p": 1, "dklen": 32, "salt": compatSalt(),
+			},
+			"mac": hex.EncodeToString(ethcrypto.Keccak256(derivedKey[16:32], cipherText)),
+		},
+		"id":      "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+		"version": "1",
+	}
+	b, err := json.Marshal(doc)
+	require.NoError(t, err)
+	return b
+}
+
+// Version 1 keystores still open, and a wrong passphrase on one is still ErrDecrypt.
+func TestDecryptKey_V1Keystore(t *testing.T) {
+	doc := buildV1Keystore(t)
+
+	key, err := keystore.DecryptKey(doc, compatPassphrase)
+	require.NoError(t, err)
+	priv := compatTestKey(t)
+	require.Equal(t, address.PubkeyToAddress(priv.PublicKey).String(), key.Address.String())
+	require.Equal(t,
+		hex.EncodeToString(ethcrypto.FromECDSA(priv)),
+		hex.EncodeToString(ethcrypto.FromECDSA(key.PrivateKey)))
+
+	_, err = keystore.DecryptKey(doc, "not the passphrase")
+	require.ErrorIs(t, err, keystore.ErrDecrypt)
 }

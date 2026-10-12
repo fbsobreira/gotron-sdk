@@ -39,6 +39,7 @@ func aesCBCDecrypt(key, cipherText, iv []byte) ([]byte, error) {
 	decrypter.CryptBlocks(paddedPlaintext, cipherText)
 	plaintext := pkcs7Unpad(paddedPlaintext)
 	if plaintext == nil {
+		clear(paddedPlaintext)
 		return nil, ErrDecrypt
 	}
 	return plaintext, err

@@ -12,9 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLock_ZeroizesKeyMaterial verifies that locking an account after unlock
-// clears the private key material so it cannot be recovered from memory.
-func TestLock_ZeroizesKeyMaterial(t *testing.T) {
+// TestLock_StopsSigning verifies that an account cannot sign once it is locked.
+// That the key memory is zeroed is checked in zeroize_internal_test.go.
+func TestLock_StopsSigning(t *testing.T) {
 	ks := newTestKeyStore(t)
 	acc, err := ks.NewAccount("pass")
 	require.NoError(t, err)
@@ -36,9 +36,9 @@ func TestLock_ZeroizesKeyMaterial(t *testing.T) {
 	assert.ErrorIs(t, err, keystore.ErrLocked)
 }
 
-// TestTimedUnlock_ZeroizesKeyOnExpiry verifies that key material is zeroized
-// when a timed unlock expires.
-func TestTimedUnlock_ZeroizesKeyOnExpiry(t *testing.T) {
+// TestTimedUnlock_ExpiryStopsSigning verifies that an account cannot sign once
+// its timed unlock expires. Zeroing is checked in zeroize_internal_test.go.
+func TestTimedUnlock_ExpiryStopsSigning(t *testing.T) {
 	ks := newTestKeyStore(t)
 	acc, err := ks.NewAccount("pass")
 	require.NoError(t, err)
@@ -56,9 +56,10 @@ func TestTimedUnlock_ZeroizesKeyOnExpiry(t *testing.T) {
 	eventuallySignHashFails(t, ks, acc, hash, 2*time.Second)
 }
 
-// TestTimedUnlock_ReplacementZeroizesOldKey verifies that when a timed unlock
-// replaces another timed unlock, the old key material is zeroized.
-func TestTimedUnlock_ReplacementZeroizesOldKey(t *testing.T) {
+// TestTimedUnlock_ReplacementKeepsSigning verifies that a timed unlock which
+// replaces another still signs, and expires on its own timeout. That the
+// replaced key is zeroed is checked in zeroize_internal_test.go.
+func TestTimedUnlock_ReplacementKeepsSigning(t *testing.T) {
 	ks := newTestKeyStore(t)
 	acc, err := ks.NewAccount("pass")
 	require.NoError(t, err)
@@ -66,7 +67,7 @@ func TestTimedUnlock_ReplacementZeroizesOldKey(t *testing.T) {
 	// First timed unlock with a long timeout.
 	require.NoError(t, ks.TimedUnlock(acc, "pass", 10*time.Second))
 
-	// Replace with a short timeout — old key should be zeroized.
+	// Replace with a short timeout.
 	require.NoError(t, ks.TimedUnlock(acc, "pass", 50*time.Millisecond))
 
 	// Signing should still work with the new key.
@@ -79,9 +80,9 @@ func TestTimedUnlock_ReplacementZeroizesOldKey(t *testing.T) {
 	eventuallySignHashFails(t, ks, acc, hash, 2*time.Second)
 }
 
-// TestLock_AfterTimedUnlock_ClearsKey verifies Lock works correctly on a
-// timed-unlock entry (stops the expire goroutine and zeroizes).
-func TestLock_AfterTimedUnlock_ClearsKey(t *testing.T) {
+// TestLock_AfterTimedUnlock_StopsSigning verifies Lock works on a timed-unlock
+// entry. Zeroing is checked in zeroize_internal_test.go.
+func TestLock_AfterTimedUnlock_StopsSigning(t *testing.T) {
 	ks := newTestKeyStore(t)
 	acc, err := ks.NewAccount("pass")
 	require.NoError(t, err)
@@ -94,7 +95,7 @@ func TestLock_AfterTimedUnlock_ClearsKey(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, sig)
 
-	// Explicit lock should clear the key immediately.
+	// An explicit lock stops signing immediately.
 	require.NoError(t, ks.Lock(acc.Address))
 	_, err = ks.SignHash(acc, hash)
 	assert.ErrorIs(t, err, keystore.ErrLocked)
@@ -165,9 +166,9 @@ func TestConcurrentLockUnlock_NoRace(t *testing.T) {
 	wg.Wait()
 }
 
-// TestClose_CleansUpUnlockedKeys verifies that Close properly zeroizes all
-// unlocked keys and prevents further signing.
-func TestClose_CleansUpUnlockedKeys(t *testing.T) {
+// TestClose_StopsSigning verifies that no unlocked account can sign after
+// Close. Zeroing is checked in zeroize_internal_test.go.
+func TestClose_StopsSigning(t *testing.T) {
 	ks := newTestKeyStore(t)
 
 	// Create and unlock multiple accounts.
