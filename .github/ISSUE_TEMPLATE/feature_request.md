@@ -24,9 +24,8 @@ func NewFeature(param1 string, param2 int) (Result, error) {
 }
 ```
 
-## Ticket
-<!-- If there's a related ticket, please reference it here -->
-TRON-
+## Related issues
+<!-- Link related issues or pull requests, if any. -->
 
 ## Additional context
 <!-- Add any other context or screenshots about the feature request here. -->
