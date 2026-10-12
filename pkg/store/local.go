@@ -119,7 +119,12 @@ func (s *Store) DoesNamedAccountExist(name string) bool {
 }
 
 // AddressFromAccountName returns the Base58 address for the named account, or an error if not found.
+// A name that is not a single path element on this OS is rejected before any
+// path is built, so it cannot reach a keystore outside the accounts folder.
 func (s *Store) AddressFromAccountName(name string) (string, error) {
+	if err := checkLocalAccountName(name); err != nil {
+		return "", err
+	}
 	ks := s.FromAccountName(name)
 	defer func() {
 		ks.Close()
@@ -162,7 +167,21 @@ func (s *Store) SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
 	s.newKeyStore = fn
 }
 
+// checkLocalAccountName rejects a name that is not a single path element
+// inside the accounts folder on this OS: empty, ".", "..", absolute, or
+// containing a separator. Unlike ValidateAccountName, which new names must
+// pass, it accepts "\" on Unix, where it is an ordinary file name character,
+// so accounts created under such names before v0.26.0 still resolve.
+func checkLocalAccountName(name string) error {
+	if name == "" || name == "." || !filepath.IsLocal(name) || filepath.Base(name) != name {
+		return fmt.Errorf("%w %q", ErrInvalidAccountName, name)
+	}
+	return nil
+}
+
 // FromAccountName returns a KeyStore loaded from the named account's directory.
+// It does not check name: the caller must validate it with ValidateAccountName
+// first, or a name such as "../x" addresses a directory outside the store.
 func (s *Store) FromAccountName(name string) *keystore.KeyStore {
 	p := filepath.Join(s.configAccountsDir(), name)
 	s.mu.Lock()
@@ -299,7 +318,12 @@ func DoesNamedAccountExist(name string) bool {
 }
 
 // AddressFromAccountName returns the Base58 address for the named account, or an error if not found.
+// A name that is not a single path element on this OS is rejected before any
+// path is built, so it cannot reach a keystore outside the accounts folder.
 func AddressFromAccountName(name string) (string, error) {
+	if err := checkLocalAccountName(name); err != nil {
+		return "", err
+	}
 	ks := FromAccountName(name)
 	defer ks.Close()
 	// FIXME: Assume 1 account per keystore for now
@@ -345,6 +369,8 @@ func SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
 }
 
 // FromAccountName returns a KeyStore loaded from the named account's directory.
+// It does not check name: the caller must validate it with ValidateAccountName
+// first, or a name such as "../x" addresses a directory outside the store.
 func FromAccountName(name string) *keystore.KeyStore {
 	p := filepath.Join(configAccountsDir(), name)
 	keystoreMu.Lock()
