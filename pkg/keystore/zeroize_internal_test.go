@@ -3,6 +3,7 @@ package keystore
 import (
 	"crypto/ecdsa"
 	"crypto/rand"
+	"encoding/json"
 	"math/big"
 	"testing"
 	"time"
@@ -133,6 +134,32 @@ func TestGetKey_AddressMismatchFails(t *testing.T) {
 
 	_, err = ks.storage.GetKey(otherKey.Address, acc.URL.Path, "pass")
 	require.ErrorContains(t, err, "key content mismatch")
+}
+
+func TestDecryptKey_RejectsKeyOutsideCurveOrder(t *testing.T) {
+	n := crypto.S256().Params().N
+	for name, d := range map[string][]byte{
+		"zero":        make([]byte, 32),
+		"curve order": n.FillBytes(make([]byte, 32)),
+	} {
+		t.Run(name, func(t *testing.T) {
+			cj, err := EncryptDataV3(d, []byte("pass"), LightScryptN, LightScryptP)
+			require.NoError(t, err)
+			doc, err := json.Marshal(encryptedKeyJSONV3{
+				Address: "41a614f803b6fd780986a42c78ec9c7f77e6ded13c",
+				Crypto:  cj,
+				ID:      "3198bc9c-6672-5ab3-d995-4942343ae5b6",
+				Version: version,
+			})
+			require.NoError(t, err)
+
+			require.NotPanics(t, func() {
+				key, err := DecryptKey(doc, "pass")
+				require.ErrorContains(t, err, "not a valid secp256k1 private key")
+				require.Nil(t, key)
+			})
+		})
+	}
 }
 
 func TestEncryptKey_LeavesCallerKeyIntact(t *testing.T) {

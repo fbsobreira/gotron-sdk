@@ -33,6 +33,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -244,6 +245,12 @@ func DecryptKey(keyjson []byte, auth string) (*Key, error) {
 	// be zeroed straight away.
 	key := crypto.ToECDSAUnsafe(keyBytes)
 	clear(keyBytes)
+	// ToECDSAUnsafe returns nil for zero or for a value not below the curve
+	// order. A matching MAC only proves the passphrase fits the file; whoever
+	// wrote the file chose the plaintext.
+	if key == nil {
+		return nil, errors.New("keystore: decrypted key is not a valid secp256k1 private key")
+	}
 
 	return &Key{
 		ID:         uuid.UUID(keyID),
