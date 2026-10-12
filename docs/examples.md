@@ -1089,6 +1089,14 @@ func (rm *ResourceManager) DelegateEnergy(to string, amount int64) error {
 For more detailed and protocol-specific examples, visit the
 [gotron-examples](https://github.com/fbsobreira/gotron-examples) repository.
 
+Post-quantum (TIP-899, experimental, Nile only) programs there mirror the snippets in
+[Using the SDK](post-quantum.md#using-the-sdk):
+
+- [pq-keys](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-keys): generate a key and save it as a keystore
+- [pq-capabilities](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-capabilities): which schemes a node accepts and which this build can sign
+- [pq-transfer](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-transfer): send TRX signed with a PQ key
+- [pq-migrate](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-migrate): add a PQ key to an existing ECDSA account's permissions
+
 ## Best Practices Summary
 
 1. **Always validate addresses** before using them

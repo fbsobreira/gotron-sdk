@@ -28,6 +28,13 @@ ends up bound to an address. This is a protocol explainer; the SDK parts are in 
 - [Beyond transactions](#beyond-transactions)
 - [Observed on Nile](#observed-on-nile)
 - [Pitfalls](#pitfalls)
+- [Using the SDK](#using-the-sdk)
+  - [Create or load a key](#create-or-load-a-key)
+  - [Check that the node accepts the scheme](#check-that-the-node-accepts-the-scheme)
+  - [Sign and send](#sign-and-send)
+  - [Hybrid and multi-signature](#hybrid-and-multi-signature)
+  - [Transaction JSON hand-off](#transaction-json-hand-off)
+  - [Migrate an existing ECDSA account](#migrate-an-existing-ecdsa-account)
 - [In the GoTRON SDK](#in-the-gotron-sdk)
 - [tronctl builds with FN-DSA-512](#tronctl-builds-with-fn-dsa-512)
 - [Sources](#sources)
@@ -510,14 +517,240 @@ JSON shape returned by the node (bytes are lowercase hex, the enum is printed by
   Permissions work as before too; they simply accept PQ-derived addresses as keys.
 - **Draft status.** Wire details, sizes and activation can change before mainnet.
 
+## Using the SDK
+
+Code samples for the steps above. The snippets are trimmed (imports are shown once, the first time a package
+appears); they mirror the runnable programs in [gotron-examples](https://github.com/fbsobreira/gotron-examples/tree/develop/examples)
+([pq-keys](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-keys),
+[pq-capabilities](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-capabilities),
+[pq-transfer](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-transfer),
+[pq-migrate](https://github.com/fbsobreira/gotron-examples/tree/develop/examples/pq-migrate)). The offline steps
+(keys, keystore, Toolkit JSON, signing, JSON) also have runnable `Example` functions on pkg.go.dev:
+[`pqc`](https://pkg.go.dev/github.com/fbsobreira/gotron-sdk/pkg/pqc),
+[`signer`](https://pkg.go.dev/github.com/fbsobreira/gotron-sdk/pkg/signer) and
+[`transaction`](https://pkg.go.dev/github.com/fbsobreira/gotron-sdk/pkg/client/transaction).
+
+Build requirements: ML-DSA-44 is pure Go and works in every build. FN-DSA-512 signing needs `-tags falcon`, CGO
+and liboqs (see the [build notes](#in-the-gotron-sdk) and
+[tronctl builds with FN-DSA-512](#tronctl-builds-with-fn-dsa-512)). FN-DSA-512 is the scheme enabled on Nile.
+
+### Create or load a key
+
+```go
+import (
+	"crypto/rand"
+	"os"
+
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
+	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
+	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
+)
+
+// This build can sign with the scheme? FN-DSA-512 returns pqc.ErrFalconUnavailable without -tags falcon.
+if err := pqc.SchemeAvailable(core.PQScheme_FN_DSA_512); err != nil {
+	return err
+}
+
+key, err := pqc.GenerateKey(core.PQScheme_FN_DSA_512, rand.Reader)
+if err != nil {
+	return err
+}
+defer key.Destroy() // best-effort wipe; a signer built from the key stops working
+
+fmt.Println(key.Public().Address()) // T...
+
+// Save as a wallet-cli compatible keystore, and load it back.
+data, err := pqc.EncryptKeystore(key, passphrase, keystore.StandardScryptN, keystore.StandardScryptP)
+if err != nil {
+	return err
+}
+// write data to a file with mode 0600 ...
+loaded, err := pqc.DecryptKeystore(data, passphrase)
+```
+
+`pqc.MarshalToolkitJSON(key)` writes the unencrypted java-tron Toolkit format (it holds the private key in clear)
+and `pqc.ParseToolkitJSON(data)` reads it. To build a key from raw bytes, use
+`pqc.ParsePrivateKey(scheme, priv, pub)`: an FN-DSA-512 private key does not contain its public key, so `pub` is
+required for it; ML-DSA-44 accepts `nil`.
+
+### Check that the node accepts the scheme
+
+```go
+caps, err := conn.GetPQCapabilitiesCtx(ctx)
+if err != nil {
+	return err
+}
+fmt.Println(caps.FNDSA512, caps.MLDSA44)
+
+ok, err := conn.PQSchemeAllowedCtx(ctx, key.Scheme())
+if err != nil {
+	return err
+}
+if !ok {
+	return fmt.Errorf("%s is not enabled on this node", key.Scheme())
+}
+```
+
+Answers are cached on the client for `client.DefaultPQCapabilitiesTTL` (1 minute), so a governance change can take
+that long to show. Use `conn.SetPQCapabilitiesTTL(0)` to turn the cache off or `conn.InvalidatePQCapabilities()`
+to force the next call to ask the node.
+
+### Sign and send
+
+```go
+import (
+	"github.com/fbsobreira/gotron-sdk/pkg/signer"
+	"github.com/fbsobreira/gotron-sdk/pkg/txbuilder"
+	"github.com/fbsobreira/gotron-sdk/pkg/txcore"
+)
+
+s, err := signer.NewPQSigner(key)
+if err != nil {
+	return err
+}
+
+// The PQ address must hold TRX first: the node reports an unknown account until something is sent to it.
+receipt, err := txbuilder.New(conn).Transfer(s.Address().String(), to, 1_000_000).SendAndConfirm(ctx, s)
+if errors.Is(err, txcore.ErrPQSchemeDisabled) {
+	// The node has the scheme switched off; nothing was signed or broadcast.
+}
+if err != nil {
+	return err
+}
+if receipt.Error != "" {
+	return fmt.Errorf("rejected: %s (txid %s)", receipt.Error, receipt.TxID)
+}
+```
+
+`NewPQSigner` fails early for a destroyed key (`pqc.ErrKeyDestroyed`) or an FN-DSA-512 key in a build without
+Falcon (`pqc.ErrFalconUnavailable`). The signer appends a `pq_auth_sig` entry and leaves `signature` alone. To
+sign a transaction you already hold, call `signer.SignTransactionPQ(tx, key)`.
+
+### Hybrid and multi-signature
+
+Each signer adds its own signature to the same transaction, ECDSA and PQ in any order:
+
+```go
+tx, err = ecdsaSigner.Sign(tx) // appends to tx.Signature
+tx, err = pqSigner.Sign(tx)    // appends to tx.PqAuthSig
+```
+
+A transaction carries at most `keystore.MaxTotalSignatures` (5) signatures, ECDSA and PQ together. Signing past it
+returns `keystore.ErrTooManySignatures` (the same value as `signer.ErrTooManySignatures`); the same key signing
+twice returns `signer.ErrPQAlreadySigned`. `keystore.CheckSignatureRoom(tx)` checks without signing. When the
+transaction is signed under an active permission, build it with that permission's id (see
+[Multi-signature in general](#multi-signature-in-general)).
+
+### Transaction JSON hand-off
+
+```go
+data, err := transaction.ToJSON(tx) // includes "pq_auth_sig"
+// ... send to the next signer ...
+tx, err = transaction.FromJSON(data)
+```
+
+`ToJSON` and `FromJSON` (`pkg/client/transaction`) keep `pq_auth_sig`, so a partly signed transaction can pass
+between parties.
+
+### Migrate an existing ECDSA account
+
+This is [Path 1](#path-1-recommended-in-place-permission-replacement): add a PQ address to the account's
+permissions, signed by the current ECDSA key. The example uses the "either key" layout (ECDSA weight 1, PQ weight
+1, threshold 1) so you can test PQ signing with the ECDSA key still in control. **That layout is a staging step,
+not a migration:** see the table and caveats in Path 1 before you move to a hybrid or PQ-only layout. The update
+replaces every permission, so the active permission gets the same keys.
+
+```go
+// ecdsaKey is the account's *ecdsa.PrivateKey; owner is its Base58 address; key is the PQ key from above.
+ecdsaSigner, err := signer.NewPrivateKeySigner(ecdsaKey)
+if err != nil {
+	return err
+}
+pqAddr := key.Public().Address().String()
+
+// 1. Read the account. It must exist and hold the permission-update fee.
+acc, err := conn.GetAccountCtx(ctx, owner)
+if err != nil {
+	return err
+}
+// A new account's owner permission holds only its own address, with weight 1.
+fmt.Println(len(acc.GetOwnerPermission().GetKeys()))
+
+// 2. Keep what the active permission may do today. The update replaces every permission, so
+// operations left out here are lost. Operations is a 32-byte bitmap: bit n is contract type n.
+actives := acc.GetActivePermission()
+if len(actives) != 1 {
+	return fmt.Errorf("expected one active permission, found %d", len(actives))
+}
+ops := map[string]bool{}
+bitmap := actives[0].GetOperations()
+for i := 0; i < len(bitmap)*8; i++ {
+	if bitmap[i/8]&(1<<(i%8)) != 0 {
+		if name, ok := core.Transaction_Contract_ContractType_name[int32(i)]; ok {
+			ops[name] = true
+		}
+	}
+}
+
+// 3. Build the update. Argument types must match exactly: threshold is int64, keys is
+// map[string]int64 (address -> weight), operations is map[string]bool (contract type names).
+keys := map[string]int64{owner: 1, pqAddr: 1}
+ext, err := conn.UpdateAccountPermissionCtx(ctx, owner,
+	map[string]interface{}{"threshold": int64(1), "keys": keys}, // owner
+	nil, // witness permission: none for an ordinary account
+	[]map[string]interface{}{{ // active permissions
+		"name":       actives[0].GetPermissionName(),
+		"threshold":  int64(1),
+		"keys":       keys,
+		"operations": ops,
+	}})
+if err != nil {
+	return err
+}
+
+// 4. Sign the update with the ECDSA signer and send it.
+receipt, err := txcore.SendAndConfirm(ctx, conn, ecdsaSigner, ext.GetTransaction(), 3*time.Second)
+if err != nil {
+	return err
+}
+if receipt.Error != "" {
+	return fmt.Errorf("permission update rejected: %s", receipt.Error)
+}
+
+// 5. From now on the PQ key signs for the migrated address: the owner is the old ECDSA address,
+// not the PQ key's own address.
+pqSigner, err := signer.NewPQSigner(key)
+if err != nil {
+	return err
+}
+receipt, err = txbuilder.New(conn).Transfer(owner, to, 1_000_000).SendAndConfirm(ctx, pqSigner)
+if err != nil {
+	return err
+}
+if receipt.Error != "" {
+	return fmt.Errorf("PQ-signed transfer rejected: %s (txid %s)", receipt.Error, receipt.TxID)
+}
+```
+
+Notes:
+
+- `pq-migrate` adds the checks a real tool needs: it refuses witness accounts, falls back to the default
+  operations when the account has none, and prints the new permissions in a dry run before it broadcasts.
+- The caveats in [Path 1](#path-1-recommended-in-place-permission-replacement) apply, in particular: the update is
+  still ECDSA-signed, and a wrong threshold can lock the account. Check the result with `GetAccountCtx` and send a
+  small PQ-signed transfer before moving to a hybrid or PQ-only layout. The scheme must be enabled on the node
+  (see the capability check above).
+- `UpdateAccountPermission` (without `Ctx`) takes the same arguments.
+
 ## In the GoTRON SDK
 
 | Need | Where |
 |---|---|
-| Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON`, `EncryptKeystore`) |
+| Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON` / `ParseToolkitJSON`, `EncryptKeystore` / `DecryptKeystore`) |
 | Sign a transaction | `signer.NewPQSigner(key)` (implements `signer.Signer`), or `signer.SignTransactionPQ` / `transaction.SignTransactionPQ` |
 | Ask the node which schemes are enabled | `client.GetPQCapabilities`, `PQSchemeAllowed` / `PQSchemeAllowedCtx`. A successful answer is cached on the client for `client.DefaultPQCapabilitiesTTL` (1 minute); errors are not cached. `SetPQCapabilitiesTTL` changes the TTL (0 or less disables caching), `InvalidatePQCapabilities` forces the next call to ask the node, and `Start`, `Stop` and `Reconnect` invalidate it |
 | Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask |
+| Signature limit (ECDSA and PQ together) | `keystore.MaxTotalSignatures` (5), `keystore.ErrTooManySignatures` (also `signer.ErrTooManySignatures`), `keystore.CheckSignatureRoom` |
 | Transaction JSON with `pq_auth_sig` | `transaction.ToJSON` / `FromJSON` |
 | Bandwidth estimate for PQ | `client.GetCanDelegatedMaxSizePQ` |
 | Wipe a key from memory (best effort) | `pqc.PrivateKey.Destroy()` |
@@ -527,7 +760,7 @@ JSON shape returned by the node (bytes are lowercase hex, the enum is printed by
 Build notes: ML-DSA-44 is pure Go. FN-DSA-512 signing **and verifying** need the `falcon` build tag, CGO and
 [liboqs](https://openquantumsafe.org/liboqs/) (`make test-falcon` runs those tests). Without it, FN-DSA-512 keys
 still parse, addresses still derive and key pairs are still validated, but `Sign` and `Verify` return
-`pqc.ErrFalconUnavailable` (a pure-Go verifier is planned).
+`pqc.ErrFalconUnavailable` (pure-Go verification is not available yet).
 CI builds and tests the Falcon path in a separate job (`.github/workflows/falcon.yaml`, liboqs 0.16.0 built by
 `scripts/build-liboqs.sh`, which holds the version pin). To build `tronctl` with FN-DSA-512 support, run
 `CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl` with liboqs installed. The default release
