@@ -124,6 +124,9 @@ type PrivateKey interface {
 	// other copy of the secret survives (the garbage collector may have moved
 	// it, and earlier Bytes or Seed results are the caller's to clear).
 	Destroy()
+	// Destroyed reports whether Destroy has been called on the key. Like
+	// Destroy, it is not safe for concurrent use with Destroy.
+	Destroyed() bool
 
 	// isPrivateKey restricts implementations to this package.
 	isPrivateKey()

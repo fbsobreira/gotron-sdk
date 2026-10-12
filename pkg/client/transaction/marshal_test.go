@@ -244,18 +244,55 @@ func TestFromJSON_NoTxID(t *testing.T) {
 	assert.True(t, proto.Equal(tx.GetRawData(), got.GetRawData()), "raw_data mismatch")
 }
 
+// TestFromJSON_InvalidSignatureHex checks that a bad top-level signature
+// entry is reported like a bad pq_auth_sig field: wrapped in
+// ErrInvalidTxJSON, located by index, and without echoing the input.
 func TestFromJSON_InvalidSignatureHex(t *testing.T) {
 	tx := makeTestTx()
 	rawHex := marshalRawDataHex(t, tx)
 
-	data, _ := json.Marshal(map[string]any{
-		"raw_data_hex": rawHex,
-		"signature":    []string{"not-valid-hex!"},
-	})
+	tests := []struct {
+		name string
+		sigs []string
+		want string
+	}{
+		{"invalid hex", []string{"not-valid-hex!"}, "invalid transaction JSON: signature[0]: invalid hex"},
+		{"odd length", []string{"abc"}, "invalid transaction JSON: signature[0]: invalid hex"},
+		{"second entry", []string{"0102", "0xzz"}, "invalid transaction JSON: signature[1]: invalid hex"},
+		{"empty", []string{""}, "invalid transaction JSON: signature[0]: empty"},
+		{"0x only", []string{"0x"}, "invalid transaction JSON: signature[0]: empty"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(map[string]any{"raw_data_hex": rawHex, "signature": tt.sigs})
+			require.NoError(t, err)
 
-	_, err := FromJSON(data)
-	require.Error(t, err, "expected error for invalid signature hex")
-	assert.Contains(t, err.Error(), "failed to decode signature")
+			_, err = FromJSON(data)
+			require.ErrorIs(t, err, ErrInvalidTxJSON)
+			assert.Equal(t, tt.want, err.Error())
+			for _, s := range tt.sigs {
+				if len(s) > 2 {
+					assert.NotContains(t, err.Error(), s, "error must not echo the input")
+				}
+			}
+		})
+	}
+}
+
+// TestFromJSON_SignatureHex0xPrefix checks that a top-level signature entry
+// accepts an optional 0x or 0X prefix, as pq_auth_sig fields do.
+func TestFromJSON_SignatureHex0xPrefix(t *testing.T) {
+	tx := makeTestTx()
+	rawHex := marshalRawDataHex(t, tx)
+
+	for _, sig := range []string{"0x0a0b", "0X0a0b", "0a0b"} {
+		data, err := json.Marshal(map[string]any{"raw_data_hex": rawHex, "signature": []string{sig}})
+		require.NoError(t, err)
+
+		got, err := FromJSON(data)
+		require.NoError(t, err, sig)
+		assert.Equal(t, [][]byte{{0x0a, 0x0b}}, got.GetSignature(), sig)
+	}
 }
 
 func TestRoundTrip_JSON(t *testing.T) {

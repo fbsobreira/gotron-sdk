@@ -454,19 +454,21 @@ func TestResolveSigner_LedgerFallbackIsLazy(t *testing.T) {
 	assert.Empty(t, s.Address())
 }
 
-// TestExecuteTransaction_UnknownSigningImplSkipsSigning pins the pre-existing
-// behaviour: an unrecognised SigningImpl without WithSigner signs nothing and
-// the transaction is broadcast as given.
-func TestExecuteTransaction_UnknownSigningImplSkipsSigning(t *testing.T) {
+// TestExecuteTransaction_UnknownSigningImplRefused checks that an
+// unrecognised SigningImpl without WithSigner is refused before broadcast,
+// instead of sending the transaction unsigned.
+func TestExecuteTransaction_UnknownSigningImplRefused(t *testing.T) {
 	mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
 	c := newMockClient(t, mock)
 
 	ctrl := NewController(c, nil, nil, newTestTransaction())
 	ctrl.Behavior.SigningImpl = SignerImpl(99)
 
-	require.NoError(t, ctrl.ExecuteTransaction())
+	err := ctrl.ExecuteTransaction()
+	require.ErrorIs(t, err, ErrBadTransactionParam)
+	assert.Contains(t, err.Error(), "unknown signing implementation 99")
 	assert.Empty(t, ctrl.tx.GetSignature())
-	assert.Equal(t, int32(1), mock.broadcastCalls.Load())
+	assert.Zero(t, mock.broadcastCalls.Load())
 }
 
 func TestWithSigner_NilIsIgnored(t *testing.T) {
@@ -526,6 +528,55 @@ func TestExecuteTransaction_MultiSignAppends(t *testing.T) {
 			assert.Equal(t, prev, ctrl.tx.GetSignature()[0], "existing signature must be preserved")
 			assert.Equal(t, want, ctrl.tx.GetSignature()[1])
 			assert.Empty(t, ctrl.tx.GetPqAuthSig())
+		})
+	}
+}
+
+// TestExecuteTransaction_PermissionIDOnSignedTransaction checks that
+// WithPermissionID cannot change the permission ID of a transaction that
+// already carries an ECDSA or post-quantum signature, since that would
+// invalidate it, while the ID it already has is accepted and co-signed.
+func TestExecuteTransaction_PermissionIDOnSignedTransaction(t *testing.T) {
+	key, err := crypto.GenerateKey()
+	require.NoError(t, err)
+	s, err := signer.NewPrivateKeySigner(key)
+	require.NoError(t, err)
+
+	prior := map[string]func(*core.Transaction){
+		"ecdsa": func(tx *core.Transaction) {
+			tx.Signature = [][]byte{make([]byte, 65)}
+		},
+		"pq": func(tx *core.Transaction) {
+			tx.PqAuthSig = []*core.PQAuthSig{{PublicKey: []byte{1}, Signature: []byte{2}}}
+		},
+	}
+	for kind, sign := range prior {
+		t.Run(kind+"/different id refused", func(t *testing.T) {
+			mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
+			tx := newTestTransaction()
+			sign(tx)
+			before := len(tx.GetSignature())
+			ctrl := NewController(newMockClient(t, mock), nil, nil, tx, WithSigner(s), WithPermissionID(2))
+
+			err := ctrl.ExecuteTransaction()
+			require.ErrorIs(t, err, ErrBadTransactionParam)
+			assert.Contains(t, err.Error(), "already signed")
+			assert.Zero(t, ctrl.tx.GetRawData().GetContract()[0].GetPermissionId(), "permission id must be left as signed")
+			assert.Len(t, ctrl.tx.GetSignature(), before, "no signature may be added")
+			assert.Zero(t, mock.broadcastCalls.Load())
+		})
+		t.Run(kind+"/same id accepted", func(t *testing.T) {
+			mock := &mockWalletServer{BroadcastTransactionFunc: broadcastOK}
+			tx := newTestTransaction()
+			setPermissionID(tx, 2)
+			sign(tx)
+			before := len(tx.GetSignature())
+			ctrl := NewController(newMockClient(t, mock), nil, nil, tx, WithSigner(s), WithPermissionID(2))
+
+			require.NoError(t, ctrl.ExecuteTransaction())
+			assert.Equal(t, int32(2), ctrl.tx.GetRawData().GetContract()[0].GetPermissionId())
+			assert.Len(t, ctrl.tx.GetSignature(), before+1)
+			assert.Equal(t, int32(1), mock.broadcastCalls.Load())
 		})
 	}
 }

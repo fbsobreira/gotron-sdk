@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	proto "google.golang.org/protobuf/proto"
@@ -15,17 +16,19 @@ import (
 // MaxTotalSignatures is the most signatures a TRON transaction may carry:
 // ECDSA signatures plus TIP-899 pq_auth_sig entries together. It mirrors the
 // node's TOTAL_SIGN_NUM, a genesis constant that proposals cannot change.
-//
-// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
-const MaxTotalSignatures = 5
+// Every signer in this package refuses to add a signature beyond it.
+const MaxTotalSignatures = keystore.MaxTotalSignatures
+
+// ErrTooManySignatures is returned (possibly wrapped) by every signer in this
+// package, ECDSA and post-quantum, when the transaction already carries
+// MaxTotalSignatures signatures, so the node would reject another. It is
+// keystore.ErrTooManySignatures.
+var ErrTooManySignatures = keystore.ErrTooManySignatures
 
 // Errors returned (possibly wrapped) by SignTransactionPQ.
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 var (
-	// ErrTooManySignatures is returned when the transaction already carries
-	// MaxTotalSignatures signatures, so the node would reject another.
-	ErrTooManySignatures = errors.New("signer: transaction already has the maximum number of signatures")
 	// ErrPQAlreadySigned is returned when the transaction already carries a
 	// pq_auth_sig entry for the same scheme and public key; the node rejects
 	// a key that signs twice.
@@ -73,8 +76,8 @@ func signTransactionPQ(tx *core.Transaction, key pqc.PrivateKey, verify pqVerify
 	if pub == nil {
 		return nil, fmt.Errorf("signer: %s key has no public key", key.Scheme())
 	}
-	if n := len(tx.GetSignature()) + len(tx.GetPqAuthSig()); n >= MaxTotalSignatures {
-		return nil, fmt.Errorf("%w: %d of %d", ErrTooManySignatures, n, MaxTotalSignatures)
+	if err := keystore.CheckSignatureRoom(tx); err != nil {
+		return nil, err
 	}
 	pubBytes := pub.Bytes()
 	for _, e := range tx.GetPqAuthSig() {
@@ -123,13 +126,17 @@ type pqSigner struct {
 //
 // An FN-DSA-512 key is rejected with an error wrapping
 // pqc.ErrFalconUnavailable when this build has no Falcon backend, rather than
-// failing on the first Sign. The signer does not copy the key: destroying the
-// key also disables the signer.
+// failing on the first Sign. A key that has already been destroyed is
+// rejected with an error wrapping pqc.ErrKeyDestroyed. The signer does not
+// copy the key: destroying the key later also disables the signer.
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 func NewPQSigner(key pqc.PrivateKey) (Signer, error) {
 	if key == nil {
 		return nil, errors.New("signer: nil post-quantum key")
+	}
+	if key.Destroyed() {
+		return nil, fmt.Errorf("signer: %s: %w", key.Scheme(), pqc.ErrKeyDestroyed)
 	}
 	if err := pqc.SchemeAvailable(key.Scheme()); err != nil {
 		return nil, fmt.Errorf("signer: %s: %w", key.Scheme(), err)

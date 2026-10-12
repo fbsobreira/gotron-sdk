@@ -6,6 +6,7 @@ import (
 
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/signer"
@@ -25,8 +26,6 @@ const (
 // MaxTotalSignatures is the most signatures (ECDSA plus TIP-899
 // pq_auth_sig) a transaction may carry, the node's TOTAL_SIGN_NUM; see
 // signer.MaxTotalSignatures.
-//
-// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 const MaxTotalSignatures = signer.MaxTotalSignatures
 
 // SignTransactionPQ signs a transaction with a TIP-899 post-quantum key,
@@ -45,7 +44,13 @@ func SignTransaction(tx *core.Transaction, key *btcec.PrivateKey) (*core.Transac
 }
 
 // SignTransactionECDSA signs a transaction using an ECDSA private key.
+//
+// It fails with an error wrapping signer.ErrTooManySignatures when tx already
+// carries MaxTotalSignatures signatures.
 func SignTransactionECDSA(tx *core.Transaction, key *ecdsa.PrivateKey) (*core.Transaction, error) {
+	if err := keystore.CheckSignatureRoom(tx); err != nil {
+		return nil, err
+	}
 	// Ensure the private key uses go-ethereum's secp256k1 curve.
 	// Keys from btcec.ToECDSA() use a different curve instance that fails
 	// validation in go-ethereum's non-CGO Sign() (e.g., on Windows).
