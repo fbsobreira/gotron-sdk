@@ -509,10 +509,11 @@ func (ks *KeyStore) expire(addr address.Address, u *unlocked, timeout time.Durat
 // NewAccount generates a new key and stores it into the key directory,
 // encrypting it with the passphrase.
 func (ks *KeyStore) NewAccount(passphrase string) (Account, error) {
-	_, account, err := storeNewKey(ks.storage, crand.Reader, passphrase)
+	key, account, err := storeNewKey(ks.storage, crand.Reader, passphrase)
 	if err != nil {
 		return Account{}, err
 	}
+	zeroKey(key.PrivateKey)
 	// Add the account to the cache immediately rather
 	// than waiting for file system notifications to pick it up.
 	ks.cache.add(account)
@@ -590,8 +591,12 @@ func (ks *KeyStore) Update(a Account, passphrase, newPassphrase string) error {
 	return ks.storage.StoreKey(a.URL.Path, key, newPassphrase)
 }
 
-// zeroKey zeroes a private key in memory.
+// zeroKey zeroes a private key in memory. It is best-effort: copies left by
+// stack growth, big.Int reallocation or the signing code are out of its reach.
 func zeroKey(k *ecdsa.PrivateKey) {
+	if k == nil || k.D == nil {
+		return
+	}
 	b := k.D.Bits()
 	for i := range b {
 		b[i] = 0

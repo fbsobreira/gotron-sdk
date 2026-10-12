@@ -424,7 +424,14 @@ func init() {
 // outside the years 0-9999 that time.Time can encode; those are returned as
 // the raw millisecond value so the listing still prints.
 func assetTime(ms int64) interface{} {
-	t := time.Unix(ms/1000, 0)
+	return assetTimeIn(ms, time.Local)
+}
+
+// assetTimeIn is assetTime in the given location. encoding/json checks the year
+// in the time's own location, so the limit depends on the zone; tests pass one
+// here rather than changing time.Local, which other goroutines read.
+func assetTimeIn(ms int64, loc *time.Location) interface{} {
+	t := time.Unix(ms/1000, 0).In(loc)
 	if y := t.Year(); y < 0 || y > 9999 {
 		return ms
 	}

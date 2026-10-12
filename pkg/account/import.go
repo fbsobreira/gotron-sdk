@@ -141,6 +141,8 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Only the address is needed; the file is copied as it is.
+	defer keys.ZeroECDSAKey(key.PrivateKey)
 
 	if existingKs := store.FromAddress(key.Address.String()); existingKs != nil {
 		existingKs.Close()

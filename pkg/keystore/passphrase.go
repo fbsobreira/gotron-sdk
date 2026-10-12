@@ -30,8 +30,10 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -90,6 +92,7 @@ func (ks keyStorePassphrase) GetKey(addr address.Address, filename, auth string)
 	}
 	// Make sure we're really operating on the requested key (no swap attacks)
 	if !bytes.Equal(key.Address, addr) {
+		zeroKey(key.PrivateKey)
 		return nil, fmt.Errorf("key content mismatch: have account %x, want %x", key.Address, addr)
 	}
 	return key, nil
@@ -97,7 +100,10 @@ func (ks keyStorePassphrase) GetKey(addr address.Address, filename, auth string)
 
 // StoreKey generates a key, encrypts with 'auth' and stores in the given directory
 func StoreKey(dir, auth string, scryptN, scryptP int) (Account, error) {
-	_, a, err := storeNewKey(&keyStorePassphrase{dir, scryptN, scryptP, false}, rand.Reader, auth)
+	key, a, err := storeNewKey(&keyStorePassphrase{dir, scryptN, scryptP, false}, rand.Reader, auth)
+	if key != nil {
+		zeroKey(key.PrivateKey)
+	}
 	return a, err
 }
 
@@ -112,8 +118,9 @@ func (ks keyStorePassphrase) StoreKey(filename string, key *Key, auth string) er
 		return err
 	}
 	if !ks.skipKeyFileVerification {
-		// Verify that we can decrypt the file with the given password.
-		_, err = ks.GetKey(key.Address, tmpName, auth)
+		// Verify that we can decrypt the file with the given password. The
+		// decrypted copy is only needed for the check, so it is zeroed at once.
+		check, err := ks.GetKey(key.Address, tmpName, auth)
 		if err != nil {
 			msg := "An error was encountered when saving and verifying the keystore file. \n" +
 				"This indicates that the keystore is corrupted. \n" +
@@ -123,6 +130,7 @@ func (ks keyStorePassphrase) StoreKey(filename string, key *Key, auth string) er
 				"The error was : %s"
 			return fmt.Errorf(msg, tmpName, err)
 		}
+		zeroKey(check.PrivateKey)
 	}
 	return os.Rename(tmpName, filename)
 }
@@ -152,6 +160,7 @@ func EncryptDataV3(data, auth []byte, scryptN, scryptP int) (CryptoJSON, error) 
 	if err != nil {
 		return CryptoJSON{}, err
 	}
+	defer clear(derivedKey)
 	encryptKey := derivedKey[:16]
 
 	iv := make([]byte, aes.BlockSize) // 16
@@ -189,6 +198,7 @@ func EncryptDataV3(data, auth []byte, scryptN, scryptP int) (CryptoJSON, error) 
 // blob that can be decrypted later on.
 func EncryptKey(key *Key, auth string, scryptN, scryptP int) ([]byte, error) {
 	keyBytes := math.PaddedBigBytes(key.PrivateKey.D, 32)
+	defer clear(keyBytes)
 	cryptoStruct, err := EncryptDataV3(keyBytes, []byte(auth), scryptN, scryptP)
 	if err != nil {
 		return nil, err
@@ -231,7 +241,16 @@ func DecryptKey(keyjson []byte, auth string) (*Key, error) {
 	if err != nil {
 		return nil, err
 	}
+	// ToECDSAUnsafe copies keyBytes into a new big.Int, so the plaintext can
+	// be zeroed straight away.
 	key := crypto.ToECDSAUnsafe(keyBytes)
+	clear(keyBytes)
+	// ToECDSAUnsafe returns nil for zero or for a value not below the curve
+	// order. A matching MAC only proves the passphrase fits the file; whoever
+	// wrote the file chose the plaintext.
+	if key == nil {
+		return nil, errors.New("keystore: decrypted key is not a valid secp256k1 private key")
+	}
 
 	return &Key{
 		ID:         uuid.UUID(keyID),
@@ -254,9 +273,11 @@ func DecryptDataV3(cj CryptoJSON, auth string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer clear(derivedKey)
 
+	// Constant time, so the time taken does not reveal how much of the MAC matched.
 	calculatedMAC := crypto.Keccak256(derivedKey[16:32], cipherText)
-	if !bytes.Equal(calculatedMAC, mac) {
+	if subtle.ConstantTimeCompare(calculatedMAC, mac) != 1 {
 		return nil, ErrDecrypt
 	}
 
@@ -349,13 +370,16 @@ func decryptKeyV1(keyProtected *encryptedKeyJSONV1, auth string) (keyBytes []byt
 	if err != nil {
 		return nil, nil, err
 	}
+	defer clear(derivedKey)
 
 	calculatedMAC := crypto.Keccak256(derivedKey[16:32], cipherText)
-	if !bytes.Equal(calculatedMAC, mac) {
+	if subtle.ConstantTimeCompare(calculatedMAC, mac) != 1 {
 		return nil, nil, ErrDecrypt
 	}
 
-	plainText, err := aesCBCDecrypt(crypto.Keccak256(derivedKey[:16])[:16], cipherText, iv)
+	aesKey := crypto.Keccak256(derivedKey[:16])
+	defer clear(aesKey)
+	plainText, err := aesCBCDecrypt(aesKey[:16], cipherText, iv)
 	if err != nil {
 		return nil, nil, err
 	}
