@@ -195,6 +195,10 @@ jobs:
           # 1.26 patches, never a new minor (scripts/tronctl-pq.sh enforces
           # it too).
           go-version: '~1.26.5'
+          # Resolve the range against the newest release, not a Go already in
+          # the runner's tool cache: macos-15-intel otherwise built with an
+          # older 1.26 patch than the other targets.
+          check-latest: true
           # No Go build cache: it ignores MACOSX_DEPLOYMENT_TARGET, so objects
           # cached by another job for a newer macOS would end up in the
           # release binary while the minos check below still passes.
@@ -311,6 +315,8 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '~1.26.5'
+          # The newest 1.26 patch, not the runner's cached Go, as on macOS.
+          check-latest: true
           # Release builds start from a clean Go build cache, as on macOS.
           cache: false
 

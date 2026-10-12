@@ -65,6 +65,8 @@ jobs:
           # but never a new minor: the minor is bumped deliberately, together
           # with the test matrix and the tronctl-pq builds (tronctl-pq.yaml).
           go-version: '~1.26.5'
+          # The newest 1.26 patch, not a Go already in the runner's tool cache.
+          check-latest: true
           cache: true
 
       # dist-pq/ is gitignored, so GoReleaser still sees a clean tree, and
