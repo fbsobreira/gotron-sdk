@@ -84,8 +84,8 @@ Reference docs live in `docs/` (`cli-usage.md`, `sdk-usage.md`, `api-reference.m
 
 ## Gotchas
 
-- **`make test` excludes `/cmd` and `/pkg/proto/`.** A green `make test` therefore says nothing about
-  the CLI layer — check its coverage separately and verify CLI changes by running the binary.
+- **`make test` runs the `cmd/` tests, but they cover little of the CLI** (Codecov ignores `cmd/`).
+  A green run says little about a CLI change — verify it by running the binary.
 - **`make test-integration` hits the live Nile testnet** and needs network plus funded fixtures. It
   will not run offline.
 - **Config precedence:** CLI flags > environment > config file > defaults (resolved in
