@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
-	"github.com/fbsobreira/gotron-sdk/pkg/common"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
@@ -72,8 +70,9 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			switch args[0] {
 			case "all":
-				asJSON, _ := json.Marshal(config)
-				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
+				if err := printJSON(cmd, config); err != nil {
+					return err
+				}
 			case "node":
 				fmt.Println(config.Node)
 			case "ledger":

@@ -46,9 +46,7 @@ func accountBalanceCmd() *cobra.Command {
 					return nil
 				}
 
-				asJSON, _ := json.Marshal(acc)
-				fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-				return nil
+				return printJSON(cmd, acc)
 			}
 
 			acc, err := conn.GetAccount(addr.String())
@@ -73,9 +71,7 @@ func accountBalanceCmd() *cobra.Command {
 			result["allowance"] = float64(acc.GetAllowance()) / 1000000
 			result["rewards"] = float64(rewards) / 1000000
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().BoolVar(&balanceDetails, "details", false, "show detailed account information")
@@ -120,9 +116,7 @@ func accountActivateCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -173,9 +167,7 @@ func accountSendCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -207,9 +199,7 @@ func accountAddressCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["address"] = address
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -231,9 +221,7 @@ func accountInfoCmd() *cobra.Command {
 				return nil
 			}
 
-			asJSON, _ := json.Marshal(acc)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, acc)
 		},
 	}
 }
@@ -277,9 +265,7 @@ func accountWithdrawCmd() *cobra.Command {
 				"netFee":   ctrlr.Receipt.GetReceipt().GetNetFee(),
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -353,9 +339,7 @@ func accountFreezeCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
@@ -425,9 +409,7 @@ func accountVoteCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().StringSliceVar(&voteList, "wv", []string{}, "witness1:vote1,witness2:vote2")
@@ -593,9 +575,7 @@ func accountPermissionCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 
@@ -661,9 +641,7 @@ func accountFreezeV2Cmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
@@ -728,9 +706,7 @@ func accountUnfreezeV2Cmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().IntVarP(&resourcesType, "type", "t", 0, "0 - Bandwidth / 1 - Energy")
@@ -789,9 +765,7 @@ func accountSignCmd() *cobra.Command {
 			result["Signer"] = signerAddress.String()
 			result["Message"] = args[0]
 			result["Signature"] = hex.EncodeToString(signature)
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for signing")
@@ -829,9 +803,7 @@ func accountVerifyCmd() *cobra.Command {
 			result["Signature"] = args[1]
 			result["Signer"] = addr.String()
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().BoolVar(&useFixedLength, "useFixedLength", false, "use fixed-length message format for verification")

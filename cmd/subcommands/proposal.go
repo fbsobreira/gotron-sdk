@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -64,9 +63,7 @@ func proposalListCmd() *cobra.Command {
 			result["totalCount"] = len(list.Proposals)
 			result["filterCount"] = len(pList)
 			result["proposals"] = pList
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().BoolVar(&newOnlyProposals, "new", false, "Show only new proposals")
@@ -120,9 +117,7 @@ func proposalApproveCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -170,9 +165,7 @@ func proposalWithdrawCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -238,9 +231,7 @@ func proposalCreateCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().StringSliceVar(&proposalList, "params", []string{}, "ID:VALUE,ID:VALUE")

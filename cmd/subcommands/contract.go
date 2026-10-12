@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
@@ -138,10 +137,7 @@ func contractDeployCmd() *cobra.Command {
 				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-
-			return nil
+			return printJSON(cmd, result)
 
 		},
 	}
@@ -204,10 +200,7 @@ func contractConstantCmd() *cobra.Command {
 				}
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	return cmd
@@ -328,14 +321,9 @@ func contractTriggerCmd() *cobra.Command {
 					"result":  estimate.GetResult().GetResult(),
 				}
 
-				asJSON, err := json.Marshal(result)
-				if err != nil {
-					return err
-				}
 				// --estimate is a dry run: never fall through to TriggerContract,
 				// which would sign and broadcast a real state-changing call.
-				_, err = fmt.Fprintln(cmd.OutOrStdout(), common.JSONPrettyFormat(string(asJSON)))
-				return err
+				return printJSON(cmd, result)
 			}
 
 			tx, err := conn.TriggerContract(
@@ -384,10 +372,7 @@ func contractTriggerCmd() *cobra.Command {
 				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")

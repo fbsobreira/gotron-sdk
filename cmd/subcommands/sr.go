@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -71,9 +70,7 @@ func srListCmd() *cobra.Command {
 			result["totalCount"] = len(list.Witnesses)
 			result["filterCount"] = len(wList)
 			result["witnesses"] = wList
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().BoolVar(&electedOnly, "elected", false, "if true return elected only")
@@ -119,9 +116,7 @@ func srCreateCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	return cmd
@@ -172,9 +167,7 @@ func srUpdateBrokerageCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	return cmd
