@@ -139,6 +139,9 @@ Install hooks once per clone with `make hooks`. They enforce the rules below aut
 **Commit format:** `type(scope): description` (max 100 chars).
 Valid types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`,
 `revert`.
+Local commits carry no ticket key (the hook rejects one before the type). The PR title does:
+`[GOT-29] fix(scope): description`, and squash-merge makes it the commit subject on master. The
+`.goreleaser.yaml` changelog groups match the type after an optional `[KEY-123] ` prefix.
 
 **Before every commit:** `make test`, `make lint`, `make`.
 
