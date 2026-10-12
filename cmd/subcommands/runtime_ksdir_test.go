@@ -14,6 +14,7 @@ import (
 func TestResolveKsDir(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir reads it on Windows
 	t.Chdir(t.TempDir())
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
@@ -67,6 +68,7 @@ func TestSetupKeystoreKsDirValues(t *testing.T) {
 	pqTestEnv(t, "pw") // restores the store location
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir reads it on Windows
 	t.Chdir(t.TempDir())
 	cwd, err := os.Getwd()
 	require.NoError(t, err)
@@ -149,6 +151,7 @@ func TestSetupKeystoreLegacyRelativeWarning(t *testing.T) {
 	pqTestEnv(t, "pw")
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // os.UserHomeDir reads it on Windows
 	require.NoError(t, os.MkdirAll(filepath.Join(home, "cfg", "account-keys", "acct"), 0o700))
 	require.NoError(t, os.MkdirAll(filepath.Join(home, "pqonly", "pq-keys", "acct"), 0o700))
 	// Empty key folders at the old location are no reason to warn.
