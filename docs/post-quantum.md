@@ -29,6 +29,7 @@ ends up bound to an address. This is a protocol explainer; the SDK parts are in 
 - [Observed on Nile](#observed-on-nile)
 - [Pitfalls](#pitfalls)
 - [In the GoTRON SDK](#in-the-gotron-sdk)
+- [tronctl builds with FN-DSA-512](#tronctl-builds-with-fn-dsa-512)
 - [Sources](#sources)
 
 ## The idea in one minute
@@ -527,10 +528,55 @@ Build notes: ML-DSA-44 is pure Go. FN-DSA-512 signing **and verifying** need the
 [liboqs](https://openquantumsafe.org/liboqs/) (`make test-falcon` runs those tests). Without it, FN-DSA-512 keys
 still parse, addresses still derive and key pairs are still validated, but `Sign` and `Verify` return
 `pqc.ErrFalconUnavailable` (a pure-Go verifier is planned).
-CI builds and tests the Falcon path in a separate job (`.github/workflows/falcon.yaml`, liboqs 0.16.0). To build
-`tronctl` with FN-DSA-512 support, run `CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl` with
-liboqs installed. Release binaries are built without CGO, so they can import, list and export FN-DSA-512 keys but
-cannot create keys or sign with them.
+CI builds and tests the Falcon path in a separate job (`.github/workflows/falcon.yaml`, liboqs 0.16.0 built by
+`scripts/build-liboqs.sh`, which holds the version pin). To build `tronctl` with FN-DSA-512 support, run
+`CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl` with liboqs installed. The default release
+binaries are built without CGO, so they can import, list and export FN-DSA-512 keys but cannot create keys or
+sign with them; the `tronctl-pq` release archives can (see below).
+
+## tronctl builds with FN-DSA-512
+
+Every GoTRON release ships two sets of `tronctl` archives, both listed in the release's `checksums.txt`:
+
+| Archive | FN-DSA-512 keys | Platforms |
+|---|---|---|
+| `tronctl_<version>_<os>_<arch>` (also Homebrew, `go install` and the install script) | import, list, export. **Cannot create or sign** | linux, darwin, windows on amd64 and arm64 |
+| `tronctl-pq_<version>_<os>_<arch>` | create, import, list, export **and sign** | linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64 |
+
+ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN-DSA-512.
+
+- The `tronctl-pq` binaries are built with `-tags falcon` and [liboqs](https://openquantumsafe.org/liboqs/)
+  0.16.0 (Falcon-512 only, without OpenSSL) linked in statically, so liboqs need not be installed. The Linux
+  binaries are fully static (musl), the macOS binaries need macOS 12 or later, and the Windows binary imports
+  only system DLLs.
+- There is **no windows/arm64** `tronctl-pq` build yet; build from source there (see Build notes above).
+- Each archive holds `tronctl` (`tronctl.exe` on Windows), `LICENSE`, `README.md` and `THIRD_PARTY_NOTICES.txt`.
+  Windows archives are `.zip`, the others `.tar.gz`. liboqs itself is MIT licensed, but the code it links in for
+  Falcon-512 is not all MIT: the Falcon reference and AVX2 code is MIT, the ARMv8 (arm64) Falcon code and parts
+  of liboqs's common code are Apache-2.0, and the SHA-3 code carries BSD-style (`brg_endian.h`), CRYPTOGAMS
+  (Keccak AVX2) and CC0 terms, plus a NIST notice for the DRBG. `THIRD_PARTY_NOTICES.txt` has every licence and
+  notice in full.
+- Homebrew installs the default build. To use both, keep the `tronctl-pq` binary under its own name or put it
+  earlier on your `PATH`.
+
+Download and verify an archive (here linux/amd64; use `shasum -a 256 -c` on macOS):
+
+```bash
+VERSION=0.26.0   # the release tag without the leading v
+ASSET=tronctl-pq_${VERSION}_linux_amd64.tar.gz
+BASE=https://github.com/fbsobreira/gotron-sdk/releases/download/v${VERSION}
+curl -fsSLO "$BASE/$ASSET"
+curl -fsSLO "$BASE/checksums.txt"
+grep " $ASSET\$" checksums.txt | sha256sum -c -
+tar xzf "$ASSET" tronctl
+./tronctl version   # the builder shows as tronctl-pq@gotron.sh
+```
+
+For a `tronctl-pq` binary, the `-tags=` line of `go version -m ./tronctl` includes `falcon` (the Linux binaries
+record `-tags=falcon,netgo,osusergo`). A default binary refuses `keys add --scheme fn-dsa-512` and signing with
+an FN-DSA-512 key before anything is sent, with
+`FN-DSA-512 needs a tronctl built with Falcon support: download a tronctl-pq release archive, or build with
+CGO_ENABLED=1 go build -tags falcon ./cmd/tronctl (requires liboqs)`.
 
 ## Sources
 

@@ -22,10 +22,12 @@ import (
 // TIP-899 post-quantum (PQ) key support for the keys commands and signing.
 // Experimental: TIP-899 is a draft enabled on Nile only. FN-DSA-512 keystores
 // and Toolkit files parse in every build, but generating and signing with an
-// FN-DSA-512 key needs a tronctl built with -tags falcon (CGO and liboqs).
+// FN-DSA-512 key needs a tronctl built with -tags falcon (CGO and liboqs), such
+// as the tronctl-pq release archives.
 
 const (
 	falconHowToFix = "FN-DSA-512 needs a tronctl built with Falcon support: " +
+		"download a tronctl-pq release archive, or build with " +
 		"CGO_ENABLED=1 go build -tags falcon ./cmd/tronctl (requires liboqs)"
 	pqExperimentalNote = "TIP-899 post-quantum keys are experimental (Nile only)"
 	ecdsaSchemeLabel   = "ECDSA"

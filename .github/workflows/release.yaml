@@ -5,20 +5,55 @@ on:
     tags:
       - "v*"
 
+# Read-only by default; a job that needs more declares its own block (the
+# release job needs contents: write to create the GitHub Release).
+permissions:
+  contents: read
+
 jobs:
   test:
     uses: ./.github/workflows/test.yaml
+
+  # The version GoReleaser derives from the tag (v0.26.0 -> 0.26.0), for the
+  # tronctl-pq archive names. Reusable-workflow inputs cannot run shell, so a
+  # job strips the v.
+  version:
+    name: Resolve version
+    runs-on: ubuntu-latest
+    permissions: {}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Strip the leading v
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+
+  # The tronctl-pq_* archives: tronctl with FN-DSA-512 (liboqs, cgo), built on
+  # native runners. GoReleaser attaches them below.
+  tronctl-pq:
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tronctl-pq.yaml
+    with:
+      version: ${{ needs.version.outputs.version }}
 
   release:
     name: Release
     permissions:
       contents: write
-    needs: test
+    needs: [test, version, tronctl-pq]
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
         uses: actions/checkout@v6
         with:
+          # GoReleaser only reads git locally (tags, changelog) and publishes
+          # through the API with GITHUB_TOKEN and HOMEBREW_TAP_TOKEN from env;
+          # it never pushes to this repository.
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Go
@@ -26,9 +61,41 @@ jobs:
         with:
           # Release binaries must be built with a toolchain that carries the
           # crypto/tls, net/textproto and crypto/x509 fixes (>= go1.26.5).
-          # The range keeps picking up later patch releases automatically.
-          go-version: '>=1.26.5'
+          # The range still picks up later 1.26 patch releases automatically,
+          # but never a new minor: the minor is bumped deliberately, together
+          # with the test matrix and the tronctl-pq builds (tronctl-pq.yaml).
+          go-version: '~1.26.5'
           cache: true
+
+      # dist-pq/ is gitignored, so GoReleaser still sees a clean tree, and
+      # .goreleaser.yaml attaches dist-pq/tronctl-pq_* to the release and to
+      # checksums.txt.
+      - name: Download tronctl-pq archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: tronctl-pq_*
+          path: dist-pq
+          merge-multiple: true
+
+      # GoReleaser silently skips a glob that matches nothing, so check here
+      # that every archive arrived before anything is published.
+      - name: Check tronctl-pq archives
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          ls -l dist-pq
+          for target in linux_amd64.tar.gz linux_arm64.tar.gz darwin_amd64.tar.gz darwin_arm64.tar.gz windows_amd64.zip; do
+            f="dist-pq/tronctl-pq_${VERSION}_${target}"
+            if [ ! -s "$f" ]; then
+              echo "::error::missing $f"
+              exit 1
+            fi
+          done
+          n=$(find dist-pq -type f | wc -l)
+          if [ "$n" -ne 5 ]; then
+            echo "::error::expected 5 files in dist-pq, found $n"
+            exit 1
+          fi
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7

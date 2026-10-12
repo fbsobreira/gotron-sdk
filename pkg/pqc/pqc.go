@@ -29,6 +29,12 @@
 // ("upstream maintenance TBD"); a pure-Go verifier is tracked as GOT-77. The
 // default build stays free of cgo.
 //
+// Release binaries: the default tronctl_* archives (and the Homebrew formula)
+// are built without cgo, so they cannot create or sign with FN-DSA-512 keys.
+// Each release also ships tronctl-pq_* archives, built with -tags falcon and a
+// statically linked liboqs, for linux/amd64, linux/arm64, darwin/amd64,
+// darwin/arm64 and windows/amd64 (not windows/arm64).
+//
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet. The
 // APIs and encodings in this package may change before mainnet activation.
 package pqc

@@ -7,6 +7,8 @@ tronctl
 tronctl-docs
 bin/
 dist/
+# tronctl-pq archives downloaded by release.yaml for GoReleaser
+dist-pq/
 # keys
 *.pem
 *.key
