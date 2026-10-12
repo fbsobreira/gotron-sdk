@@ -20,6 +20,7 @@ This guide provides comprehensive examples and patterns for using the GoTRON SDK
   - [Transactions](#transactions)
     - [Send TRX](#send-trx)
     - [Send with Memo](#send-with-memo)
+    - [Post-quantum signing (experimental)](#post-quantum-signing-experimental)
   - [Key Management](#key-management)
     - [Using Keystore](#using-keystore)
     - [HD Wallet](#hd-wallet)
@@ -277,6 +278,31 @@ func sendWithMemo(c *client.GrpcClient, from, to string, amount int64, memo stri
 
 }
 ```
+
+### Post-quantum signing (experimental)
+
+> **Experimental.** TIP-899 post-quantum signing is a draft and is live only on the Nile testnet.
+
+A post-quantum key signs through the same `signer.Signer` interface as an ECDSA key. ML-DSA-44 works in every
+build; FN-DSA-512 needs the `falcon` build tag, CGO and liboqs.
+
+```go
+key, err := pqc.GenerateKey(core.PQScheme_ML_DSA_44, rand.Reader)
+if err != nil {
+	return err
+}
+defer key.Destroy()
+
+s, err := signer.NewPQSigner(key)
+if err != nil {
+	return err
+}
+receipt, err := txbuilder.New(c).Transfer(s.Address().String(), to, amount).SendAndConfirm(ctx, s)
+```
+
+`SendAndConfirm` refuses to sign if the node has the scheme switched off. Key storage, the capability check,
+multi-signature and migrating an existing ECDSA account are in
+[Using the SDK](post-quantum.md#using-the-sdk).
 
 ## Key Management
 

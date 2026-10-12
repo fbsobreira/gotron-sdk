@@ -617,6 +617,60 @@ func SignTransaction(tx *core.Transaction, signer *btcec.PrivateKey) (*core.Tran
 func SignTransactionECDSA(tx *core.Transaction, signer *ecdsa.PrivateKey) (*core.Transaction, error)
 ```
 
+#### Post-Quantum Signing (experimental)
+
+TIP-899 is a draft and is live only on the Nile testnet. See [Post-Quantum Signatures](post-quantum.md#using-the-sdk).
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/signer`
+
+```go
+// NewPQSigner creates a Signer from a post-quantum key. It rejects a destroyed key
+// (pqc.ErrKeyDestroyed) and an FN-DSA-512 key in a build without Falcon (pqc.ErrFalconUnavailable).
+func NewPQSigner(key pqc.PrivateKey) (Signer, error)
+
+// SignTransactionPQ appends a pq_auth_sig entry over SHA-256(raw_data). It returns
+// ErrTooManySignatures or ErrPQAlreadySigned and leaves tx unchanged on error.
+func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error)
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/client`
+
+```go
+// Which post-quantum schemes the node has enabled. A successful answer is cached for
+// DefaultPQCapabilitiesTTL (1 minute); errors are not cached.
+func (g *GrpcClient) GetPQCapabilities() (PQCapabilities, error)
+func (g *GrpcClient) GetPQCapabilitiesCtx(ctx context.Context) (PQCapabilities, error)
+
+func (g *GrpcClient) PQSchemeAllowed(scheme core.PQScheme) (bool, error)
+func (g *GrpcClient) PQSchemeAllowedCtx(ctx context.Context, scheme core.PQScheme) (bool, error)
+
+// d <= 0 disables the cache.
+func (g *GrpcClient) SetPQCapabilitiesTTL(d time.Duration)
+func (g *GrpcClient) InvalidatePQCapabilities()
+
+type PQCapabilities struct {
+    FNDSA512 bool
+    MLDSA44  bool
+}
+func (c PQCapabilities) Allows(scheme core.PQScheme) bool
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/keystore`
+
+```go
+// MaxTotalSignatures is the most signatures a transaction may carry: ECDSA signatures and
+// pq_auth_sig entries together.
+const MaxTotalSignatures = 5
+
+// ErrTooManySignatures is returned (wrapped) by every signer when the limit is reached.
+// signer.ErrTooManySignatures is the same error.
+var ErrTooManySignatures error
+
+// CheckSignatureRoom returns an error wrapping ErrTooManySignatures when tx has no room
+// for another signature.
+func CheckSignatureRoom(tx *core.Transaction) error
+```
+
 ## Keystore Package
 
 ### `github.com/fbsobreira/gotron-sdk/pkg/keystore`
