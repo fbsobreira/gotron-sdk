@@ -16,8 +16,8 @@ patched.
 
 Report them privately through GitHub:
 [**Report a vulnerability**](https://github.com/fbsobreira/gotron-sdk/security/advisories/new)
-(the repository's **Security** tab, then **Report a vulnerability**). Only the maintainers can see
-the report.
+(the repository's **Security** tab, then **Report a vulnerability**). The report is not public:
+only you, the maintainers and anyone invited to work on the fix can see it.
 
 Please include:
 
