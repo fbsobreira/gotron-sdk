@@ -111,12 +111,34 @@ func NewParamsFromPath(path string) (*BIP44Params, error) {
 
 func hardenedInt(field string) (uint32, error) {
 	field = strings.TrimSuffix(field, "'")
-	i, err := strconv.Atoi(field)
+	i, err := strconv.ParseInt(field, 10, 64)
 	if err != nil {
 		return 0, err
 	}
 	if i < 0 {
 		return 0, fmt.Errorf("fields must not be negative. got %d", i)
+	}
+	if i > maxPathIndex {
+		return 0, fmt.Errorf("field %d out of range: must be less than 2^31", i)
+	}
+	return uint32(i), nil
+}
+
+// maxPathIndex is the largest BIP 32 path index before the hardened bit
+// (0x80000000) is applied.
+const maxPathIndex = 1<<31 - 1
+
+// parsePathIndex parses one BIP 32 path segment, without its hardened
+// suffix, into an index in [0, 2^31). It parses into an int64 so an
+// oversized value cannot wrap; it accepts the same syntax strconv.Atoi does
+// (an optional sign, leading zeros) so no existing path changes meaning.
+func parsePathIndex(s string) (uint32, error) {
+	i, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if i < 0 || i > maxPathIndex {
+		return 0, fmt.Errorf("index %d negative or too large: must be in [0, 2^31)", i)
 	}
 	return uint32(i), nil
 }
@@ -171,7 +193,14 @@ func ComputeMastersFromSeed(seed []byte, masterSecret []byte) (secret [32]byte, 
 
 // DerivePrivateKeyForPath derives the private key by following the BIP 32/44 path from privKeyBytes,
 // using the given chainCode.
+//
+// It returns an error if privKeyBytes is not a valid private key (zero, or not
+// below the curve order), or if a derivation step yields an invalid child key
+// (see derivePrivateKey).
 func DerivePrivateKeyForPath(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32]byte, path string) ([32]byte, error) {
+	if err := checkPrivateScalar(curve, privKeyBytes[:]); err != nil {
+		return [32]byte{}, fmt.Errorf("invalid BIP 32 master key: %w", err)
+	}
 	data := privKeyBytes
 	path = strings.TrimPrefix(path, "m/")
 	parts := strings.Split(path, "/")
@@ -188,14 +217,14 @@ func DerivePrivateKeyForPath(curve elliptic.Curve, privKeyBytes [32]byte, chainC
 				return [32]byte{}, errors.New("invalid BIP 32 path: empty segment")
 			}
 		}
-		idx, err := strconv.Atoi(part)
+		idx, err := parsePathIndex(part)
 		if err != nil {
 			return [32]byte{}, fmt.Errorf("invalid BIP 32 path: %s", err)
 		}
-		if idx < 0 {
-			return [32]byte{}, errors.New("invalid BIP 32 path: index negative or too large")
+		data, chainCode, err = derivePrivateKey(curve, data, chainCode, idx, harden)
+		if err != nil {
+			return [32]byte{}, err
 		}
-		data, chainCode = derivePrivateKey(curve, data, chainCode, uint32(idx), harden)
 	}
 	var derivedKey [32]byte
 	n := copy(derivedKey[:], data[:])
@@ -209,9 +238,15 @@ func DerivePrivateKeyForPath(curve elliptic.Curve, privKeyBytes [32]byte, chainC
 // derivePrivateKey derives the private key with index and chainCode.
 // If harden is true, the derivation is 'hardened'.
 // It returns the new private key and new chain code.
+//
+// It returns an error when the child key is invalid (IL >= n, or the child key
+// is zero). Per BIP 32 the caller should then move on to the next index; this
+// function does not retry by itself, since a silent retry would change which
+// key a path refers to.
+//
 // For more information on hardened keys see:
 //   - https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki
-func derivePrivateKey(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32]byte, index uint32, harden bool) ([32]byte, [32]byte) {
+func derivePrivateKey(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32]byte, index uint32, harden bool) ([32]byte, [32]byte, error) {
 	var data []byte
 	if harden {
 		index |= 0x80000000
@@ -230,8 +265,46 @@ func derivePrivateKey(curve elliptic.Curve, privKeyBytes [32]byte, chainCode [32
 	}
 	data = append(data, uint32ToBytes(index)...)
 	data2, chainCode2 := i64(chainCode[:], data)
-	x := addScalars(curve, privKeyBytes[:], data2[:])
-	return x, chainCode2
+	x, err := childPrivateScalar(curve, privKeyBytes[:], data2[:])
+	if err != nil {
+		return [32]byte{}, [32]byte{}, fmt.Errorf("invalid BIP 32 child key at index %d: %w", index, err)
+	}
+	return x, chainCode2, nil
+}
+
+var (
+	errKeyOutOfRange = errors.New("key is zero or not below the curve order")
+	errILOutOfRange  = errors.New("IL is not below the curve order")
+	errChildKeyZero  = errors.New("child key is zero")
+)
+
+// checkPrivateScalar returns an error unless k, read as a big-endian integer,
+// is a valid private key: in [1, n-1] for the curve order n. Per BIP 32 this
+// applies to the master key (IL of the master HMAC).
+func checkPrivateScalar(curve elliptic.Curve, k []byte) error {
+	v := new(big.Int).SetBytes(k)
+	defer wipeInt(v)
+	if v.Sign() == 0 || v.Cmp(curve.Params().N) >= 0 {
+		return errKeyOutOfRange
+	}
+	return nil
+}
+
+// childPrivateScalar returns the BIP 32 child key (parent + IL) mod n. It
+// returns an error if IL >= n or the child key is zero; both make the child
+// invalid under BIP 32.
+func childPrivateScalar(curve elliptic.Curve, parent, il []byte) ([32]byte, error) {
+	ilInt := new(big.Int).SetBytes(il)
+	tooLarge := ilInt.Cmp(curve.Params().N) >= 0
+	wipeInt(ilInt)
+	if tooLarge {
+		return [32]byte{}, errILOutOfRange
+	}
+	x := addScalars(curve, parent, il)
+	if x == ([32]byte{}) {
+		return [32]byte{}, errChildKeyZero
+	}
+	return x, nil
 }
 
 // modular big endian addition
@@ -239,10 +312,19 @@ func addScalars(curve elliptic.Curve, a []byte, b []byte) [32]byte {
 	aInt := new(big.Int).SetBytes(a)
 	bInt := new(big.Int).SetBytes(b)
 	sInt := new(big.Int).Add(aInt, bInt)
-	x := sInt.Mod(sInt, curve.Params().N).Bytes()
+	defer func() { wipeInt(aInt); wipeInt(bInt); wipeInt(sInt) }()
 	x2 := [32]byte{}
-	copy(x2[32-len(x):], x)
+	sInt.Mod(sInt, curve.Params().N).FillBytes(x2[:])
 	return x2
+}
+
+// wipeInt zeroes the words backing v, which may hold key material. It is
+// best-effort: big.Int can leave earlier copies behind when it reallocates.
+func wipeInt(v *big.Int) {
+	b := v.Bits()
+	for i := range b {
+		b[i] = 0
+	}
 }
 
 func uint32ToBytes(i uint32) []byte {

@@ -36,3 +36,13 @@ func Generate(entropyBits ...int) (string, error) {
 	}
 	return mnemonic, nil
 }
+
+// Validate checks that m is a valid BIP39 mnemonic: 12, 15, 18, 21 or 24
+// words from the English word list, with a matching checksum. It returns an
+// error matching ErrInvalidMnemonic (via errors.Is) when it is not.
+func Validate(m string) error {
+	if !bip39.IsMnemonicValid(m) {
+		return ErrInvalidMnemonic
+	}
+	return nil
+}

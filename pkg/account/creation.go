@@ -41,6 +41,13 @@ func CreateNewLocalAccount(candidate *Creation) error {
 	if nameTaken(DefaultStore(), candidate.Name) {
 		return fmt.Errorf("account %s already exists", candidate.Name)
 	}
+	// Reject a bad caller-supplied mnemonic before the keystore is opened, so
+	// nothing is written for it. Generated mnemonics are always valid.
+	if candidate.Mnemonic != "" {
+		if err := mnemonic.Validate(candidate.Mnemonic); err != nil {
+			return err
+		}
+	}
 	ks := store.FromAccountName(candidate.Name)
 	defer ks.Close()
 	if candidate.Mnemonic == "" {
@@ -51,12 +58,12 @@ func CreateNewLocalAccount(candidate *Creation) error {
 		candidate.Mnemonic = m
 	}
 	// Hardcoded index of 0 for brandnew account.
-	private, _ := mnemonic.FromSeedAndPassphrase(candidate.Mnemonic, candidate.MnemonicPassphrase, 0)
-	if private == nil {
-		return fmt.Errorf("failed to derive key from mnemonic")
+	private, _, err := mnemonic.DeriveKey(candidate.Mnemonic, candidate.MnemonicPassphrase, 0)
+	if err != nil {
+		return fmt.Errorf("failed to derive key from mnemonic: %w", err)
 	}
 	defer keys.ZeroPrivateKey(private)
-	_, err := ks.ImportECDSA(private.ToECDSA(), candidate.Passphrase)
+	_, err = ks.ImportECDSA(private.ToECDSA(), candidate.Passphrase)
 	if err != nil {
 		return err
 	}

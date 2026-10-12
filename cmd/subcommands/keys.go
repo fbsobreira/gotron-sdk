@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fatih/color"
 	"github.com/fbsobreira/go-bip39"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
@@ -358,12 +357,12 @@ func keysAddressPKCmd() *cobra.Command {
 				return err
 			}
 
-			if len(privateKeyBytes) != c.Secp256k1PrivateKeyBytesLength {
-				return c.ErrBadKeyLength
+			// Same checks as import-private-key: 32 bytes, in [1, n-1].
+			sk, err := keys.GetPrivateKeyFromBytes(privateKeyBytes)
+			if err != nil {
+				return err
 			}
-
-			// btcec.PrivKeyFromBytes only returns a secret key and public key
-			sk, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+			defer keys.ZeroPrivateKey(sk)
 
 			addr := address.PubkeyToAddress(*sk.PubKey().ToECDSA())
 			fmt.Println(addr)

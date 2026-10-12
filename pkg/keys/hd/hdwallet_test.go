@@ -784,7 +784,8 @@ func TestDerivePrivateKey(t *testing.T) {
 	master, ch := ComputeMastersFromSeed(seed, masterSecret)
 
 	t.Run("hardened derivation", func(t *testing.T) {
-		key, newCh := derivePrivateKey(curve, master, ch, 0, true)
+		key, newCh, err := derivePrivateKey(curve, master, ch, 0, true)
+		require.NoError(t, err)
 		assert.NotEqual(t, [32]byte{}, key)
 		assert.NotEqual(t, [32]byte{}, newCh)
 		assert.NotEqual(t, master, key, "derived key must differ from master")
@@ -792,20 +793,25 @@ func TestDerivePrivateKey(t *testing.T) {
 	})
 
 	t.Run("non-hardened derivation", func(t *testing.T) {
-		key, newCh := derivePrivateKey(curve, master, ch, 0, false)
+		key, newCh, err := derivePrivateKey(curve, master, ch, 0, false)
+		require.NoError(t, err)
 		assert.NotEqual(t, [32]byte{}, key)
 		assert.NotEqual(t, [32]byte{}, newCh)
 	})
 
 	t.Run("hardened and non-hardened produce different keys", func(t *testing.T) {
-		keyH, _ := derivePrivateKey(curve, master, ch, 0, true)
-		keyP, _ := derivePrivateKey(curve, master, ch, 0, false)
+		keyH, _, err := derivePrivateKey(curve, master, ch, 0, true)
+		require.NoError(t, err)
+		keyP, _, err := derivePrivateKey(curve, master, ch, 0, false)
+		require.NoError(t, err)
 		assert.NotEqual(t, keyH, keyP, "hardened and public derivation must differ")
 	})
 
 	t.Run("different indices produce different keys", func(t *testing.T) {
-		key0, _ := derivePrivateKey(curve, master, ch, 0, true)
-		key1, _ := derivePrivateKey(curve, master, ch, 1, true)
+		key0, _, err := derivePrivateKey(curve, master, ch, 0, true)
+		require.NoError(t, err)
+		key1, _, err := derivePrivateKey(curve, master, ch, 1, true)
+		require.NoError(t, err)
 		assert.NotEqual(t, key0, key1, "different indices must produce different keys")
 	})
 }
