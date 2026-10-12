@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/fatih/color"
-	"github.com/fbsobreira/go-bip39"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -169,8 +168,8 @@ func keysRecoverMnemonicCmd() *cobra.Command {
 			scanner := bufio.NewScanner(os.Stdin)
 			scanner.Scan()
 			m := scanner.Text()
-			if !bip39.IsMnemonicValid(m) {
-				return fmt.Errorf("invalid mnemonic given")
+			if err := mnemonic.Validate(m); err != nil {
+				return err
 			}
 
 			fmt.Println("Enter mnemonic password [optional]")

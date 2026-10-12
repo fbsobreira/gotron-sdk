@@ -46,6 +46,12 @@ func TestValidate(t *testing.T) {
 		{"wrong word count", "abandon abandon abandon", true},
 		{"unknown word", strings.Repeat("abandon ", 11) + "notaword", true},
 		{"empty", "", true},
+		// Valid words with other spacing would derive a different seed.
+		{"double space", strings.Replace(validMnemonic12, " ", "  ", 1), true},
+		{"leading space", " " + validMnemonic12, true},
+		{"trailing space", validMnemonic12 + " ", true},
+		{"tab separator", strings.Replace(validMnemonic12, " ", "\t", 1), true},
+		{"trailing newline", validMnemonic12 + "\n", true},
 	}
 
 	for _, tt := range tests {
