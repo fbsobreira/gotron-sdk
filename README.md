@@ -294,3 +294,4 @@ This project is licensed under the LGPL-3.0 License - see the [LICENSE](LICENSE)
 - 📖 [Documentation](https://github.com/fbsobreira/gotron-sdk/tree/master/docs)
 - 🐛 [Issue Tracker](https://github.com/fbsobreira/gotron-sdk/issues)
 - 💬 [Discussions](https://github.com/fbsobreira/gotron-sdk/discussions)
+- 🔒 [Report a vulnerability](SECURITY.md) privately, not in a public issue
