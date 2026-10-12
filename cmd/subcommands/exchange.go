@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -99,9 +98,7 @@ func exchangeCreateCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -164,9 +161,7 @@ func exchangeInjectCmd() *cobra.Command {
 				"TokenAmount2": ctrlr.Receipt.GetExchangeInjectAnotherAmount(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -229,9 +224,7 @@ func exchangeWithdrawCmd() *cobra.Command {
 				"TokenAmount2": ctrlr.Receipt.GetExchangeWithdrawAnotherAmount(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -269,9 +262,7 @@ func exchangeListCmd() *cobra.Command {
 				result["list"] = append(result["list"].([]map[string]interface{}), data)
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -388,9 +379,7 @@ func exchangeTradeCmd() *cobra.Command {
 				"TokenExpected": expectedInt,
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().StringVarP(&expectedAmount, "expected", "x", "0", "specify expected amount in return")

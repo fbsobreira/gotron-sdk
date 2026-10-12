@@ -109,9 +109,7 @@ func trc10IssueCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	// Asset issue extras
@@ -192,9 +190,7 @@ func trc10SendCmd() *cobra.Command {
 				"netUsage": ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -292,9 +288,7 @@ func trc10ICOCmd() *cobra.Command {
 				"tokenAmount": json.Number(common.FormatAmount(tokenBaseUnits, int(tokenPrecision))),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -334,9 +328,7 @@ func trc10ListCmd() *cobra.Command {
 				result["list"] = append(result["list"].([]map[string]interface{}), data)
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -399,9 +391,7 @@ func trc10InfoCmd() *cobra.Command {
 				"Price":       float64(asset.GetTrxNum()) / float64(asset.GetNum()),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -30,9 +29,7 @@ func bcNodeCmd() *cobra.Command {
 				return nil
 			}
 
-			asJSON, _ := json.Marshal(info)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, info)
 		},
 	}
 }
@@ -58,9 +55,7 @@ func bcMTCmd() *cobra.Command {
 			result["nextTimestamp"] = info.GetNum()
 			result["date"] = t.UTC().Format(time.RFC3339)
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }
@@ -199,9 +194,7 @@ func bcTXCmd() *cobra.Command {
 			}
 			result["contract"] = parseContractHumanReadable(structs.Map(c))
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 }

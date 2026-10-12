@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -106,9 +105,7 @@ func trc20SendCmd() *cobra.Command {
 				"netUsage":          ctrlr.Receipt.GetReceipt().GetNetUsage(),
 			}
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	cmd.Flags().Int64Var(&feeLimit, "feeLimit", 10000000, "fee limit")
@@ -157,9 +154,7 @@ func trc20BalanceCmd() *cobra.Command {
 			result := make(map[string]interface{})
 			result["balance"] = fmt.Sprintf("%s %s", amount.String(), symbol)
 
-			asJSON, _ := json.Marshal(result)
-			fmt.Println(common.JSONPrettyFormat(string(asJSON)))
-			return nil
+			return printJSON(cmd, result)
 		},
 	}
 	return cmd
