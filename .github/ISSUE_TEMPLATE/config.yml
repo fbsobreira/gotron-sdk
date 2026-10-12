@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/fbsobreira/gotron-sdk/security/advisories/new
+    about: Report it privately here, not in a public issue. See SECURITY.md.
   - name: TRON SDK Documentation
     url: https://github.com/fbsobreira/gotron-sdk/wiki
     about: Check if your question is answered in the documentation.
