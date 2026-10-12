@@ -4,6 +4,7 @@ package keys
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -29,16 +30,25 @@ func checkAndMakeKeyDirIfNeeded() (string, error) {
 	return tronCTLDir, nil
 }
 
-// ListKeys prints all accounts in the keystore directory to stdout.
+// ListKeys prints all accounts in keystoreDir to stdout. An empty keystoreDir
+// means the default ~/.tronctl/keystore, which is created if missing.
+//
+// Deprecated: use keystore.NewKeyStore(dir, ...).Accounts(), or the account
+// and store packages, which return the accounts instead of printing them.
 func ListKeys(keystoreDir string) {
-	tronCTLDir, err := checkAndMakeKeyDirIfNeeded()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return
+	tronCTLDir := keystoreDir
+	if tronCTLDir == "" {
+		var err error
+		tronCTLDir, err = checkAndMakeKeyDirIfNeeded()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return
+		}
 	}
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	ks := keystore.NewKeyStore(tronCTLDir, scryptN, scryptP)
+	defer ks.Close()
 	allAccounts := ks.Accounts()
 	fmt.Printf("Tron Address:%s File URL:\n", strings.Repeat(" ", address.AddressLengthBase58))
 	for _, account := range allAccounts {
@@ -46,7 +56,12 @@ func ListKeys(keystoreDir string) {
 	}
 }
 
-// AddNewKey creates a new account in the default keystore directory.
+// AddNewKey creates a new account in the default keystore directory
+// (~/.tronctl/keystore) and prints its address and file. On failure it prints
+// the error to stderr and nothing else.
+//
+// Deprecated: use account.CreateNewLocalAccount, or keystore.NewKeyStore and
+// KeyStore.NewAccount, which return errors instead of printing them.
 func AddNewKey(password string) {
 	tronCTLDir, err := checkAndMakeKeyDirIfNeeded()
 	if err != nil {
@@ -56,9 +71,11 @@ func AddNewKey(password string) {
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	ks := keystore.NewKeyStore(tronCTLDir, scryptN, scryptP)
+	defer ks.Close()
 	account, err := ks.NewAccount(password)
 	if err != nil {
-		fmt.Printf("new account error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "new account error: %v\n", err)
+		return
 	}
 	fmt.Printf("account: %s\n", account.Address)
 	fmt.Printf("URL: %s\n", account.URL)
@@ -79,10 +96,24 @@ func GetPrivateKeyFromHex(privateKeyHex string) (*btcec.PrivateKey, error) {
 	return GetPrivateKeyFromBytes(privateKeyBytes)
 }
 
+// ErrInvalidPrivateKey is returned when key material is zero or not below the
+// secp256k1 curve order n, so it is not a valid private key.
+var ErrInvalidPrivateKey = errors.New("invalid private key: out of range for secp256k1")
+
 // GetPrivateKeyFromBytes creates a private key from raw 32-byte key material.
+// The value must be in [1, n-1] for the secp256k1 order n; zero or any value
+// >= n returns ErrInvalidPrivateKey rather than being reduced mod n.
 func GetPrivateKeyFromBytes(privateKeyBytes []byte) (*btcec.PrivateKey, error) {
 	if len(privateKeyBytes) != common.Secp256k1PrivateKeyBytesLength {
 		return nil, common.ErrBadKeyLength
+	}
+
+	var scalar btcec.ModNScalar
+	overflow := scalar.SetByteSlice(privateKeyBytes)
+	invalid := overflow || scalar.IsZero()
+	scalar.Zero()
+	if invalid {
+		return nil, ErrInvalidPrivateKey
 	}
 
 	// btcec.PrivKeyFromBytes only returns a secret key and public key

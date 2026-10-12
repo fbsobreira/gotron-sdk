@@ -4,6 +4,7 @@ package mnemonic
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/fbsobreira/go-bip39"
 )
@@ -35,4 +36,23 @@ func Generate(entropyBits ...int) (string, error) {
 		return "", fmt.Errorf("generate mnemonic: %w", err)
 	}
 	return mnemonic, nil
+}
+
+// Validate checks that m is a valid BIP39 mnemonic: 12, 15, 18, 21 or 24
+// words from the English word list, with a matching checksum, separated by
+// single spaces with no leading or trailing whitespace. It returns an error
+// matching ErrInvalidMnemonic (via errors.Is) when it is not.
+//
+// The spacing rule matters because the seed is derived from the string as
+// given: the same words with other spacing would derive a different wallet
+// than other BIP39 wallets do.
+func Validate(m string) error {
+	if m != strings.Join(strings.Fields(m), " ") {
+		return fmt.Errorf("%w: words must be separated by single spaces, with no leading or trailing whitespace",
+			ErrInvalidMnemonic)
+	}
+	if !bip39.IsMnemonicValid(m) {
+		return ErrInvalidMnemonic
+	}
+	return nil
 }

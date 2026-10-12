@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/fatih/color"
-	"github.com/fbsobreira/go-bip39"
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
 	c "github.com/fbsobreira/gotron-sdk/pkg/common"
@@ -106,7 +104,10 @@ func keysAddCmd() *cobra.Command {
 				color.Red(seedPhraseWarning)
 				fmt.Println(acc.Mnemonic)
 			}
-			addr, _ := store.AddressFromAccountName(acc.Name)
+			addr, err := store.AddressFromAccountName(acc.Name)
+			if err != nil {
+				return err
+			}
 			fmt.Printf("Tron Address: %s\n", addr)
 			return nil
 		},
@@ -167,8 +168,8 @@ func keysRecoverMnemonicCmd() *cobra.Command {
 			scanner := bufio.NewScanner(os.Stdin)
 			scanner.Scan()
 			m := scanner.Text()
-			if !bip39.IsMnemonicValid(m) {
-				return fmt.Errorf("invalid mnemonic given")
+			if err := mnemonic.Validate(m); err != nil {
+				return err
 			}
 
 			fmt.Println("Enter mnemonic password [optional]")
@@ -182,7 +183,10 @@ func keysRecoverMnemonicCmd() *cobra.Command {
 				return err
 			}
 			fmt.Println("Successfully recovered account from mnemonic!")
-			addr, _ := store.AddressFromAccountName(acc.Name)
+			addr, err := store.AddressFromAccountName(acc.Name)
+			if err != nil {
+				return err
+			}
 			fmt.Printf("Tron Address: %s\n", addr)
 			return nil
 		},
@@ -222,7 +226,10 @@ func keysImportKSCmd() *cobra.Command {
 			name, err := account.ImportKeyStore(args[0], userName, passphrase)
 			if !quietImport && err == nil {
 				fmt.Printf("Imported keystore given account alias of `%s`\n", name)
-				addr, _ := store.AddressFromAccountName(name)
+				addr, err := store.AddressFromAccountName(name)
+				if err != nil {
+					return err
+				}
 				fmt.Printf("Tron Address: %s\n", addr)
 			}
 			return err
@@ -260,7 +267,10 @@ func keysImportPKCmd() *cobra.Command {
 			name, err := account.ImportFromPrivateKey(args[0], userName, passphrase)
 			if !quietImport && err == nil {
 				fmt.Printf("Imported keystore given account alias of `%s`\n", name)
-				addr, _ := store.AddressFromAccountName(name)
+				addr, err := store.AddressFromAccountName(name)
+				if err != nil {
+					return err
+				}
 				fmt.Printf("Tron Address: %s\n", addr)
 			}
 			return err
@@ -358,12 +368,12 @@ func keysAddressPKCmd() *cobra.Command {
 				return err
 			}
 
-			if len(privateKeyBytes) != c.Secp256k1PrivateKeyBytesLength {
-				return c.ErrBadKeyLength
+			// Same checks as import-private-key: 32 bytes, in [1, n-1].
+			sk, err := keys.GetPrivateKeyFromBytes(privateKeyBytes)
+			if err != nil {
+				return err
 			}
-
-			// btcec.PrivKeyFromBytes only returns a secret key and public key
-			sk, _ := btcec.PrivKeyFromBytes(privateKeyBytes)
+			defer keys.ZeroPrivateKey(sk)
 
 			addr := address.PubkeyToAddress(*sk.PubKey().ToECDSA())
 			fmt.Println(addr)

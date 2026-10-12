@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"os"
 	"path"
+	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/account"
@@ -742,4 +744,36 @@ func TestImportFromPrivateKey_DifferentKeysProduceDifferentAddresses(t *testing.
 	freshAddr := address.PubkeyToAddress(freshKey.ToECDSA().PublicKey)
 	assert.NotEqual(t, addr, freshAddr.String(),
 		"a different private key should produce a different address")
+}
+
+// A name that climbs out of the store must never reach os.RemoveAll. The
+// existence check stops it, since it only matches folders inside the store;
+// this pins that.
+func TestRemoveAccount_NameOutsideStore(t *testing.T) {
+	setupTestStore(t)
+	outside := filepath.Join(filepath.Dir(store.DefaultLocation()), "outside")
+	require.NoError(t, os.MkdirAll(outside, 0o700))
+
+	err := account.RemoveAccount("../outside")
+	require.ErrorIs(t, err, account.ErrAccountNotFound)
+	_, statErr := os.Stat(outside)
+	require.NoError(t, statErr, "a folder outside the store must not be removed")
+}
+
+// An account created before v0.26.0 under a name with a backslash (an ordinary
+// file name character on Unix) must still be removable.
+func TestRemoveAccount_LegacyBackslashName(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a backslash is a path separator on Windows")
+	}
+	setupTestStore(t)
+	dir := filepath.Join(store.DefaultLocation(), `work\main`)
+	ks := keystore.NewKeyStore(dir, keystore.LightScryptN, keystore.LightScryptP)
+	_, err := ks.NewAccount("pass")
+	ks.Close()
+	require.NoError(t, err)
+
+	require.NoError(t, account.RemoveAccount(`work\main`))
+	_, statErr := os.Stat(dir)
+	require.True(t, os.IsNotExist(statErr), "the legacy account folder must be removed")
 }
