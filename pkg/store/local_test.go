@@ -542,12 +542,11 @@ func TestFromAddress_NoGoroutineLeak(t *testing.T) {
 	ks := store.FromAddress("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8")
 	assert.Nil(t, ks)
 
-	// Allow goroutines to wind down
-	time.Sleep(100 * time.Millisecond)
-
-	after := runtime.NumGoroutine()
-	assert.LessOrEqual(t, after, baseline+2,
-		"goroutine count should return near baseline after FromAddress calls (baseline=%d, after=%d)", baseline, after)
+	// Closed keystores stop their goroutines asynchronously; under load that
+	// can take well over 100ms, so wait for the count rather than sleeping.
+	assert.Eventually(t, func() bool { return runtime.NumGoroutine() <= baseline+2 },
+		5*time.Second, 20*time.Millisecond,
+		"goroutine count should return near baseline after FromAddress calls (baseline=%d)", baseline)
 }
 
 // --- Tests for Store struct methods ---
