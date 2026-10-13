@@ -356,6 +356,12 @@ func downloadAsset(ctx context.Context, client *http.Client, rawURL string, limi
 	if err != nil {
 		return nil, stalled(err)
 	}
+	// A response can still complete after the stall timer cancelled the
+	// request. If the timer already fired, the download was cancelled: do not
+	// trust what arrived.
+	if !stall.Stop() && errors.Is(context.Cause(ctx), errDownloadStalled) {
+		return nil, stalled(nil)
+	}
 	return data, nil
 }
 
