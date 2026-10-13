@@ -118,13 +118,54 @@ func checkPQScheme(ctx context.Context, b Broadcaster, s signer.Signer) error {
 	if !ok {
 		return nil
 	}
-	scheme := pqSigner.PQScheme()
-	allowed, err := prober.PQSchemeAllowedCtx(ctx, scheme)
+	return probePQScheme(ctx, prober, pqSigner.PQScheme())
+}
+
+// probePQScheme asks p whether scheme is enabled on the node. It returns an
+// error wrapping ErrPQSchemeDisabled if it is not.
+func probePQScheme(ctx context.Context, p PQProber, scheme core.PQScheme) error {
+	allowed, err := p.PQSchemeAllowedCtx(ctx, scheme)
 	if err != nil {
 		return fmt.Errorf("checking post-quantum capability: %w", err)
 	}
 	if !allowed {
 		return fmt.Errorf("%w: %s", ErrPQSchemeDisabled, scheme)
+	}
+	return nil
+}
+
+// CheckPQSchemes asks p whether every TIP-899 post-quantum scheme used by the
+// signatures in tx.PqAuthSig is enabled on the node. Each distinct scheme is
+// asked once, in the order it first appears. Call it before broadcasting a
+// transaction signed outside Send (for example with signer.SignTransactionPQ)
+// to fail early: if a scheme is disabled it returns an error wrapping
+// ErrPQSchemeDisabled, where the node would only refuse the broadcast.
+//
+// A transaction with no post-quantum signatures needs no probe, so it returns
+// nil without calling p, even when p is nil. A nil tx, or a nil p when a probe
+// is needed, is an error. A cancelled ctx stops it before the next probe.
+//
+// Experimental: TIP-899 is a draft and is live only on the Nile testnet.
+func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction) error {
+	if tx == nil {
+		return fmt.Errorf("checking post-quantum capability: nil transaction")
+	}
+	seen := make(map[core.PQScheme]bool)
+	for _, sig := range tx.GetPqAuthSig() {
+		scheme := sig.GetScheme()
+		if seen[scheme] {
+			continue
+		}
+		seen[scheme] = true
+		if p == nil {
+			return fmt.Errorf("checking post-quantum capability: nil prober")
+		}
+		if err := ctx.Err(); err != nil {
+			return fmt.Errorf("checking post-quantum capability: %w", err)
+		}
+		if err := probePQScheme(ctx, p, scheme); err != nil {
+			return err
+		}
 	}
 	return nil
 }
