@@ -425,3 +425,72 @@ func TestPermissionUpdateMaps_ResetsOwnerAndWitnessNames(t *testing.T) {
 	assert.True(t, proto.Equal(wantWitness, sortedPermission(sent.GetWitness())),
 		"witness: want %v, got %v", wantWitness, sent.GetWitness())
 }
+
+// nileDefaultActiveOps is the default active operations bitmap Nile gives a
+// freshly created account (7fff1fc0033efb0f, padded to 32 bytes), as read on
+// 2026-10-13.
+func nileDefaultActiveOps() []byte {
+	b := make([]byte, 32)
+	copy(b, []byte{0x7f, 0xff, 0x1f, 0xc0, 0x03, 0x3e, 0xfb, 0x0f})
+	return b
+}
+
+func TestPermissionAllows(t *testing.T) {
+	active := func(ops []byte) *core.Permission {
+		return &core.Permission{Type: core.Permission_Active, Id: 2, Threshold: 1, Operations: ops}
+	}
+	tests := []struct {
+		name string
+		perm *core.Permission
+		ct   core.Transaction_Contract_ContractType
+		want bool
+	}{
+		{name: "owner, transfer", perm: &core.Permission{Type: core.Permission_Owner}, ct: core.Transaction_Contract_TransferContract, want: true},
+		{name: "owner, permission update", perm: &core.Permission{Type: core.Permission_Owner}, ct: core.Transaction_Contract_AccountPermissionUpdateContract, want: true},
+		{name: "owner, operations ignored", perm: &core.Permission{Type: core.Permission_Owner, Operations: []byte{0x01}}, ct: core.Transaction_Contract_TriggerSmartContract, want: true},
+		{name: "active with the bit", perm: active(opsBitmap(1, 31)), ct: core.Transaction_Contract_TriggerSmartContract, want: true},
+		{name: "active without the bit", perm: active(opsBitmap(1, 31)), ct: core.Transaction_Contract_TransferAssetContract, want: false},
+		{name: "active, no operations", perm: active(nil), ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "active, unnameable bit elsewhere", perm: active(opsBitmap(1, 47, 255)), ct: core.Transaction_Contract_TransferContract, want: true},
+		{name: "active, 31-byte bitmap", perm: active(opsBitmap(1)[:31]), ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "active, 33-byte bitmap", perm: active(append(opsBitmap(1), 0)), ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "active, highest bit", perm: active(opsBitmap(255)), ct: core.Transaction_Contract_ContractType(255), want: true},
+		{name: "witness", perm: &core.Permission{Type: core.Permission_Witness, Id: 1, Operations: opsBitmap(1)}, ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "unknown permission type", perm: &core.Permission{Type: core.Permission_PermissionType(7), Operations: opsBitmap(1)}, ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "nil permission", perm: nil, ct: core.Transaction_Contract_TransferContract, want: false},
+		{name: "contract type -1, active", perm: active(opsBitmap(0, 255)), ct: -1, want: false},
+		{name: "contract type 256, active", perm: active(opsBitmap(0, 255)), ct: 256, want: false},
+		{name: "contract type -1, owner", perm: &core.Permission{Type: core.Permission_Owner}, ct: -1, want: false},
+		{name: "contract type 256, owner", perm: &core.Permission{Type: core.Permission_Owner}, ct: 256, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, client.PermissionAllows(tt.perm, tt.ct))
+		})
+	}
+}
+
+// TestPermissionAllows_NileDefaultActive checks PermissionAllows against the
+// default active permission Nile gives new accounts.
+func TestPermissionAllows_NileDefaultActive(t *testing.T) {
+	ops := nileDefaultActiveOps()
+	perm := &core.Permission{Type: core.Permission_Active, Id: 2, Threshold: 1, Operations: ops}
+	tests := []struct {
+		ct   core.Transaction_Contract_ContractType
+		want bool
+	}{
+		{ct: core.Transaction_Contract_TransferContract, want: true},
+		{ct: core.Transaction_Contract_TriggerSmartContract, want: true},
+		{ct: core.Transaction_Contract_FreezeBalanceV2Contract, want: true},
+		{ct: core.Transaction_Contract_AccountPermissionUpdateContract, want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.ct.String(), func(t *testing.T) {
+			// Read the bit straight off the bitmap, so the expectation is
+			// checked against the data and not only against PermissionAllows.
+			n := int(tt.ct)
+			require.Equal(t, tt.want, ops[n/8]&(1<<(n%8)) != 0, "bitmap bit %d", n)
+			assert.Equal(t, tt.want, client.PermissionAllows(perm, tt.ct))
+		})
+	}
+}
