@@ -21,15 +21,19 @@ func (g *GrpcClient) ExchangeList(page int64, limit ...int) (*api.ExchangeList, 
 func (g *GrpcClient) ExchangeListCtx(ctx context.Context, page int64, limit ...int) (*api.ExchangeList, error) {
 	ctx = g.withAPIKey(ctx)
 
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
 	if page == -1 {
-		return g.Client.ListExchanges(ctx, new(api.EmptyMessage))
+		return w.ListExchanges(ctx, new(api.EmptyMessage))
 	}
 
 	useLimit := int64(10)
 	if len(limit) == 1 {
 		useLimit = int64(limit[0])
 	}
-	return g.Client.GetPaginatedExchangeList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
+	return w.GetPaginatedExchangeList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
 }
 
 // ExchangeByID returns exchangeDetails
@@ -46,7 +50,11 @@ func (g *GrpcClient) ExchangeByIDCtx(ctx context.Context, id int64) (*core.Excha
 	bID := make([]byte, 8)
 	binary.BigEndian.PutUint64(bID, uint64(id))
 
-	result, err := g.Client.GetExchangeById(ctx, GetMessageBytes(bID))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	result, err := w.GetExchangeById(ctx, GetMessageBytes(bID))
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +100,11 @@ func (g *GrpcClient) ExchangeCreateCtx(
 		return nil, err
 	}
 
-	tx, err := g.Client.ExchangeCreate(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ExchangeCreate(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +147,11 @@ func (g *GrpcClient) ExchangeInjectCtx(
 		return nil, err
 	}
 
-	tx, err := g.Client.ExchangeInject(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ExchangeInject(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +194,11 @@ func (g *GrpcClient) ExchangeWithdrawCtx(
 		return nil, err
 	}
 
-	tx, err := g.Client.ExchangeWithdraw(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ExchangeWithdraw(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +244,11 @@ func (g *GrpcClient) ExchangeTradeCtx(
 		return nil, err
 	}
 
-	tx, err := g.Client.ExchangeTransaction(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ExchangeTransaction(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

@@ -29,7 +29,11 @@ func (g *GrpcClient) GetAssetIssueByAccountCtx(ctx context.Context, address stri
 		return nil, err
 	}
 
-	return g.Client.GetAssetIssueByAccount(ctx, account)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetAssetIssueByAccount(ctx, account)
 }
 
 // GetAssetIssueByName list asset issued by name
@@ -42,7 +46,11 @@ func (g *GrpcClient) GetAssetIssueByName(name string) (*core.AssetIssueContract,
 // GetAssetIssueByNameCtx is the context-aware version of GetAssetIssueByName.
 func (g *GrpcClient) GetAssetIssueByNameCtx(ctx context.Context, name string) (*core.AssetIssueContract, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.GetAssetIssueByName(ctx, GetMessageBytes([]byte(name)))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetAssetIssueByName(ctx, GetMessageBytes([]byte(name)))
 }
 
 // GetAssetIssueByID list asset issued by ID
@@ -55,7 +63,11 @@ func (g *GrpcClient) GetAssetIssueByID(tokenID string) (*core.AssetIssueContract
 // GetAssetIssueByIDCtx is the context-aware version of GetAssetIssueByID.
 func (g *GrpcClient) GetAssetIssueByIDCtx(ctx context.Context, tokenID string) (*core.AssetIssueContract, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.GetAssetIssueById(ctx, GetMessageBytes([]byte(tokenID)))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetAssetIssueById(ctx, GetMessageBytes([]byte(tokenID)))
 }
 
 // GetAssetIssueList list all TRC10
@@ -69,15 +81,19 @@ func (g *GrpcClient) GetAssetIssueList(page int64, limit ...int) (*api.AssetIssu
 func (g *GrpcClient) GetAssetIssueListCtx(ctx context.Context, page int64, limit ...int) (*api.AssetIssueList, error) {
 	ctx = g.withAPIKey(ctx)
 
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
 	if page == -1 {
-		return g.Client.GetAssetIssueList(ctx, new(api.EmptyMessage))
+		return w.GetAssetIssueList(ctx, new(api.EmptyMessage))
 	}
 
 	useLimit := int64(10)
 	if len(limit) == 1 {
 		useLimit = int64(limit[0])
 	}
-	return g.Client.GetPaginatedAssetIssueList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
+	return w.GetPaginatedAssetIssueList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
 }
 
 // AssetIssue create a new asset TRC10
@@ -165,7 +181,11 @@ func (g *GrpcClient) AssetIssueCtx(ctx context.Context, from, name, description,
 			FrozenSupply, assetIssueContractFrozenSupply)
 	}
 
-	tx, err := g.Client.CreateAssetIssue2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.CreateAssetIssue2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +219,11 @@ func (g *GrpcClient) UpdateAssetIssueCtx(ctx context.Context, from, description,
 	contract.NewLimit = newLimit
 	contract.NewPublicLimit = newPublicLimit
 
-	tx, err := g.Client.UpdateAsset2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateAsset2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +257,11 @@ func (g *GrpcClient) TransferAssetCtx(ctx context.Context, from, toAddress,
 	contract.AssetName = []byte(assetName)
 	contract.Amount = amount
 
-	tx, err := g.Client.TransferAsset2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.TransferAsset2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +295,11 @@ func (g *GrpcClient) ParticipateAssetIssueCtx(ctx context.Context, from, issuerA
 	contract.AssetName = []byte(tokenID)
 	contract.Amount = amount
 
-	tx, err := g.Client.ParticipateAssetIssue2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ParticipateAssetIssue2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -294,7 +326,11 @@ func (g *GrpcClient) UnfreezeAssetCtx(ctx context.Context, from string) (*api.Tr
 		return nil, err
 	}
 
-	tx, err := g.Client.UnfreezeAsset2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UnfreezeAsset2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

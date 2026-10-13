@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -13,6 +14,11 @@ import (
 // GrpcClient provides access to the TRON network via gRPC. Use it through a
 // pointer, as NewGrpcClient returns it: it holds a mutex and must not be
 // copied after first use.
+//
+// Call Start before any RPC method. RPC methods called before Start, after
+// Stop, or on a nil *GrpcClient return ErrNotConnected instead of panicking.
+// Stop may be called while RPCs are in flight; Start and Reconnect must not
+// be called concurrently with RPC methods.
 type GrpcClient struct {
 	Address     string
 	Conn        *grpc.ClientConn
@@ -25,13 +31,18 @@ type GrpcClient struct {
 	// pqCache holds the last successful TIP-899 capability probe; see
 	// GetPQCapabilitiesCtx.
 	pqCache pqCapsCache
+
+	// stopped is set by Stop and cleared by a successful Start. It is atomic,
+	// and Stop leaves Client in place, so Stop stays safe to call while RPCs
+	// are in flight and code that uses Client directly is unaffected.
+	stopped atomic.Bool
 }
 
 // NewGrpcClient creates a new GrpcClient with a default timeout of 5 seconds.
 func NewGrpcClient(address string) *GrpcClient {
 	client := &GrpcClient{
 		Address:     address,
-		grpcTimeout: 5 * time.Second,
+		grpcTimeout: defaultTimeout,
 	}
 	return client
 }
@@ -66,6 +77,7 @@ func (g *GrpcClient) Start(opts ...grpc.DialOption) error {
 		return fmt.Errorf("Connecting GRPC Client: %v", err)
 	}
 	g.Client = api.NewWalletClient(g.Conn)
+	g.stopped.Store(false)
 	// Again once the new client is in place, so a probe that read the old
 	// client while dialling cannot store its answer for the new node.
 	g.InvalidatePQCapabilities()
@@ -93,9 +105,25 @@ func (g *GrpcClient) SetContext(ctx context.Context) error {
 	return nil
 }
 
+// defaultTimeout is the RPC timeout NewGrpcClient configures.
+const defaultTimeout = 5 * time.Second
+
+// wallet returns the gRPC wallet client, or ErrNotConnected when the client
+// was never started, was stopped, or is nil.
+func (g *GrpcClient) wallet() (api.WalletClient, error) {
+	if g == nil || g.Client == nil || g.stopped.Load() {
+		return nil, ErrNotConnected
+	}
+	return g.Client, nil
+}
+
 // newContext creates a derived context with the client's configured timeout.
-// It does not inject API key metadata — use withAPIKey for that.
+// It does not inject API key metadata — use withAPIKey for that. It is safe on
+// a nil receiver, so the RPC methods reach their ErrNotConnected check.
 func (g *GrpcClient) newContext() (context.Context, context.CancelFunc) {
+	if g == nil {
+		return context.WithTimeout(context.Background(), defaultTimeout)
+	}
 	base := g.baseCtx
 	if base == nil {
 		base = context.Background()
@@ -109,7 +137,7 @@ func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if len(g.apiKey) == 0 {
+	if g == nil || len(g.apiKey) == 0 {
 		return ctx
 	}
 	md, _ := metadata.FromOutgoingContext(ctx)
@@ -120,8 +148,17 @@ func (g *GrpcClient) withAPIKey(ctx context.Context) context.Context {
 
 // Stop closes the underlying gRPC connection and drops the cached TIP-899
 // capability probe, so a stopped client is never reported as allowing a
-// scheme without asking a node.
+// scheme without asking a node. RPC methods called after Stop return
+// ErrNotConnected until Start or Reconnect succeeds; RPCs already in flight
+// fail with the connection's own error. Stop is safe to call while RPCs are in
+// flight, and does nothing on a nil *GrpcClient.
 func (g *GrpcClient) Stop() {
+	if g == nil {
+		return
+	}
+	// Before closing, so new calls report ErrNotConnected rather than fail
+	// on the closing connection.
+	g.stopped.Store(true)
 	g.InvalidatePQCapabilities()
 	if g.Conn != nil {
 		_ = g.Conn.Close()

@@ -40,7 +40,11 @@ func (g *GrpcClient) FreezeBalanceCtx(ctx context.Context, from, delegateTo stri
 	}
 	contract.Resource = resource
 
-	tx, err := g.Client.FreezeBalance2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.FreezeBalance2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +81,11 @@ func (g *GrpcClient) FreezeBalanceV2Ctx(ctx context.Context, from string,
 	contract.FrozenBalance = frozenBalance
 	contract.Resource = resource
 
-	tx, err := g.Client.FreezeBalanceV2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.FreezeBalanceV2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +121,11 @@ func (g *GrpcClient) UnfreezeBalanceCtx(ctx context.Context, from, delegateTo st
 	}
 	contract.Resource = resource
 
-	tx, err := g.Client.UnfreezeBalance2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UnfreezeBalance2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +160,11 @@ func (g *GrpcClient) UnfreezeBalanceV2Ctx(ctx context.Context, from string, reso
 	contract.UnfreezeBalance = unfreezeBalance
 	contract.Resource = resource
 
-	tx, err := g.Client.UnfreezeBalanceV2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UnfreezeBalanceV2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +192,11 @@ func (g *GrpcClient) GetAvailableUnfreezeCountCtx(ctx context.Context, from stri
 		return nil, err
 	}
 
-	tx, err := g.Client.GetAvailableUnfreezeCount(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.GetAvailableUnfreezeCount(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -203,7 +223,11 @@ func (g *GrpcClient) GetCanWithdrawUnfreezeAmountCtx(ctx context.Context, from s
 	}
 	contract.Timestamp = timestamp
 
-	tx, err := g.Client.GetCanWithdrawUnfreezeAmount(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.GetCanWithdrawUnfreezeAmount(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +253,11 @@ func (g *GrpcClient) WithdrawExpireUnfreezeCtx(ctx context.Context, from string,
 		return nil, err
 	}
 
-	tx, err := g.Client.WithdrawExpireUnfreeze(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.WithdrawExpireUnfreeze(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

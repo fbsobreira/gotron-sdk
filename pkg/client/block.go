@@ -20,7 +20,11 @@ func (g *GrpcClient) GetNowBlock() (*api.BlockExtention, error) {
 // GetNowBlockCtx is the context-aware version of GetNowBlock.
 func (g *GrpcClient) GetNowBlockCtx(ctx context.Context) (*api.BlockExtention, error) {
 	ctx = g.withAPIKey(ctx)
-	result, err := g.Client.GetNowBlock2(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	result, err := w.GetNowBlock2(ctx, new(api.EmptyMessage))
 
 	if err != nil {
 		return nil, fmt.Errorf("Get block now: %w", err)
@@ -43,7 +47,11 @@ func (g *GrpcClient) GetBlockByNumCtx(ctx context.Context, num int64) (*api.Bloc
 	numMessage.Num = num
 
 	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
-	result, err := g.Client.GetBlockByNum2(ctx, numMessage, maxSizeOption)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	result, err := w.GetBlockByNum2(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
 		return nil, fmt.Errorf("Get block by num: %w", err)
@@ -67,7 +75,11 @@ func (g *GrpcClient) GetBlockInfoByNumCtx(ctx context.Context, num int64) (*api.
 
 	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
 
-	result, err := g.Client.GetTransactionInfoByBlockNum(ctx, numMessage, maxSizeOption)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	result, err := w.GetTransactionInfoByBlockNum(ctx, numMessage, maxSizeOption)
 
 	if err != nil {
 		return nil, fmt.Errorf("Get block info by num: %w", err)
@@ -95,7 +107,11 @@ func (g *GrpcClient) GetBlockByIDCtx(ctx context.Context, id string) (*core.Bloc
 	}
 
 	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
-	return g.Client.GetBlockById(ctx, blockID, maxSizeOption)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetBlockById(ctx, blockID, maxSizeOption)
 }
 
 // GetBlockByLimitNext return list of block start/end
@@ -113,7 +129,11 @@ func (g *GrpcClient) GetBlockByLimitNextCtx(ctx context.Context, start, end int6
 	blockLimit.EndNum = end
 
 	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
-	return g.Client.GetBlockByLimitNext2(ctx, blockLimit, maxSizeOption)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetBlockByLimitNext2(ctx, blockLimit, maxSizeOption)
 }
 
 // GetBlockByLatestNum return block list till num
@@ -130,5 +150,9 @@ func (g *GrpcClient) GetBlockByLatestNumCtx(ctx context.Context, num int64) (*ap
 	numMessage.Num = num
 
 	maxSizeOption := grpc.MaxCallRecvMsgSize(32 * 10e6)
-	return g.Client.GetBlockByLatestNum2(ctx, numMessage, maxSizeOption)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetBlockByLatestNum2(ctx, numMessage, maxSizeOption)
 }

@@ -118,7 +118,11 @@ func (g *GrpcClient) GetChainParameters() (*core.ChainParameters, error) {
 // GetChainParametersCtx is the context-aware version of GetChainParameters.
 func (g *GrpcClient) GetChainParametersCtx(ctx context.Context) (*core.ChainParameters, error) {
 	ctx = g.withAPIKey(ctx)
-	params, err := g.Client.GetChainParameters(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	params, err := w.GetChainParameters(ctx, new(api.EmptyMessage))
 	if err != nil {
 		return nil, fmt.Errorf("get chain parameters: %w", err)
 	}
@@ -152,6 +156,9 @@ func (g *GrpcClient) GetPQCapabilitiesCtx(ctx context.Context) (PQCapabilities, 
 		ctx = context.Background()
 	}
 	if err := ctx.Err(); err != nil {
+		return PQCapabilities{}, err
+	}
+	if _, err := g.wallet(); err != nil {
 		return PQCapabilities{}, err
 	}
 	cached, ok, gen := g.pqCache.lookup()

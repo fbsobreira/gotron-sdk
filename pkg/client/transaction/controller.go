@@ -231,7 +231,7 @@ func (C *Controller) checkPQScheme(s signer.Signer) error {
 		return nil
 	}
 	if C.client == nil {
-		return fmt.Errorf("checking post-quantum capability: %w", errors.New("no client to query the node"))
+		return fmt.Errorf("checking post-quantum capability: %w", client.ErrNotConnected)
 	}
 	scheme := pqSigner.PQScheme()
 	allowed, err := C.client.PQSchemeAllowed(scheme)
@@ -266,17 +266,32 @@ func (C *Controller) txConfirmation() {
 			C.executionError = fmt.Errorf("could not get tx hash: %w", err)
 			return
 		}
+		if C.client == nil {
+			C.executionError = fmt.Errorf("confirming transaction %s: %w", txHash, client.ErrNotConnected)
+			return
+		}
 		//fmt.Printf("TX hash: %s\nWaiting for confirmation....", txHash)
 		start := int(C.Behavior.ConfirmationWaitTime)
 		for {
 			// GETTX by ID
-			if txi, err := C.client.GetTransactionInfoByID(txHash); err == nil {
+			txi, err := C.client.GetTransactionInfoByID(txHash)
+			if err == nil {
 				// check receipt
 				if txi.Result != 0 {
 					C.resultError = fmt.Errorf("%s", txi.ResMessage)
 				}
 				// Add receipt
 				C.Receipt = txi
+				return
+			}
+			// A client that is not connected will not become connected by
+			// waiting, so do not retry until the timeout.
+			if errors.Is(err, client.ErrNotConnected) {
+				if C.Result != nil {
+					C.executionError = fmt.Errorf("confirming transaction %s (it was broadcast; check its status): %w", txHash, err)
+				} else {
+					C.executionError = fmt.Errorf("confirming transaction %s: %w", txHash, err)
+				}
 				return
 			}
 			if start < 0 {
@@ -340,6 +355,10 @@ func (C *Controller) GetRawData() ([]byte, error) {
 
 func (C *Controller) sendSignedTx() {
 	if C.executionError != nil || C.Behavior.DryRun {
+		return
+	}
+	if C.client == nil {
+		C.executionError = fmt.Errorf("broadcasting transaction: %w", client.ErrNotConnected)
 		return
 	}
 	result, err := C.client.Broadcast(C.tx)

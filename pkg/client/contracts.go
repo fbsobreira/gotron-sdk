@@ -89,7 +89,11 @@ func (g *GrpcClient) UpdateEnergyLimitContractCtx(ctx context.Context, from, con
 		OriginEnergyLimit: value,
 	}
 
-	tx, err := g.Client.UpdateEnergyLimit(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateEnergyLimit(ctx, ct)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +130,11 @@ func (g *GrpcClient) UpdateSettingContractCtx(ctx context.Context, from, contrac
 		ConsumeUserResourcePercent: value,
 	}
 
-	tx, err := g.Client.UpdateSetting(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateSetting(ctx, ct)
 	if err != nil {
 		return nil, err
 	}
@@ -182,7 +190,11 @@ func (g *GrpcClient) TriggerConstantContractCtx(ctx context.Context, from, contr
 
 // triggerConstantContract and return tx result
 func (g *GrpcClient) triggerConstantContract(ctx context.Context, ct *core.TriggerSmartContract) (*api.TransactionExtention, error) {
-	return g.Client.TriggerConstantContract(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.TriggerConstantContract(ctx, ct)
 }
 
 // TriggerContract executes a state-changing smart contract call and returns the unsigned transaction.
@@ -239,7 +251,11 @@ func (g *GrpcClient) TriggerContractCtx(ctx context.Context, from, contractAddre
 
 // triggerContract and return tx result
 func (g *GrpcClient) triggerContract(ctx context.Context, ct *core.TriggerSmartContract, feeLimit int64) (*api.TransactionExtention, error) {
-	tx, err := g.Client.TriggerContract(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.TriggerContract(ctx, ct)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +450,11 @@ func (g *GrpcClient) EstimateEnergyWithDataCtx(ctx context.Context, from, contra
 
 // triggerContract and return tx result
 func (g *GrpcClient) estimateEnergy(ctx context.Context, ct *core.TriggerSmartContract) (*api.EstimateEnergyMessage, error) {
-	tx, err := g.Client.EstimateEnergy(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.EstimateEnergy(ctx, ct)
 	if err != nil {
 		if s, ok := status.FromError(err); ok && s.Code() == codes.Unimplemented {
 			return nil, fmt.Errorf("%w: %w", ErrEstimateEnergyNotSupported, err)
@@ -504,7 +524,11 @@ func (g *GrpcClient) DeployContractCtx(ctx context.Context, from, contractName s
 		},
 	}
 
-	tx, err := g.Client.DeployContract(ctx, ct)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.DeployContract(ctx, ct)
 	if err != nil {
 		return nil, err
 	}
@@ -544,7 +568,11 @@ func (g *GrpcClient) GetContractABICtx(ctx context.Context, contractAddress stri
 		return nil, err
 	}
 
-	sm, err := g.Client.GetContract(ctx, GetMessageBytes(contractDesc))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	sm, err := w.GetContract(ctx, GetMessageBytes(contractDesc))
 	if err != nil {
 		return nil, err
 	}

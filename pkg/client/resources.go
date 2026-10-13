@@ -28,7 +28,11 @@ func (g *GrpcClient) GetAccountResourceCtx(ctx context.Context, addr string) (*a
 		return nil, err
 	}
 
-	return g.Client.GetAccountResource(ctx, account)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetAccountResource(ctx, account)
 }
 
 // GetDelegatedResources from BASE58 address
@@ -47,7 +51,11 @@ func (g *GrpcClient) GetDelegatedResourcesCtx(ctx context.Context, address strin
 		return nil, err
 	}
 
-	ai, err := g.Client.GetDelegatedResourceAccountIndex(ctx, GetMessageBytes(addrBytes))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	ai, err := w.GetDelegatedResourceAccountIndex(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +65,7 @@ func (g *GrpcClient) GetDelegatedResourcesCtx(ctx context.Context, address strin
 			FromAddress: addrBytes,
 			ToAddress:   addrTo,
 		}
-		resource, err := g.Client.GetDelegatedResource(ctx, dm)
+		resource, err := w.GetDelegatedResource(ctx, dm)
 		if err != nil {
 			return nil, err
 
@@ -83,7 +91,11 @@ func (g *GrpcClient) GetDelegatedResourcesV2Ctx(ctx context.Context, address str
 		return nil, err
 	}
 
-	ai, err := g.Client.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	ai, err := w.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +106,7 @@ func (g *GrpcClient) GetDelegatedResourcesV2Ctx(ctx context.Context, address str
 			FromAddress: addrBytes,
 			ToAddress:   addrTo,
 		}
-		resource, err := g.Client.GetDelegatedResourceV2(ctx, dm)
+		resource, err := w.GetDelegatedResourceV2(ctx, dm)
 		if err != nil {
 			return nil, err
 
@@ -121,7 +133,11 @@ func (g *GrpcClient) GetReceivedDelegatedResourcesV2Ctx(ctx context.Context, add
 		return nil, err
 	}
 
-	ai, err := g.Client.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	ai, err := w.GetDelegatedResourceAccountIndexV2(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +148,7 @@ func (g *GrpcClient) GetReceivedDelegatedResourcesV2Ctx(ctx context.Context, add
 			FromAddress: addrFrom,
 			ToAddress:   addrBytes,
 		}
-		resource, err := g.Client.GetDelegatedResourceV2(ctx, dm)
+		resource, err := w.GetDelegatedResourceV2(ctx, dm)
 		if err != nil {
 			return nil, err
 		}
@@ -181,7 +197,11 @@ func (g *GrpcClient) GetCanDelegatedMaxSizePQCtx(ctx context.Context, address st
 		PqScheme:     scheme,
 	}
 
-	response, err := g.Client.GetCanDelegatedMaxSize(ctx, dm)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	response, err := w.GetCanDelegatedMaxSize(ctx, dm)
 	if err != nil {
 		return nil, fmt.Errorf("get can-delegated max size: %w", err)
 	}
@@ -218,7 +238,11 @@ func (g *GrpcClient) DelegateResourceCtx(ctx context.Context, from, to string, r
 	contract.Lock = lock
 	contract.LockPeriod = lockPeriod
 
-	response, err := g.Client.DelegateResource(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	response, err := w.DelegateResource(ctx, contract)
 	if err != nil {
 		return nil, err
 
@@ -258,7 +282,11 @@ func (g *GrpcClient) UnDelegateResourceCtx(ctx context.Context, owner, receiver 
 	contract.ReceiverAddress = addrReceiverBytes
 	contract.Balance = delegateBalance
 
-	response, err := g.Client.UnDelegateResource(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	response, err := w.UnDelegateResource(ctx, contract)
 	if err != nil {
 		return nil, err
 
