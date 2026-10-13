@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -46,9 +47,14 @@ var (
 	// releasesAPIBase is the GitHub releases API of this repository; tests
 	// point it at an httptest server.
 	releasesAPIBase = "https://api.github.com/repos/fbsobreira/gotron-sdk/releases"
-	// upgradeHTTPClient serves the release lookup and the asset downloads. Its
-	// timeout covers a whole download, so it allows for slow connections.
-	upgradeHTTPClient = &http.Client{Timeout: 5 * time.Minute}
+	// upgradeHTTPClient serves the release lookup and the asset downloads. It
+	// has no overall timeout, which would fail a valid download on a slow link:
+	// the transport bounds connecting and waiting for headers, downloadAsset
+	// aborts a body that stops arriving (upgradeIdleTimeout), and Ctrl-C
+	// cancels the whole upgrade.
+	upgradeHTTPClient = &http.Client{Transport: newUpgradeTransport()}
+	// upgradeIdleTimeout aborts a download when no data arrives for this long.
+	upgradeIdleTimeout = 60 * time.Second
 	// Size caps for what upgrade reads off the wire or out of the archive.
 	maxChecksumsSize int64 = 1 << 20
 	maxArchiveSize   int64 = 256 << 20
@@ -280,6 +286,36 @@ func httpsOnlyRedirects(req *http.Request, via []*http.Request) error {
 
 // downloadAsset GETs an https URL and returns its body, which must be HTTP 200
 // and at most limit bytes.
+// newUpgradeTransport is http.DefaultTransport with bounded connection setup
+// and response-header waits, so a dead server fails fast without limiting how
+// long a body that keeps arriving may take.
+func newUpgradeTransport() *http.Transport {
+	t := http.DefaultTransport.(*http.Transport).Clone()
+	t.DialContext = (&net.Dialer{Timeout: 30 * time.Second, KeepAlive: 30 * time.Second}).DialContext
+	t.TLSHandshakeTimeout = 30 * time.Second
+	t.ResponseHeaderTimeout = 30 * time.Second
+	return t
+}
+
+// errDownloadStalled is the cancel cause when no data arrives for
+// upgradeIdleTimeout.
+var errDownloadStalled = errors.New("download stalled")
+
+// idleTimeoutReader pushes back a stall timer each time data arrives.
+type idleTimeoutReader struct {
+	r     io.Reader
+	timer *time.Timer
+	idle  time.Duration
+}
+
+func (r *idleTimeoutReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if n > 0 {
+		r.timer.Reset(r.idle)
+	}
+	return n, err
+}
+
 func downloadAsset(ctx context.Context, client *http.Client, rawURL string, limit int64) ([]byte, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
@@ -288,6 +324,20 @@ func downloadAsset(ctx context.Context, client *http.Client, rawURL string, limi
 	if u.Scheme != "https" || u.Host == "" {
 		return nil, fmt.Errorf("refusing non-https download URL %q", u.Redacted())
 	}
+	// A stall timer, pushed back by every chunk of data, bounds how long the
+	// download may go without progress instead of how long it may take.
+	idle := upgradeIdleTimeout
+	ctx, cancel := context.WithCancelCause(ctx)
+	defer cancel(nil)
+	stall := time.AfterFunc(idle, func() { cancel(errDownloadStalled) })
+	defer stall.Stop()
+	stalled := func(err error) error {
+		if errors.Is(context.Cause(ctx), errDownloadStalled) {
+			return fmt.Errorf("%w: no data received for %s from %s", errDownloadStalled, idle, u.Redacted())
+		}
+		return err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, err
@@ -296,13 +346,17 @@ func downloadAsset(ctx context.Context, client *http.Client, rawURL string, limi
 	httpsClient.CheckRedirect = httpsOnlyRedirects
 	resp, err := httpsClient.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, stalled(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("HTTP %d from %s", resp.StatusCode, u.Redacted())
 	}
-	return readCapped(resp.Body, limit)
+	data, err := readCapped(&idleTimeoutReader{r: resp.Body, timer: stall, idle: idle}, limit)
+	if err != nil {
+		return nil, stalled(err)
+	}
+	return data, nil
 }
 
 // readCapped reads all of r, failing (instead of truncating) past limit bytes.
