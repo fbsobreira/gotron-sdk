@@ -228,7 +228,7 @@ func TestInstallScript_FailsClosed(t *testing.T) {
 				e.writeChecksums(e.addArchive(file, "tronctl", fakeBinary) + "  " + file)
 			},
 			args:    []string{"--pq"},
-			wantErr: "tronctl-pq is published from v0.26.1",
+			wantErr: "tronctl-pq is published from v0.27.0",
 		},
 		{
 			name: "checksum mismatch",

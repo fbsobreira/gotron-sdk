@@ -791,12 +791,12 @@ ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN
   notice in full.
 - Homebrew installs the default build. To use both, keep the `tronctl-pq` binary under its own name or put it
   earlier on your `PATH`.
-- `curl -fsSL https://gotron.sh/install | sh -s -- --pq` installs `tronctl-pq` (from v0.26.1) after checking the archive
+- `curl -fsSL https://gotron.sh/install | sh -s -- --pq` installs `tronctl-pq` (from v0.27.0) after checking the archive
   against `checksums.txt`.
 - `tronctl upgrade` verifies the release archive against `checksums.txt`, checks that the new binary runs and
   reports the expected version, and replaces the binary in place. A `tronctl-pq` build stays on `tronctl-pq`: it
   never installs the default archive over itself, and stops with an error when the release has no `tronctl-pq`
-  archive for its platform (windows/arm64, or a release before v0.26.1).
+  archive for its platform (windows/arm64, or a release before v0.27.0).
 
 Download and verify an archive (here linux/amd64; use `shasum -a 256 -c` on macOS):
 
