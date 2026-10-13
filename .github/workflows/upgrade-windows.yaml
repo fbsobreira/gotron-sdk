@@ -1,0 +1,51 @@
+name: Upgrade (Windows)
+
+# `tronctl upgrade` replaces a running .exe differently on Windows (the current
+# binary is moved aside first), so its tests run on a Windows runner. Windows
+# runners are slow to start, so pull requests and pushes run this only when the
+# updater, or what it depends on, changes. Releases always run it (release.yaml
+# calls it), and it can be run by hand.
+on:
+  push:
+    branches: [ master, develop ]
+    paths:
+      - cmd/subcommands/upgrade*.go
+      - cmd/tronctl/**
+      - go.mod
+      - go.sum
+      - .github/workflows/upgrade-windows.yaml
+  pull_request:
+    branches: [ master, develop ]
+    paths:
+      - cmd/subcommands/upgrade*.go
+      - cmd/tronctl/**
+      - go.mod
+      - go.sum
+      - .github/workflows/upgrade-windows.yaml
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-upgrade-windows:
+    name: Test upgrade (Windows, Go 1.26)
+    runs-on: windows-latest
+    # Pin the toolchain to the setup-go version, as in test.yaml.
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      # No -race: the Windows-specific code is sequential renames, and -race
+      # on Windows needs cgo and a MinGW gcc that matches the Go release.
+      - name: Run updater tests
+        run: go test -run '^Test(Upgrade|ReplaceExecutable|FetchRelease|ManagedInstallHint|GetCurrentVersion)' ./cmd/subcommands/

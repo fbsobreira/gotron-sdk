@@ -14,6 +14,11 @@ jobs:
   test:
     uses: ./.github/workflows/test.yaml
 
+  # The updater tests on Windows. Pull requests run them only when the updater
+  # changes; a release always does.
+  upgrade-windows:
+    uses: ./.github/workflows/upgrade-windows.yaml
+
   # The version GoReleaser derives from the tag (v0.26.0 -> 0.26.0), for the
   # tronctl-pq archive names. Reusable-workflow inputs cannot run shell, so a
   # job strips the v.
@@ -44,7 +49,7 @@ jobs:
     name: Release
     permissions:
       contents: write
-    needs: [test, version, tronctl-pq]
+    needs: [test, upgrade-windows, version, tronctl-pq]
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
