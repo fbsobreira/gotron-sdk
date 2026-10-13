@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,6 +51,7 @@ func TestCheckPQSchemes(t *testing.T) {
 	tests := []struct {
 		name       string
 		tx         *core.Transaction
+		pending    []core.PQScheme
 		prober     *schemeProber
 		nilProber  bool
 		wantProbed []core.PQScheme
@@ -120,6 +122,84 @@ func TestCheckPQSchemes(t *testing.T) {
 			prober:  &schemeProber{},
 			wantMsg: []string{"transaction"},
 		},
+		{
+			name:       "pending only is probed",
+			tx:         txWithPQSchemes(),
+			pending:    []core.PQScheme{ml},
+			prober:     &schemeProber{allowed: map[core.PQScheme]bool{ml: true}},
+			wantProbed: []core.PQScheme{ml},
+		},
+		{
+			name:       "pending that repeats a tx scheme is probed once",
+			tx:         txWithPQSchemes(fn),
+			pending:    []core.PQScheme{fn},
+			prober:     &schemeProber{allowed: map[core.PQScheme]bool{fn: true}},
+			wantProbed: []core.PQScheme{fn},
+		},
+		{
+			name:       "tx schemes are probed before pending ones, each once",
+			tx:         txWithPQSchemes(ml, ml),
+			pending:    []core.PQScheme{fn, ml, fn},
+			prober:     &schemeProber{allowed: map[core.PQScheme]bool{fn: true, ml: true}},
+			wantProbed: []core.PQScheme{ml, fn},
+		},
+		{
+			name:       "pending scheme disabled",
+			tx:         txWithPQSchemes(fn),
+			pending:    []core.PQScheme{ml},
+			prober:     &schemeProber{allowed: map[core.PQScheme]bool{fn: true}},
+			wantProbed: []core.PQScheme{fn, ml},
+			wantIs:     ErrPQSchemeDisabled,
+			wantMsg:    []string{"ML_DSA_44"},
+		},
+		{
+			name:       "pending probe error",
+			tx:         txWithPQSchemes(),
+			pending:    []core.PQScheme{fn},
+			prober:     &schemeProber{probeErr: probeErr},
+			wantProbed: []core.PQScheme{fn},
+			wantIs:     probeErr,
+			wantMsg:    []string{"checking post-quantum capability"},
+		},
+		{
+			name:    "unsupported pending scheme is rejected before any probe",
+			tx:      txWithPQSchemes(fn),
+			pending: []core.PQScheme{ml, core.PQScheme_UNKNOWN_PQ_SCHEME},
+			prober:  &schemeProber{allowed: map[core.PQScheme]bool{fn: true, ml: true}},
+			wantIs:  pqc.ErrUnsupportedScheme,
+			wantMsg: []string{"pending[1]"},
+		},
+		{
+			name:    "out of range pending scheme is rejected before any probe",
+			tx:      txWithPQSchemes(),
+			pending: []core.PQScheme{core.PQScheme(99)},
+			prober:  &schemeProber{},
+			wantIs:  pqc.ErrUnsupportedScheme,
+			wantMsg: []string{"pending[0]"},
+		},
+		{
+			name:      "unsupported pending scheme with nil prober",
+			tx:        txWithPQSchemes(),
+			pending:   []core.PQScheme{core.PQScheme_UNKNOWN_PQ_SCHEME},
+			nilProber: true,
+			wantIs:    pqc.ErrUnsupportedScheme,
+			wantMsg:   []string{"pending[0]"},
+		},
+		{
+			name:      "nil prober with pending",
+			tx:        txWithPQSchemes(),
+			pending:   []core.PQScheme{fn},
+			nilProber: true,
+			wantMsg:   []string{"prober"},
+		},
+		{
+			name:       "nil transaction with pending",
+			tx:         nil,
+			pending:    []core.PQScheme{fn},
+			prober:     &schemeProber{},
+			wantMsg:    []string{"transaction"},
+			wantProbed: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -127,7 +207,7 @@ func TestCheckPQSchemes(t *testing.T) {
 			if !tt.nilProber {
 				p = tt.prober
 			}
-			err := CheckPQSchemes(context.Background(), p, tt.tx)
+			err := CheckPQSchemes(context.Background(), p, tt.tx, tt.pending...)
 			if tt.prober != nil {
 				assert.Equal(t, tt.wantProbed, tt.prober.probed)
 			}
