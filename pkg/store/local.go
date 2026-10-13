@@ -308,7 +308,7 @@ func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
 		ks.Close()
 		s.Forget(ks)
-		return nil, nil, fmt.Errorf("%s: %w", unlockError.Error(), ErrNoUnlockBadPassphrase)
+		return nil, nil, fmt.Errorf("%w: %w", unlockError, ErrNoUnlockBadPassphrase)
 	}
 	return ks, &account, nil
 }
@@ -522,7 +522,7 @@ func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Ac
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
 		ks.Close()
-		return nil, nil, fmt.Errorf("%s: %w", unlockError.Error(), ErrNoUnlockBadPassphrase)
+		return nil, nil, fmt.Errorf("%w: %w", unlockError, ErrNoUnlockBadPassphrase)
 	}
 	return ks, &account, nil
 }
