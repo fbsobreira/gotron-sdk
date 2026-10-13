@@ -6,7 +6,7 @@
 # archive not listed in it, a mismatch, no sha256 tool) aborts the install.
 #
 #   curl -fsSL https://gotron.sh/install | sh
-#   curl -fsSL https://gotron.sh/install | sh -s -- --version v0.26.1 --pq
+#   curl -fsSL https://gotron.sh/install | sh -s -- --version v0.27.0 --pq
 set -eu
 
 REPO="fbsobreira/gotron-sdk"
@@ -26,7 +26,7 @@ Usage: install.sh [--version vX.Y.Z] [--pq] [--install-dir DIR] [--dry-run]
 
   --version VERSION   install this release (default: the latest release)
   --pq                install tronctl-pq, the build that can also sign with
-                      FN-DSA-512 (published from v0.26.1)
+                      FN-DSA-512 (published from v0.27.0)
   --install-dir DIR   install into DIR (default: /usr/local/bin, using sudo
                       when needed, else ~/.local/bin)
   --dry-run           print what would be downloaded and installed, and exit
@@ -151,7 +151,7 @@ COUNT=$(awk -v f="$ARCHIVE" '$2 == f || $2 == "*" f { n++ } END { print n + 0 }'
 EXPECTED=$(awk -v f="$ARCHIVE" '$2 == f || $2 == "*" f { print $1; exit }' "$TMP/$CHECKSUMS")
 if [ -z "$EXPECTED" ]; then
   if [ "$PQ" = "1" ]; then
-    die "$ARCHIVE is not listed in $CHECKSUMS for $VERSION (tronctl-pq is published from v0.26.1)"
+    die "$ARCHIVE is not listed in $CHECKSUMS for $VERSION (tronctl-pq is published from v0.27.0)"
   fi
   die "$ARCHIVE is not listed in $CHECKSUMS for $VERSION"
 fi

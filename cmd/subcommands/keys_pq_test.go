@@ -700,3 +700,57 @@ func TestAccountSignECDSAWhenPQStoreUnreadable(t *testing.T) {
 	_, _, err := runKeysCmd(t, accountSignCmd(), "hello")
 	require.NoError(t, err, "an unreadable pq-keys folder must not block ECDSA message signing")
 }
+
+func TestWriteAccountListWarnsAboutUnreadablePQWallets(t *testing.T) {
+	root := pqTestEnv(t, "pw")
+	ecdsaAddr := addECDSAAccount(t, "alice", "pw")
+	pq := savePQAccount(t, "bob", "pw")
+	pqDir := filepath.Join(root, c.DefaultConfigPQKeysDirName)
+	require.NoError(t, os.MkdirAll(filepath.Join(pqDir, "zed"), 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(pqDir, "zed", "UTC--x.json"), []byte("{not json"), 0600))
+	require.NoError(t, os.MkdirAll(filepath.Join(pqDir, "empty"), 0700))
+	require.NoError(t, os.WriteFile(filepath.Join(pqDir, ".DS_Store"), []byte{0}, 0600))
+
+	var out, errOut bytes.Buffer
+	require.NoError(t, writeAccountListTo(&out, &errOut))
+
+	// stdout is the same table as without the broken wallets.
+	assert.Contains(t, out.String(), "alice"+strings.Repeat(" ", 48-len("alice"))+"\t"+ecdsaAddr+"\tECDSA\n")
+	assert.Contains(t, out.String(), "bob"+strings.Repeat(" ", 48-len("bob"))+"\t"+pq.Address+"\tML_DSA_44\n")
+	assert.NotContains(t, out.String(), "zed")
+	assert.NotContains(t, out.String(), "Warning")
+
+	// stderr: one line per unreadable wallet, sorted, name and reason only.
+	lines := strings.Split(strings.TrimSpace(errOut.String()), "\n")
+	require.Len(t, lines, 2, "stderr:\n%s", errOut.String())
+	assert.Contains(t, lines[0], `"empty"`)
+	assert.Contains(t, lines[1], `"zed"`)
+	for _, l := range lines {
+		assert.True(t, strings.HasPrefix(l, "Warning: "), l)
+	}
+	assert.NotContains(t, errOut.String(), ".DS_Store")
+
+	// With only readable wallets nothing is printed to stderr.
+	require.NoError(t, os.RemoveAll(filepath.Join(pqDir, "zed")))
+	require.NoError(t, os.RemoveAll(filepath.Join(pqDir, "empty")))
+	out.Reset()
+	errOut.Reset()
+	require.NoError(t, writeAccountListTo(&out, &errOut))
+	assert.Empty(t, errOut.String())
+}
+
+func TestEcdsaNamePresentWithoutHome(t *testing.T) {
+	pqTestEnv(t, "pw")
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	if _, err := os.UserHomeDir(); err == nil {
+		t.Skip("os.UserHomeDir still succeeds without HOME")
+	}
+	t.Chdir(t.TempDir())
+	c.DefaultConfigDirName = ".tronctl-nohome-test"
+
+	present, err := ecdsaNamePresent("alice")
+	require.Error(t, err)
+	assert.False(t, present)
+	assert.Contains(t, err.Error(), "$HOME")
+}

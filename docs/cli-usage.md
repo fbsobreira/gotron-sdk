@@ -250,7 +250,8 @@ tronctl keys import-ks <keystore-file> [account-name]
 # Import a TRON Toolkit plaintext JSON key (the source file stays unencrypted: delete it afterwards)
 tronctl keys import-toolkit <toolkit-key-file> [account-name]
 
-# List accounts; the SCHEME column comes last
+# List accounts; the SCHEME column comes last. A PQ wallet that cannot be read is
+# reported on stderr and left out of the table.
 tronctl keys list
 
 # Copy the PQ keystore file to a directory

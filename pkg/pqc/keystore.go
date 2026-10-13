@@ -175,8 +175,5 @@ func schemeFromName(name string) (core.PQScheme, error) {
 	case core.PQScheme_ML_DSA_44.String():
 		return core.PQScheme_ML_DSA_44, nil
 	}
-	if len(name) > 32 {
-		name = name[:32] + "..."
-	}
-	return core.PQScheme_UNKNOWN_PQ_SCHEME, fmt.Errorf("%w: %q", ErrUnsupportedScheme, name)
+	return core.PQScheme_UNKNOWN_PQ_SCHEME, unsupportedName(name)
 }

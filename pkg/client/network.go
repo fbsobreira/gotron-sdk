@@ -136,13 +136,18 @@ func (g *GrpcClient) GetTransactionInfoByIDCtx(ctx context.Context, id string) (
 }
 
 // Broadcast submits a signed transaction to the network.
+//
+// It does not check TIP-899 post-quantum schemes: the node refuses a
+// transaction signed with a disabled scheme. Call txcore.CheckPQSchemes first
+// to fail early with txcore.ErrPQSchemeDisabled.
 func (g *GrpcClient) Broadcast(tx *core.Transaction) (*api.Return, error) {
 	ctx, cancel := g.newContext()
 	defer cancel()
 	return g.BroadcastCtx(ctx, tx)
 }
 
-// BroadcastCtx is the context-aware version of Broadcast.
+// BroadcastCtx is the context-aware version of Broadcast. Like Broadcast, it
+// does not check post-quantum schemes; see txcore.CheckPQSchemes.
 func (g *GrpcClient) BroadcastCtx(ctx context.Context, tx *core.Transaction) (*api.Return, error) {
 	ctx = g.withAPIKey(ctx)
 	w, err := g.wallet()

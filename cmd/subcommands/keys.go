@@ -53,7 +53,7 @@ func keysListCmd() *cobra.Command {
 				fmt.Printf("%-48s\t%s\n", "Ledger Nano S", addr)
 				return nil
 			}
-			return writeAccountList(cmd.OutOrStdout())
+			return writeAccountListTo(cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	}
 	return cmd
@@ -84,6 +84,9 @@ func keysAddCmd() *cobra.Command {
 					return err
 				}
 				return addPQKey(cmd, args[0], s)
+			}
+			if err := requireKeystoreDir(); err != nil {
+				return err
 			}
 			if store.DoesNamedAccountExist(args[0]) || store.NameExists(args[0]) {
 				return fmt.Errorf("account %s already exists", args[0])
@@ -210,6 +213,9 @@ func keysImportKSCmd() *cobra.Command {
 			}
 			if isPQKeystore(data) {
 				return importPQKeystore(cmd, data, userName)
+			}
+			if err := requireKeystoreDir(); err != nil {
+				return err
 			}
 			// Account names are unique across ECDSA and PQ accounts.
 			if userName == "" {

@@ -49,7 +49,9 @@ var (
 // same transaction.
 //
 // Whether the chain has the scheme enabled, and whether the account's
-// permission has room for another post-quantum key, are not checked here.
+// permission has room for another post-quantum key, are not checked here:
+// signing does not ask the node. Use txcore.Send, which does, or call
+// txcore.CheckPQSchemes before broadcasting.
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error) {

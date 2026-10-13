@@ -46,6 +46,9 @@ var (
 		Short:        "Tron Blockchain Controller",
 		SilenceUsage: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			if err := configGate(cmd); err != nil {
+				return err
+			}
 			// sync flag values into runtime
 			rt.Verbose = verbose
 			rt.Node = node
@@ -407,4 +410,26 @@ func getPassphraseWithConfirm() (string, error) {
 	} else {
 		return c.DefaultPassphrase, nil
 	}
+}
+
+// configGate returns configErr for a command that reads the config, and nil
+// for one that does not or when the config loaded.
+func configGate(cmd *cobra.Command) error {
+	if configErr != nil && needsConfig(cmd) {
+		return configErr
+	}
+	return nil
+}
+
+// needsConfig reports whether cmd reads the tronctl config. version, docs and
+// shell completion do not, so they still run when the config folder cannot
+// be created (configErr).
+func needsConfig(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "version", "docs", "completion", cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+			return false
+		}
+	}
+	return true
 }

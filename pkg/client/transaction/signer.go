@@ -33,6 +33,9 @@ const MaxTotalSignatures = signer.MaxTotalSignatures
 // delegates to signer.SignTransactionPQ, which documents the checks and
 // errors.
 //
+// Signing does not ask the node whether the scheme is enabled. Use
+// txcore.Send, which does, or call txcore.CheckPQSchemes before broadcasting.
+//
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
 func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error) {
 	return signer.SignTransactionPQ(tx, key)

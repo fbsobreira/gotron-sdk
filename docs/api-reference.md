@@ -633,8 +633,49 @@ TIP-899 is a draft and is live only on the Nile testnet. See [Post-Quantum Signa
 func NewPQSigner(key pqc.PrivateKey) (Signer, error)
 
 // SignTransactionPQ appends a pq_auth_sig entry over SHA-256(raw_data). It returns
-// ErrTooManySignatures or ErrPQAlreadySigned and leaves tx unchanged on error.
+// ErrTooManySignatures or ErrPQAlreadySigned and leaves tx unchanged on error. It does not ask
+// the node whether the scheme is enabled: see txcore.CheckPQSchemes.
 func SignTransactionPQ(tx *core.Transaction, key pqc.PrivateKey) (*core.Transaction, error)
+
+// PQSignatures lists the scheme, address and public key of each pq_auth_sig entry, in order.
+// It does not verify signatures. A malformed entry is an error, never skipped.
+func PQSignatures(tx *core.Transaction) ([]PQSignatureInfo, error)
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/txcore`
+
+```go
+// CheckPQSchemes asks the node once per distinct scheme on tx.PqAuthSig and returns an error
+// wrapping ErrPQSchemeDisabled for one that is off. Call it before broadcasting a transaction
+// signed outside txcore.Send. A transaction with no PQ signatures needs no prober.
+func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction) error
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/pqc`
+
+```go
+// ParseScheme accepts fn-dsa-512 and ml-dsa-44 (any case, "-" or "_"); anything else wraps
+// ErrUnsupportedScheme.
+func ParseScheme(s string) (core.PQScheme, error)
+
+// MaxAuthSigSize is the most bytes one more pq_auth_sig entry adds to a serialized transaction.
+func MaxAuthSigSize(scheme core.PQScheme) (int, error)
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/client/transaction`
+
+```go
+// EstimateBandwidth is the bandwidth the node charges for tx: its size without Ret, plus 64
+// bytes per contract, plus MaxAuthSigSize for each pending (not yet added) PQ signature.
+func EstimateBandwidth(tx *core.Transaction, pending ...core.PQScheme) (int64, error)
+```
+
+##### `github.com/fbsobreira/gotron-sdk/pkg/store`
+
+```go
+// ScanPQAccounts is PQAccounts plus the wallets it could not read, each with the reason.
+func ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error)
+func (s *Store) ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error)
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/client`
@@ -657,6 +698,23 @@ type PQCapabilities struct {
     MLDSA44  bool
 }
 func (c PQCapabilities) Allows(scheme core.PQScheme) bool
+
+// PermissionUpdateMaps reads an account's owner, witness (nil if none) and active permissions
+// into the maps UpdateAccountPermissionCtx takes, so a key can be added without losing
+// operations. It refuses an operation bit with no name, an active id out of order, and an
+// active with an empty bitmap.
+// An account with no stored owner or active permission (created before multi-sign and never
+// updated) gives ErrNoStoredPermissions: the node applies implicit defaults that cannot be read
+// back, so build the update yourself (owner: threshold 1, the account address at weight 1; one
+// active named "active", id 2, threshold 1, the chain's getActiveDefaultOperations).
+// Custom owner and witness permission names are not kept (UpdateAccountPermission always writes
+// "owner" and "witness"); everything else is.
+func PermissionUpdateMaps(acc *core.Account) (owner map[string]interface{}, witness map[string]interface{}, actives []map[string]interface{}, err error)
+
+var ErrNoStoredPermissions = errors.New("account has no stored owner or active permission")
+
+// PermissionOperations decodes a 32-byte operations bitmap into contract-type names.
+func PermissionOperations(bitmap []byte) (map[string]bool, error)
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/keystore`

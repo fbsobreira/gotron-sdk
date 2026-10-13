@@ -203,7 +203,7 @@ func upgradeTo(ctx context.Context, release *GitHubRelease, target string, opts 
 			// Never fall back to the default archive: it cannot sign with FN-DSA-512.
 			return fmt.Errorf("release %s has no tronctl-pq archive for %s/%s (%s). This tronctl is a "+
 				"tronctl-pq build with FN-DSA-512 signing and will not be replaced by the default build, "+
-				"which cannot sign with FN-DSA-512. tronctl-pq is published from v0.26.1 for linux/amd64, "+
+				"which cannot sign with FN-DSA-512. tronctl-pq is published from v0.27.0 for linux/amd64, "+
 				"linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64; elsewhere, build from source "+
 				"with -tags falcon", tag, opts.goos, opts.goarch, archiveName)
 		}
@@ -244,7 +244,7 @@ func upgradeTo(ctx context.Context, release *GitHubRelease, target string, opts 
 }
 
 // upgradeArchiveName is the release asset name for a platform, e.g.
-// tronctl_0.26.1_linux_amd64.tar.gz or tronctl-pq_0.26.1_windows_amd64.zip.
+// tronctl_0.27.0_linux_amd64.tar.gz or tronctl-pq_0.27.0_windows_amd64.zip.
 func upgradeArchiveName(tag, goos, goarch string, pq bool) string {
 	prefix := "tronctl"
 	if pq {

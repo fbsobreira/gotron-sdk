@@ -440,7 +440,8 @@ signed transaction has enough weight.
   `0` as "off".
 - **Bandwidth.** The node adds the full PQ signature wire size to a transaction's bandwidth cost, so PQ
   transactions cost far more bandwidth than ECDSA ones. Fund PQ accounts accordingly. `getCanDelegatedMaxSize`
-  takes a `pq_scheme` so delegation estimates include it.
+  takes a `pq_scheme` so delegation estimates include it. In the SDK, `transaction.EstimateBandwidth` computes
+  the charge (it matched Nile to the byte on the transactions below).
 - **Throughput caps.** A pending-pool cap for PQ transactions (`SERVER_BUSY` when full) and a hard limit of
   1,000 PQ transactions per block.
 
@@ -571,7 +572,8 @@ loaded, err := pqc.DecryptKeystore(data, passphrase)
 `pqc.MarshalToolkitJSON(key)` writes the unencrypted java-tron Toolkit format (it holds the private key in clear)
 and `pqc.ParseToolkitJSON(data)` reads it. To build a key from raw bytes, use
 `pqc.ParsePrivateKey(scheme, priv, pub)`: an FN-DSA-512 private key does not contain its public key, so `pub` is
-required for it; ML-DSA-44 accepts `nil`.
+required for it; ML-DSA-44 accepts `nil`. `pqc.ParseScheme(s)` turns user input such as `fn-dsa-512` or
+`ML_DSA_44` (any case, `-` or `_`) into a `core.PQScheme`.
 
 ### Check that the node accepts the scheme
 
@@ -624,7 +626,20 @@ if receipt.Error != "" {
 
 `NewPQSigner` fails early for a destroyed key (`pqc.ErrKeyDestroyed`) or an FN-DSA-512 key in a build without
 Falcon (`pqc.ErrFalconUnavailable`). The signer appends a `pq_auth_sig` entry and leaves `signature` alone. To
-sign a transaction you already hold, call `signer.SignTransactionPQ(tx, key)`.
+sign a transaction you already hold, call `signer.SignTransactionPQ(tx, key)`. That path does not ask the node
+first, so check before broadcasting:
+
+```go
+tx, err = signer.SignTransactionPQ(tx, key)
+if err != nil {
+	return err
+}
+// Every scheme on the transaction must be enabled, or this returns txcore.ErrPQSchemeDisabled.
+if err := txcore.CheckPQSchemes(ctx, conn, tx); err != nil {
+	return err
+}
+result, err := conn.BroadcastCtx(ctx, tx)
+```
 
 ### Hybrid and multi-signature
 
@@ -637,7 +652,9 @@ tx, err = pqSigner.Sign(tx)    // appends to tx.PqAuthSig
 
 A transaction carries at most `keystore.MaxTotalSignatures` (5) signatures, ECDSA and PQ together. Signing past it
 returns `keystore.ErrTooManySignatures` (the same value as `signer.ErrTooManySignatures`); the same key signing
-twice returns `signer.ErrPQAlreadySigned`. `keystore.CheckSignatureRoom(tx)` checks without signing. When the
+twice returns `signer.ErrPQAlreadySigned`. `keystore.CheckSignatureRoom(tx)` checks without signing.
+`signer.PQSignatures(tx)` lists the scheme and address of each PQ signature already on the transaction; it does
+not verify them (the node does). When the
 transaction is signed under an active permission, build it with that permission's id (see
 [Multi-signature in general](#multi-signature-in-general)).
 
@@ -676,34 +693,25 @@ if err != nil {
 // A new account's owner permission holds only its own address, with weight 1.
 fmt.Println(len(acc.GetOwnerPermission().GetKeys()))
 
-// 2. Keep what the active permission may do today. The update replaces every permission, so
-// operations left out here are lost. Operations is a 32-byte bitmap: bit n is contract type n.
-actives := acc.GetActivePermission()
-if len(actives) != 1 {
-	return fmt.Errorf("expected one active permission, found %d", len(actives))
-}
-ops := map[string]bool{}
-bitmap := actives[0].GetOperations()
-for i := 0; i < len(bitmap)*8; i++ {
-	if bitmap[i/8]&(1<<(i%8)) != 0 {
-		if name, ok := core.Transaction_Contract_ContractType_name[int32(i)]; ok {
-			ops[name] = true
-		}
-	}
+// 2. Read every current permission back in the shapes UpdateAccountPermissionCtx takes. The update
+// replaces every permission, so anything left out is lost. PermissionUpdateMaps keeps each active's
+// name, threshold, keys and operations, and fails rather than drop an operation it cannot name.
+// Custom owner and witness permission names are not kept (UpdateAccountPermission always writes
+// "owner" and "witness"); everything else is. An account never updated since multi-sign gives
+// client.ErrNoStoredPermissions (see the notes below).
+ownerPerm, witnessPerm, actives, err := client.PermissionUpdateMaps(acc)
+if err != nil {
+	return err
 }
 
-// 3. Build the update. Argument types must match exactly: threshold is int64, keys is
-// map[string]int64 (address -> weight), operations is map[string]bool (contract type names).
-keys := map[string]int64{owner: 1, pqAddr: 1}
-ext, err := conn.UpdateAccountPermissionCtx(ctx, owner,
-	map[string]interface{}{"threshold": int64(1), "keys": keys}, // owner
-	nil, // witness permission: none for an ordinary account
-	[]map[string]interface{}{{ // active permissions
-		"name":       actives[0].GetPermissionName(),
-		"threshold":  int64(1),
-		"keys":       keys,
-		"operations": ops,
-	}})
+// 3. Add the PQ key, weight 1, to the owner and every active permission. With the thresholds of a
+// new account (1), either key can now sign alone. "keys" is always a map[string]int64 here
+// (Base58 address -> weight). A witness permission, if any, is passed back unchanged.
+ownerPerm["keys"].(map[string]int64)[pqAddr] = 1
+for _, a := range actives {
+	a["keys"].(map[string]int64)[pqAddr] = 1
+}
+ext, err := conn.UpdateAccountPermissionCtx(ctx, owner, ownerPerm, witnessPerm, actives)
 if err != nil {
 	return err
 }
@@ -734,6 +742,16 @@ if receipt.Error != "" {
 
 Notes:
 
+- `client.PermissionOperations(bitmap)` decodes one operations bitmap on its own. Both helpers refuse a bit with no
+  contract-type name in this SDK, an active whose id is out of order, and an active with an empty bitmap, because
+  passing those back would change the account.
+- `client.ErrNoStoredPermissions` (match it with `errors.Is`) means `getaccount` returned no owner or no active
+  permission: the account was created before multi-sign and never updated, and the node applies implicit
+  defaults that cannot be read back. Build the maps yourself: owner threshold 1 with the account address at
+  weight 1, and one active named `active` (id 2, threshold 1, the same key) with the chain's default active
+  operations (chain parameter `getActiveDefaultOperations`).
+- Custom owner and witness permission names are not kept: `UpdateAccountPermission` always writes `owner` and
+  `witness`. Everything else (keys, weights, thresholds, active names and operations) is.
 - `pq-migrate` adds the checks a real tool needs: it refuses witness accounts, falls back to the default
   operations when the account has none, and prints the new permissions in a dry run before it broadcasts.
 - The caveats in [Path 1](#path-1-recommended-in-place-permission-replacement) apply, in particular: the update is
@@ -746,16 +764,18 @@ Notes:
 
 | Need | Where |
 |---|---|
-| Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON` / `ParseToolkitJSON`, `EncryptKeystore` / `DecryptKeystore`) |
+| Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`ParseScheme`, `GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON` / `ParseToolkitJSON`, `EncryptKeystore` / `DecryptKeystore`) |
 | Sign a transaction | `signer.NewPQSigner(key)` (implements `signer.Signer`), or `signer.SignTransactionPQ` / `transaction.SignTransactionPQ` |
 | Ask the node which schemes are enabled | `client.GetPQCapabilities`, `PQSchemeAllowed` / `PQSchemeAllowedCtx`. A successful answer is cached on the client for `client.DefaultPQCapabilitiesTTL` (1 minute); errors are not cached. `SetPQCapabilitiesTTL` changes the TTL (0 or less disables caching), `InvalidatePQCapabilities` forces the next call to ask the node, and `Start`, `Stop` and `Reconnect` invalidate it |
-| Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask |
+| Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask. For a transaction signed elsewhere, call `txcore.CheckPQSchemes(ctx, conn, tx)` before broadcasting |
+| See who has PQ-signed a transaction | `signer.PQSignatures(tx)` (scheme and address per entry; does not verify) |
+| Add a key to an account without dropping its operations | `client.PermissionUpdateMaps(acc)` reads every permission into the maps `UpdateAccountPermissionCtx` takes; `client.PermissionOperations` decodes one bitmap. Custom owner and witness names are not kept (`UpdateAccountPermission` always writes `owner` and `witness`); everything else is. An account with no stored owner or active permission gives `client.ErrNoStoredPermissions`: build its update from the defaults (see the migration notes) |
 | Signature limit (ECDSA and PQ together) | `keystore.MaxTotalSignatures` (5), `keystore.ErrTooManySignatures` (also `signer.ErrTooManySignatures`), `keystore.CheckSignatureRoom` |
 | Transaction JSON with `pq_auth_sig` | `transaction.ToJSON` / `FromJSON` |
-| Bandwidth estimate for PQ | `client.GetCanDelegatedMaxSizePQ` |
+| Bandwidth estimate for PQ | `transaction.EstimateBandwidth(tx, pending...)` (pending PQ signatures counted at their largest size), `pqc.MaxAuthSigSize`; for delegation, `client.GetCanDelegatedMaxSizePQ` |
 | Wipe a key from memory (best effort) | `pqc.PrivateKey.Destroy()` |
 | Manage PQ keys from the command line | `tronctl keys add --scheme fn-dsa-512\|ml-dsa-44`, `keys import-ks`, `keys import-toolkit`, `keys list`, `keys export-ks`, `keys remove`; sign any command with `tronctl -s <name\|address>` (see [CLI usage](cli-usage.md#post-quantum-keys-experimental)) |
-| Store PQ keystores on disk (`~/.tronctl/pq-keys/<name>/`) | `pkg/store` (`PQAccounts`, `PQAccountByName`, `PQAccountByAddress`, `ImportPQKeystore`, `SavePQKey`, `DecryptPQKey`, `RemovePQAccount`, `PQKeysDir`); names are unique across ECDSA and PQ accounts (`NameExists`) |
+| Store PQ keystores on disk (`~/.tronctl/pq-keys/<name>/`) | `pkg/store` (`PQAccounts`, `ScanPQAccounts` (also lists the wallets it cannot read), `PQAccountByName`, `PQAccountByAddress`, `ImportPQKeystore`, `SavePQKey`, `DecryptPQKey`, `RemovePQAccount`, `PQKeysDir`); names are unique across ECDSA and PQ accounts (`NameExists`) |
 
 Build notes: ML-DSA-44 is pure Go. FN-DSA-512 signing **and verifying** need the `falcon` build tag, CGO and
 [liboqs](https://openquantumsafe.org/liboqs/) (`make test-falcon` runs those tests). Without it, FN-DSA-512 keys
@@ -791,17 +811,17 @@ ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN
   notice in full.
 - Homebrew installs the default build. To use both, keep the `tronctl-pq` binary under its own name or put it
   earlier on your `PATH`.
-- `curl -fsSL https://gotron.sh/install | sh -s -- --pq` installs `tronctl-pq` (from v0.26.1) after checking the archive
+- `curl -fsSL https://gotron.sh/install | sh -s -- --pq` installs `tronctl-pq` (from v0.27.0) after checking the archive
   against `checksums.txt`.
 - `tronctl upgrade` verifies the release archive against `checksums.txt`, checks that the new binary runs and
   reports the expected version, and replaces the binary in place. A `tronctl-pq` build stays on `tronctl-pq`: it
   never installs the default archive over itself, and stops with an error when the release has no `tronctl-pq`
-  archive for its platform (windows/arm64, or a release before v0.26.1).
+  archive for its platform (windows/arm64, or a release before v0.27.0).
 
 Download and verify an archive (here linux/amd64; use `shasum -a 256 -c` on macOS):
 
 ```bash
-VERSION=0.26.0   # the release tag without the leading v
+VERSION=0.27.0   # the release tag without the leading v
 ASSET=tronctl-pq_${VERSION}_linux_amd64.tar.gz
 BASE=https://github.com/fbsobreira/gotron-sdk/releases/download/v${VERSION}
 curl -fsSLO "$BASE/$ASSET"

@@ -93,3 +93,34 @@ func ExampleSchemeAvailable() {
 		log.Fatal(err)
 	}
 }
+
+// Parse a scheme name typed on a command line. Case, "-" versus "_" and
+// surrounding spaces do not matter; an unknown name wraps ErrUnsupportedScheme.
+func ExampleParseScheme() {
+	scheme, err := pqc.ParseScheme(" ml-dsa-44 ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(scheme)
+
+	_, err = pqc.ParseScheme("rsa")
+	fmt.Println(errors.Is(err, pqc.ErrUnsupportedScheme))
+
+	// Output:
+	// ML_DSA_44
+	// true
+}
+
+// Reserve room for one more post-quantum signature, for example in a
+// bandwidth estimate. FN-DSA-512 signatures vary in length, so this is the
+// largest size.
+func ExampleMaxAuthSigSize() {
+	n, err := pqc.MaxAuthSigSize(core.PQScheme_ML_DSA_44)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(n > pqc.MLDSA44PublicKeySize+pqc.MLDSA44SignatureSize)
+
+	// Output:
+	// true
+}

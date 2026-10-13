@@ -45,13 +45,11 @@ var (
 // parsePQScheme maps a --scheme value to its TIP-899 scheme. It accepts
 // fn-dsa-512 and ml-dsa-44 in any case, with "-" or "_" as separators.
 func parsePQScheme(s string) (core.PQScheme, error) {
-	switch strings.ReplaceAll(strings.ToUpper(strings.TrimSpace(s)), "-", "_") {
-	case core.PQScheme_FN_DSA_512.String():
-		return core.PQScheme_FN_DSA_512, nil
-	case core.PQScheme_ML_DSA_44.String():
-		return core.PQScheme_ML_DSA_44, nil
+	scheme, err := pqc.ParseScheme(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid --scheme %q: valid values are fn-dsa-512 and ml-dsa-44", s)
 	}
-	return 0, fmt.Errorf("invalid --scheme %q: valid values are fn-dsa-512 and ml-dsa-44", s)
+	return scheme, nil
 }
 
 // withFalconHint adds how to get FN-DSA-512 support to an error wrapping
@@ -96,9 +94,26 @@ func isPQKeystore(data []byte) bool {
 	return peek.Scheme != ""
 }
 
+// errNoKeystoreDir is returned when the keystore folder cannot be resolved (a
+// relative config dir with no home directory). Without it every valid name
+// would count as taken.
+var errNoKeystoreDir = fmt.Errorf("cannot determine the keystore directory: %w", store.ErrNoConfigDir)
+
+// requireKeystoreDir fails with errNoKeystoreDir when the keystore folder
+// cannot be resolved. Call it before any name check.
+func requireKeystoreDir() error {
+	if store.DefaultLocation() == "" {
+		return errNoKeystoreDir
+	}
+	return nil
+}
+
 // generateImportName returns a free "<word>-imported" account name, checked
 // against both ECDSA and PQ accounts.
 func generateImportName() (string, error) {
+	if err := requireKeystoreDir(); err != nil {
+		return "", err
+	}
 	for range 100 {
 		m, err := mnemonic.Generate()
 		if err != nil {
@@ -120,6 +135,9 @@ func accountExistsError(name string) error {
 // checkNewAccountName fails when name is not a valid account name or is
 // already taken by an ECDSA or a PQ account.
 func checkNewAccountName(name string) error {
+	if err := requireKeystoreDir(); err != nil {
+		return err
+	}
 	if err := store.ValidateAccountName(name); err != nil {
 		return err
 	}
@@ -138,6 +156,9 @@ func printPQAccount(w io.Writer, acct store.PQAccount) {
 
 // addPQKey generates a PQ key of scheme and stores it under name.
 func addPQKey(cmd *cobra.Command, name string, scheme core.PQScheme) error {
+	if err := requireKeystoreDir(); err != nil {
+		return err
+	}
 	if store.NameExists(name) {
 		return accountExistsError(name)
 	}
@@ -168,6 +189,10 @@ func addPQKey(cmd *cobra.Command, name string, scheme core.PQScheme) error {
 // importPQKeystore stores a TIP-899 keystore under name, or under a
 // generated name when name is empty.
 func importPQKeystore(cmd *cobra.Command, data []byte, name string) error {
+	// Before the passphrase prompt, as the name checks below.
+	if err := requireKeystoreDir(); err != nil {
+		return err
+	}
 	// Validate the name and check both stores before prompting, so a bad
 	// name is not rejected only after the passphrase was typed.
 	if name != "" {
@@ -236,12 +261,14 @@ func importToolkitKey(cmd *cobra.Command, path, name string) error {
 	return nil
 }
 
-// writeAccountList prints ECDSA and PQ accounts in one table. NAME and
+// writeAccountListTo prints ECDSA and PQ accounts in one table. NAME and
 // ADDRESS keep the widths store.DescribeLocalAccounts uses; SCHEME is the
 // last column so parsers of the old two-column output keep working.
 // The ECDSA rows are printed before pq-keys is read, so an unreadable
 // pq-keys folder still shows them; its error is returned afterwards.
-func writeAccountList(w io.Writer) error {
+// A post-quantum wallet that cannot be read is reported on errW, one warning
+// line per wallet, and does not change the table.
+func writeAccountListTo(w, errW io.Writer) error {
 	writeRow := func(name, address, scheme string) error {
 		_, err := fmt.Fprintf(w, "%-48s\t%s\t%s\n", name, address, scheme)
 		return err
@@ -259,9 +286,15 @@ func writeAccountList(w io.Writer) error {
 			}
 		}
 	}
-	pqAccts, err := store.PQAccounts()
+	pqAccts, unreadable, err := store.ScanPQAccounts()
 	if err != nil {
 		return fmt.Errorf("list post-quantum accounts: %w", err)
+	}
+	for _, u := range unreadable {
+		// Name and reason only: the error never carries key material.
+		if _, err := fmt.Fprintf(errW, "Warning: skipping unreadable post-quantum wallet %q: %v\n", u.Name, u.Err); err != nil {
+			return err
+		}
 	}
 	for _, a := range pqAccts {
 		if err := writeRow(a.Name, a.Address, a.Scheme.String()); err != nil {
@@ -340,7 +373,13 @@ func refusePQPrivateKeyExport(addr string) error {
 // Windows), like RemovePQAccount, so the collision check below cannot be
 // bypassed by typing a name in a different case.
 func ecdsaNamePresent(name string) (bool, error) {
-	_, err := os.Lstat(filepath.Join(store.DefaultLocation(), name))
+	loc := store.DefaultLocation()
+	if loc == "" {
+		// An unresolved config directory would make the path relative to the
+		// current directory.
+		return false, errNoKeystoreDir
+	}
+	_, err := os.Lstat(filepath.Join(loc, name))
 	switch {
 	case err == nil:
 		return true, nil

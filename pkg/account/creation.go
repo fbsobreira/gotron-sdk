@@ -33,6 +33,11 @@ func IsValidPassphrase(pass string) bool {
 
 // CreateNewLocalAccount creates a new account in the local keystore from the given Creation params.
 func CreateNewLocalAccount(candidate *Creation) error {
+	// Without a resolvable keystore folder every valid name counts as taken;
+	// report the real cause instead of "already exists".
+	if store.DefaultLocation() == "" {
+		return errNoConfigDir
+	}
 	// Validate first: the name becomes a folder under account-keys.
 	if err := store.ValidateAccountName(candidate.Name); err != nil {
 		return err
@@ -49,6 +54,9 @@ func CreateNewLocalAccount(candidate *Creation) error {
 		}
 	}
 	ks := store.FromAccountName(candidate.Name)
+	if ks == nil {
+		return fmt.Errorf("open keystore for %s: %w", candidate.Name, errNoConfigDir)
+	}
 	defer ks.Close()
 	if candidate.Mnemonic == "" {
 		m, err := mnemonic.Generate()
