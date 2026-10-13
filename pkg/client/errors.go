@@ -25,5 +25,5 @@ var (
 	ErrNoStoredPermissions = errors.New("account has no stored owner or active permission")
 	// ErrNoSigningPermission is returned by SigningPermission when no
 	// permission with the requested id can sign a transaction.
-	ErrNoSigningPermission = errors.New("no permission with that id can sign a transaction")
+	ErrNoSigningPermission = errors.New("cannot sign a transaction")
 )

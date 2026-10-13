@@ -741,7 +741,7 @@ func PermissionAllows(perm *core.Permission, ct core.Transaction_Contract_Contra
 // Threshold, and the contract type with PermissionAllows.
 func SigningPermission(acc *core.Account, permissionID int32) (*core.Permission, error)
 
-var ErrNoSigningPermission = errors.New("no permission with that id can sign a transaction")
+var ErrNoSigningPermission = errors.New("cannot sign a transaction")
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/keystore`

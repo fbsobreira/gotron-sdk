@@ -38,7 +38,7 @@ func SigningPermission(acc *core.Account, permissionID int32) (*core.Permission,
 			Keys:           []*core.Key{{Address: bytes.Clone(addr), Weight: 1}},
 		}, nil
 	case permissionID == 1:
-		return nil, fmt.Errorf("signing permission: id 1: the witness permission cannot sign a transaction: %w", ErrNoSigningPermission)
+		return nil, fmt.Errorf("signing permission: id 1: witness permission: %w", ErrNoSigningPermission)
 	}
 	for _, ap := range acc.GetActivePermission() {
 		if ap.GetId() != permissionID {
