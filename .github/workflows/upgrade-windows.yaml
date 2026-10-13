@@ -38,6 +38,9 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v6
+        with:
+          # The tests run dependency code and nothing here pushes.
+          persist-credentials: false
 
       - name: Set up Go
         uses: actions/setup-go@v6
