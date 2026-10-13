@@ -43,11 +43,13 @@ func TestPermissionOperations_MakePermissionRoundTrip(t *testing.T) {
 	}
 }
 
-// TestPermissionOperations_NileDefaultActive decodes the default active
-// operations bitmap Nile reports (getActiveDefaultOperations) and checks that
-// makePermission re-encodes it byte for byte.
+// TestPermissionOperations_NileDefaultActive decodes the active operations
+// bitmap Nile stores on a newly created account (java-tron's
+// ACTIVE_DEFAULT_OPERATIONS, read from accounts created on Nile on 2026-10-13;
+// no API exposes it) and checks that makePermission re-encodes it byte for
+// byte.
 func TestPermissionOperations_NileDefaultActive(t *testing.T) {
-	prefix, err := hex.DecodeString("7fff1fc0033efb07")
+	prefix, err := hex.DecodeString("7fff1fc0033efb0f")
 	require.NoError(t, err)
 	bitmap := make([]byte, 32)
 	copy(bitmap, prefix)
@@ -55,7 +57,7 @@ func TestPermissionOperations_NileDefaultActive(t *testing.T) {
 	ops, err := PermissionOperations(bitmap)
 	require.NoError(t, err)
 
-	for _, bit := range []int32{20, 32, 51} {
+	for _, bit := range []int32{20, 32, 51, 59} {
 		name, ok := core.Transaction_Contract_ContractType_name[bit]
 		require.True(t, ok, "bit %d has no contract type name", bit)
 		assert.True(t, ops[name], "bit %d (%s) must be decoded", bit, name)

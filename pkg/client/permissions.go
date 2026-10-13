@@ -51,6 +51,29 @@ func PermissionOperations(bitmap []byte) (map[string]bool, error) {
 	return ops, nil
 }
 
+// PermissionAllows reports whether perm may sign a contract of type ct: an
+// Owner permission always, an Active one when bit ct of its 32-byte operations
+// is set, anything else never. Unlike PermissionOperations, bits this SDK
+// cannot name do not matter. Get perm from SigningPermission.
+func PermissionAllows(perm *core.Permission, ct core.Transaction_Contract_ContractType) bool {
+	if perm == nil || ct < 0 || int(ct) >= permissionOperationsLen*8 {
+		return false
+	}
+	switch perm.GetType() {
+	case core.Permission_Owner:
+		return true
+	case core.Permission_Active:
+		ops := perm.GetOperations()
+		if len(ops) != permissionOperationsLen {
+			return false
+		}
+		n := int(ct)
+		return ops[n/8]&(1<<(n%8)) != 0
+	default:
+		return false
+	}
+}
+
 // PermissionUpdateMaps reads acc's current permissions into the maps
 // UpdateAccountPermissionCtx takes, so a caller can add or change a key and
 // pass them back without losing a key, a weight, a threshold or an operation.
@@ -60,15 +83,10 @@ func PermissionOperations(bitmap []byte) (map[string]bool, error) {
 // actives follow acc's order, which keeps their permission ids (2, 3, ...) on
 // re-submit. Keys are Base58 addresses mapped to int64 weights.
 //
-// An account with no stored owner permission, or no active permission, gives
-// an error wrapping ErrNoStoredPermissions. getaccount reports such accounts
-// when they were created before multi-sign and never updated: the node applies
-// implicit defaults to them, which cannot be read back. Build the update
-// yourself: owner threshold 1 with the account address at weight 1, and one
-// active permission named "active" (id 2, threshold 1, the same key) with the
-// chain's default active operations (chain parameter
-// getActiveDefaultOperations). A DefaultPermissionUpdateMaps helper is
-// planned.
+// An account that has never had permissions stored (created before
+// multi-sign, at genesis, or by a contract, and never updated) gives
+// ErrNoStoredPermissions. Build its update by hand: no API exposes the
+// network's default active operations.
 //
 // It returns an error, naming the permission ("owner", "witness",
 // "active[1]"), when acc is nil, a key address is

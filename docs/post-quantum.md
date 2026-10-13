@@ -641,6 +641,16 @@ if err := txcore.CheckPQSchemes(ctx, conn, tx); err != nil {
 result, err := conn.BroadcastCtx(ctx, tx)
 ```
 
+A server that asks for approval before it signs can run the same check first: pass the scheme it is about to sign
+with as `pending`, so nobody approves a transaction the node will refuse. The error is the same before and after
+signing.
+
+```go
+if err := txcore.CheckPQSchemes(ctx, conn, tx, key.Scheme()); err != nil {
+	return err // txcore.ErrPQSchemeDisabled, before any approval prompt
+}
+```
+
 ### Hybrid and multi-signature
 
 Each signer adds its own signature to the same transaction, ECDSA and PQ in any order:
@@ -657,6 +667,37 @@ twice returns `signer.ErrPQAlreadySigned`. `keystore.CheckSignatureRoom(tx)` che
 not verify them (the node does). When the
 transaction is signed under an active permission, build it with that permission's id (see
 [Multi-signature in general](#multi-signature-in-general)).
+
+To check before signing whether a key may sign a transaction at all, follow the node's rules:
+
+```go
+owner, permID, contractType, err := transaction.OwnerAndPermission(tx) // what the node checks
+if err != nil {
+	return err
+}
+acc, err := conn.GetAccountCtx(ctx, owner.String()) // client.ErrAccountNotFound if it does not exist
+if err != nil {
+	return err
+}
+if !bytes.Equal(acc.GetAddress(), owner) { // needed when acc comes from a cache
+	return fmt.Errorf("account %s is not the transaction's owner", owner)
+}
+perm, err := client.SigningPermission(acc, permID) // client.ErrNoSigningPermission for id 1 or a missing id
+if err != nil {
+	return err
+}
+if !client.PermissionAllows(perm, contractType) {
+	return fmt.Errorf("permission %d may not sign %s", permID, contractType)
+}
+```
+
+Then check what the node checks on the signatures themselves: the signing keys are in `perm.GetKeys()` and their
+weights reach `perm.GetThreshold()`, there are no more PQ signatures than keys, no address signs twice (ECDSA and
+PQ together), and the transaction carries at most `keystore.MaxTotalSignatures` signatures.
+
+`SigningPermission` returns the implicit owner permission (the account's own address, threshold 1) for id 0 when
+none is stored, and never invents an active permission: the node synthesizes one only for an account that does
+not exist.
 
 ### Transaction JSON hand-off
 
@@ -746,10 +787,12 @@ Notes:
   contract-type name in this SDK, an active whose id is out of order, and an active with an empty bitmap, because
   passing those back would change the account.
 - `client.ErrNoStoredPermissions` (match it with `errors.Is`) means `getaccount` returned no owner or no active
-  permission: the account was created before multi-sign and never updated, and the node applies implicit
-  defaults that cannot be read back. Build the maps yourself: owner threshold 1 with the account address at
-  weight 1, and one active named `active` (id 2, threshold 1, the same key) with the chain's default active
-  operations (chain parameter `getActiveDefaultOperations`).
+  permission. Accounts created since multi-sign store a default owner and active permission when they are
+  created, so this is an account that never had permissions stored (created before multi-sign, at genesis, or by
+  a contract) and was never updated: it signs only with its implicit owner permission. Build the maps yourself:
+  owner threshold 1 with the account address at weight 1, and at least one active permission with the operations
+  you want. No API exposes the network's default active
+  operations, and proposals change them, so copy them from an account created recently on the same network.
 - Custom owner and witness permission names are not kept: `UpdateAccountPermission` always writes `owner` and
   `witness`. Everything else (keys, weights, thresholds, active names and operations) is.
 - `pq-migrate` adds the checks a real tool needs: it refuses witness accounts, falls back to the default
@@ -767,9 +810,10 @@ Notes:
 | Key types, address, parse, Toolkit JSON and wallet-cli keystore import/export | `pkg/pqc` (`ParseScheme`, `GenerateKey`, `ParsePrivateKey`, `PublicKey.Address`, `MarshalToolkitJSON` / `ParseToolkitJSON`, `EncryptKeystore` / `DecryptKeystore`) |
 | Sign a transaction | `signer.NewPQSigner(key)` (implements `signer.Signer`), or `signer.SignTransactionPQ` / `transaction.SignTransactionPQ` |
 | Ask the node which schemes are enabled | `client.GetPQCapabilities`, `PQSchemeAllowed` / `PQSchemeAllowedCtx`. A successful answer is cached on the client for `client.DefaultPQCapabilitiesTTL` (1 minute); errors are not cached. `SetPQCapabilitiesTTL` changes the TTL (0 or less disables caching), `InvalidatePQCapabilities` forces the next call to ask the node, and `Start`, `Stop` and `Reconnect` invalidate it |
-| Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask. For a transaction signed elsewhere, call `txcore.CheckPQSchemes(ctx, conn, tx)` before broadcasting |
+| Refuse early when a scheme is off | `txcore.Send` (and `txbuilder`/`contract` `Send`) checks before signing when the signer is a `txcore.PQSchemeSigner` and the client a `txcore.PQProber`, which `*client.GrpcClient` is; returns `txcore.ErrPQSchemeDisabled`. A wrapper around the client must forward `PQSchemeAllowedCtx` to keep the check; without it the node still rejects at broadcast. `transaction.Controller` with `transaction.WithSigner` also checks, including on a dry run, and fails when it has no client to ask. For a transaction signed elsewhere, call `txcore.CheckPQSchemes(ctx, conn, tx)` before broadcasting; before signing, pass the scheme you are about to use: `txcore.CheckPQSchemes(ctx, conn, tx, scheme)` |
 | See who has PQ-signed a transaction | `signer.PQSignatures(tx)` (scheme and address per entry; does not verify) |
-| Add a key to an account without dropping its operations | `client.PermissionUpdateMaps(acc)` reads every permission into the maps `UpdateAccountPermissionCtx` takes; `client.PermissionOperations` decodes one bitmap. Custom owner and witness names are not kept (`UpdateAccountPermission` always writes `owner` and `witness`); everything else is. An account with no stored owner or active permission gives `client.ErrNoStoredPermissions`: build its update from the defaults (see the migration notes) |
+| Check a key may sign, before signing | `transaction.OwnerAndPermission(tx)` (the account and permission id the node checks), `client.SigningPermission(acc, id)` (java-tron's rules, including the implicit owner), `client.PermissionAllows(perm, contractType)` (one operation bit) |
+| Add a key to an account without dropping its operations | `client.PermissionUpdateMaps(acc)` reads every permission into the maps `UpdateAccountPermissionCtx` takes; `client.PermissionOperations` decodes one bitmap. Custom owner and witness names are not kept (`UpdateAccountPermission` always writes `owner` and `witness`); everything else is. An account with no stored owner or active permission (created before multi-sign, at genesis or by a contract, and never updated) gives `client.ErrNoStoredPermissions`: build its update yourself (see the migration notes) |
 | Signature limit (ECDSA and PQ together) | `keystore.MaxTotalSignatures` (5), `keystore.ErrTooManySignatures` (also `signer.ErrTooManySignatures`), `keystore.CheckSignatureRoom` |
 | Transaction JSON with `pq_auth_sig` | `transaction.ToJSON` / `FromJSON` |
 | Bandwidth estimate for PQ | `transaction.EstimateBandwidth(tx, pending...)` (pending PQ signatures counted at their largest size), `pqc.MaxAuthSigSize`; for delegation, `client.GetCanDelegatedMaxSizePQ` |

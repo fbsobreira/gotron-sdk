@@ -130,6 +130,9 @@ var (
 	// ErrNoConfigDir is wrapped by every error caused by a config folder that
 	// cannot be resolved: a relative config dir with no home directory.
 	ErrNoConfigDir = errors.New("the keystore folder cannot be resolved (is $HOME set?)")
+	// ErrKeystoreNotFound is wrapped by UnlockedKeystore when the address has no
+	// ECDSA keystore in the local store.
+	ErrKeystoreNotFound = errors.New("account not found in the local keystore")
 	// ErrNoUnlockBadPassphrase is returned when an account cannot be unlocked with the given passphrase.
 	ErrNoUnlockBadPassphrase = fmt.Errorf("could not unlock account with passphrase, perhaps need different phrase")
 )
@@ -286,6 +289,15 @@ func (s *Store) SetDefaultLocation(directory string) {
 	ensureDir(dir)
 }
 
+// findError reports a failed keystore lookup. It wraps ErrKeystoreNotFound
+// only when no key matches, not when several do (keystore.AmbiguousAddrError).
+func findError(from string, err error) error {
+	if errors.Is(err, keystore.ErrNoMatch) {
+		return fmt.Errorf("could not find %s in keystore: %w: %w", from, err, ErrKeystoreNotFound)
+	}
+	return fmt.Errorf("could not find %s in keystore: %w", from, err)
+}
+
 // UnlockedKeystore finds, unlocks, and returns the keystore and account for the given Base58 address.
 func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Account, error) {
 	sender, err := address.Base58ToAddress(from)
@@ -297,13 +309,13 @@ func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *
 	}
 	ks := s.FromAddress(from)
 	if ks == nil {
-		return nil, nil, fmt.Errorf("could not open local keystore for %s", from)
+		return nil, nil, fmt.Errorf("could not open local keystore for %s: %w", from, ErrKeystoreNotFound)
 	}
 	account, lookupErr := ks.Find(keystore.Account{Address: sender})
 	if lookupErr != nil {
 		ks.Close()
 		s.Forget(ks)
-		return nil, nil, fmt.Errorf("could not find %s in keystore", from)
+		return nil, nil, findError(from, lookupErr)
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
 		ks.Close()
@@ -513,12 +525,12 @@ func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Ac
 	}
 	ks := FromAddress(from)
 	if ks == nil {
-		return nil, nil, fmt.Errorf("could not open local keystore for %s", from)
+		return nil, nil, fmt.Errorf("could not open local keystore for %s: %w", from, ErrKeystoreNotFound)
 	}
 	account, lookupErr := ks.Find(keystore.Account{Address: sender})
 	if lookupErr != nil {
 		ks.Close()
-		return nil, nil, fmt.Errorf("could not find %s in keystore", from)
+		return nil, nil, findError(from, lookupErr)
 	}
 	if unlockError := ks.Unlock(account, passphrase); unlockError != nil {
 		ks.Close()

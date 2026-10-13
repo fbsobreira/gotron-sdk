@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/fbsobreira/gotron-sdk/pkg/common"
+	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/core"
 	"github.com/fbsobreira/gotron-sdk/pkg/signer"
@@ -134,25 +135,31 @@ func probePQScheme(ctx context.Context, p PQProber, scheme core.PQScheme) error 
 	return nil
 }
 
-// CheckPQSchemes asks p whether every TIP-899 post-quantum scheme used by the
-// signatures in tx.PqAuthSig is enabled on the node. Each distinct scheme is
-// asked once, in the order it first appears. Call it before broadcasting a
-// transaction signed outside Send (for example with signer.SignTransactionPQ)
-// to fail early: if a scheme is disabled it returns an error wrapping
-// ErrPQSchemeDisabled, where the node would only refuse the broadcast.
-//
-// A transaction with no post-quantum signatures needs no probe, so it returns
-// nil without calling p, even when p is nil. A nil tx, or a nil p when a probe
-// is needed, is an error. A cancelled ctx stops it before the next probe.
+// CheckPQSchemes asks p whether each distinct post-quantum scheme on
+// tx.PqAuthSig, then each pending scheme, is enabled on the node, and returns
+// an error wrapping ErrPQSchemeDisabled for one that is not. Before signing,
+// pass the scheme you will sign with as pending; after signing outside Send,
+// call it before BroadcastCtx. A pending scheme this SDK does not know wraps
+// pqc.ErrUnsupportedScheme. With nothing to probe, p may be nil.
 //
 // Experimental: TIP-899 is a draft and is live only on the Nile testnet.
-func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction) error {
+func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction, pending ...core.PQScheme) error {
 	if tx == nil {
 		return fmt.Errorf("checking post-quantum capability: nil transaction")
 	}
-	seen := make(map[core.PQScheme]bool)
+	for i, scheme := range pending {
+		if _, err := pqc.MaxAuthSigSize(scheme); err != nil {
+			return fmt.Errorf("checking post-quantum capability: pending[%d]: %w", i, err)
+		}
+	}
+	schemes := make([]core.PQScheme, 0, len(tx.GetPqAuthSig())+len(pending))
 	for _, sig := range tx.GetPqAuthSig() {
-		scheme := sig.GetScheme()
+		schemes = append(schemes, sig.GetScheme())
+	}
+	schemes = append(schemes, pending...)
+
+	seen := make(map[core.PQScheme]bool)
+	for _, scheme := range schemes {
 		if seen[scheme] {
 			continue
 		}

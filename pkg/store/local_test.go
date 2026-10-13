@@ -271,6 +271,8 @@ func TestUnlockedKeystore(t *testing.T) {
 		ks, acct, err := store.UnlockedKeystore("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8", "password")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "could not open local keystore")
+		assert.ErrorIs(t, err, store.ErrKeystoreNotFound)
+		assert.NotErrorIs(t, err, store.ErrNoUnlockBadPassphrase)
 		assert.Nil(t, ks)
 		assert.Nil(t, acct)
 	})
@@ -405,6 +407,7 @@ func TestUnlockedKeystore_WithRealKey(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, store.ErrNoUnlockBadPassphrase)
 		assert.ErrorIs(t, err, keystore.ErrDecrypt, "the cause must stay matchable, not only its text")
+		assert.NotErrorIs(t, err, store.ErrKeystoreNotFound, "a wrong passphrase is not a missing account")
 		assert.Nil(t, resultKs)
 		assert.Nil(t, resultAcct)
 		store.CloseAll()
@@ -418,6 +421,47 @@ func TestUnlockedKeystore_WithRealKey(t *testing.T) {
 		assert.Equal(t, addrStr, resultAcct.Address.String())
 		resultKs.Close()
 		store.CloseAll()
+	})
+}
+
+// A keystore folder holding two key files for one address is ambiguous, not
+// missing: the error keeps keystore.AmbiguousAddrError and does not wrap
+// ErrKeystoreNotFound.
+func TestUnlockedKeystore_AmbiguousAddressIsNotNotFound(t *testing.T) {
+	// dupAccount creates an account folder under dir holding two key files
+	// for the same address, and returns the address.
+	dupAccount := func(t *testing.T, dir string) string {
+		t.Helper()
+		acctPath := path.Join(dir, "dup")
+		require.NoError(t, os.MkdirAll(acctPath, 0700))
+		ks := keystore.NewKeyStore(acctPath, keystore.LightScryptN, keystore.LightScryptP)
+		acct, err := ks.NewAccount("pass")
+		require.NoError(t, err)
+		ks.Close()
+		keyJSON, err := os.ReadFile(acct.URL.Path)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(path.Join(acctPath, "copy.json"), keyJSON, 0600))
+		return acct.Address.String()
+	}
+	check := func(t *testing.T, err error) {
+		t.Helper()
+		require.Error(t, err)
+		var ambiguous *keystore.AmbiguousAddrError
+		assert.ErrorAs(t, err, &ambiguous)
+		assert.NotErrorIs(t, err, store.ErrKeystoreNotFound)
+	}
+
+	t.Run("package-level", func(t *testing.T) {
+		addr := dupAccount(t, withTempLocation(t))
+		t.Cleanup(store.CloseAll)
+		_, _, err := store.UnlockedKeystore(addr, "pass")
+		check(t, err)
+	})
+	t.Run("Store method", func(t *testing.T) {
+		s := newTempStore(t)
+		addr := dupAccount(t, s.DefaultLocation())
+		_, _, err := s.UnlockedKeystore(addr, "pass")
+		check(t, err)
 	})
 }
 
@@ -498,12 +542,11 @@ func TestFromAddress_NoGoroutineLeak(t *testing.T) {
 	ks := store.FromAddress("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8")
 	assert.Nil(t, ks)
 
-	// Allow goroutines to wind down
-	time.Sleep(100 * time.Millisecond)
-
-	after := runtime.NumGoroutine()
-	assert.LessOrEqual(t, after, baseline+2,
-		"goroutine count should return near baseline after FromAddress calls (baseline=%d, after=%d)", baseline, after)
+	// Closed keystores stop their goroutines asynchronously; under load that
+	// can take well over 100ms, so wait for the count rather than sleeping.
+	assert.Eventually(t, func() bool { return runtime.NumGoroutine() <= baseline+2 },
+		5*time.Second, 20*time.Millisecond,
+		"goroutine count should return near baseline after FromAddress calls (baseline=%d)", baseline)
 }
 
 // --- Tests for Store struct methods ---
@@ -685,6 +728,13 @@ func TestStore_UnlockedKeystore(t *testing.T) {
 	_, _, err := s.UnlockedKeystore("bad-addr", "pass")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "address not valid")
+	assert.NotErrorIs(t, err, store.ErrKeystoreNotFound)
+
+	// Valid address with no keystore in the store
+	_, _, err = s.UnlockedKeystore("TJRabPrwbZy45sbavfcjinPJC18kjpRTv8", "pass")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "could not open local keystore")
+	assert.ErrorIs(t, err, store.ErrKeystoreNotFound)
 
 	// Create account
 	acctPath := path.Join(loc, "unlock")
@@ -703,6 +753,7 @@ func TestStore_UnlockedKeystore(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, store.ErrNoUnlockBadPassphrase)
 	assert.ErrorIs(t, err, keystore.ErrDecrypt, "the cause must stay matchable, not only its text")
+	assert.NotErrorIs(t, err, store.ErrKeystoreNotFound, "a wrong passphrase is not a missing account")
 	assert.Nil(t, rKs)
 	assert.Nil(t, rAcct)
 	s.CloseAll()

@@ -19,14 +19,11 @@ var (
 	ErrInsufficientFee = errors.New("fee limit must be greater than zero")
 	// ErrNoSigner is returned when a signing operation has no signer address.
 	ErrNoSigner = errors.New("signer address required")
-	// ErrNoStoredPermissions is returned by PermissionUpdateMaps when the account
-	// has no stored owner permission or no active permission, as getaccount
-	// reports for accounts never updated since multi-sign was enabled. The node
-	// applies implicit defaults to such an account, so there is nothing to read
-	// back; build the update yourself instead: an owner with threshold 1 and the
-	// account address at weight 1, and one active permission named "active"
-	// (id 2, threshold 1, the same key) with the chain's default active
-	// operations (chain parameter getActiveDefaultOperations). A
-	// DefaultPermissionUpdateMaps helper is planned.
+	// ErrNoStoredPermissions is returned by PermissionUpdateMaps for an account
+	// that has never had permissions stored (created before multi-sign, at
+	// genesis, or by a contract, and never updated).
 	ErrNoStoredPermissions = errors.New("account has no stored owner or active permission")
+	// ErrNoSigningPermission is returned by SigningPermission when no
+	// permission with the requested id can sign a transaction.
+	ErrNoSigningPermission = errors.New("cannot sign a transaction")
 )
