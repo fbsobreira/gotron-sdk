@@ -3,7 +3,7 @@
 *.exe~
 *.dll
 *.so
-tronctl
+/tronctl
 tronctl-docs
 bin/
 dist/
