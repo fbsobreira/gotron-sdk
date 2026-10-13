@@ -795,8 +795,9 @@ Notes:
   operations, and proposals change them, so copy them from an account created recently on the same network.
 - Custom owner and witness permission names are not kept: `UpdateAccountPermission` always writes `owner` and
   `witness`. Everything else (keys, weights, thresholds, active names and operations) is.
-- `pq-migrate` adds the checks a real tool needs: it refuses witness accounts, falls back to the default
-  operations when the account has none, and prints the new permissions in a dry run before it broadcasts.
+- `pq-migrate` adds the checks a real tool needs: it refuses witness accounts, refuses an account with no stored
+  permissions unless you pass its active operations with `-operations <hex bitmap>`, and prints the new
+  permissions in a dry run before it broadcasts.
 - The caveats in [Path 1](#path-1-recommended-in-place-permission-replacement) apply, in particular: the update is
   still ECDSA-signed, and a wrong threshold can lock the account. Check the result with `GetAccountCtx` and send a
   small PQ-signed transfer before moving to a hybrid or PQ-only layout. The scheme must be enabled on the node
