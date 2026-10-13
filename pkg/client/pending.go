@@ -34,7 +34,11 @@ func (g *GrpcClient) GetTransactionFromPendingCtx(ctx context.Context, id string
 		return nil, fmt.Errorf("get transaction from pending error: %w", err)
 	}
 
-	tx, err := g.Client.GetTransactionFromPending(ctx, msg)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.GetTransactionFromPending(ctx, msg)
 	if err != nil {
 		return nil, err
 	}
@@ -54,7 +58,11 @@ func (g *GrpcClient) GetTransactionListFromPending() (*api.TransactionIdList, er
 // GetTransactionListFromPendingCtx is the context-aware version of GetTransactionListFromPending.
 func (g *GrpcClient) GetTransactionListFromPendingCtx(ctx context.Context) (*api.TransactionIdList, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.GetTransactionListFromPending(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetTransactionListFromPending(ctx, new(api.EmptyMessage))
 }
 
 // GetPendingSize returns the number of transactions in the pending pool.
@@ -67,7 +75,11 @@ func (g *GrpcClient) GetPendingSize() (*api.NumberMessage, error) {
 // GetPendingSizeCtx is the context-aware version of GetPendingSize.
 func (g *GrpcClient) GetPendingSizeCtx(ctx context.Context) (*api.NumberMessage, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.GetPendingSize(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetPendingSize(ctx, new(api.EmptyMessage))
 }
 
 // IsTransactionPending checks whether a transaction is in the pending pool.

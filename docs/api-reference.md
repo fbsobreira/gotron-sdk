@@ -43,6 +43,10 @@ func (g *GrpcClient) Stop()
 func (g *GrpcClient) SetAPIKey(apiKey string) error
 ```
 
+RPC methods called before `Start`, after `Stop`, or on a nil `*GrpcClient` return `client.ErrNotConnected`
+instead of panicking. `Stop` may be called while RPCs are in flight; `Start` and `Reconnect` must not run
+concurrently with RPC methods.
+
 ##### Account Methods
 
 ```go

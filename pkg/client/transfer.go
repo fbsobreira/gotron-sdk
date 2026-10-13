@@ -29,7 +29,11 @@ func (g *GrpcClient) TransferCtx(ctx context.Context, from, toAddress string, am
 	}
 	contract.Amount = amount
 
-	tx, err := g.Client.CreateTransaction2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.CreateTransaction2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

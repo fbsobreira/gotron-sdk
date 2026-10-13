@@ -18,7 +18,11 @@ func (g *GrpcClient) ProposalsList() (*api.ProposalList, error) {
 // ProposalsListCtx is the context-aware version of ProposalsList.
 func (g *GrpcClient) ProposalsListCtx(ctx context.Context) (*api.ProposalList, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.ListProposals(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.ListProposals(ctx, new(api.EmptyMessage))
 }
 
 // ProposalCreate create proposal based on parameter list
@@ -41,7 +45,11 @@ func (g *GrpcClient) ProposalCreateCtx(ctx context.Context, from string, paramet
 		return nil, err
 	}
 
-	tx, err := g.Client.ProposalCreate(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ProposalCreate(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +80,11 @@ func (g *GrpcClient) ProposalApproveCtx(ctx context.Context, from string, id int
 		return nil, err
 	}
 
-	tx, err := g.Client.ProposalApprove(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ProposalApprove(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +114,11 @@ func (g *GrpcClient) ProposalWithdrawCtx(ctx context.Context, from string, id in
 		return nil, err
 	}
 
-	tx, err := g.Client.ProposalDelete(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.ProposalDelete(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

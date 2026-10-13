@@ -18,7 +18,11 @@ func (g *GrpcClient) GetTransactionSignWeight(tx *core.Transaction) (*api.Transa
 func (g *GrpcClient) GetTransactionSignWeightCtx(ctx context.Context, tx *core.Transaction) (*api.TransactionSignWeight, error) {
 	ctx = g.withAPIKey(ctx)
 
-	result, err := g.Client.GetTransactionSignWeight(ctx, tx)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	result, err := w.GetTransactionSignWeight(ctx, tx)
 	if err != nil {
 		return nil, err
 	}

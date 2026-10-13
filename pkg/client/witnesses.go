@@ -18,7 +18,11 @@ func (g *GrpcClient) ListWitnesses() (*api.WitnessList, error) {
 // ListWitnessesCtx is the context-aware version of ListWitnesses.
 func (g *GrpcClient) ListWitnessesCtx(ctx context.Context) (*api.WitnessList, error) {
 	ctx = g.withAPIKey(ctx)
-	return g.Client.ListWitnesses(ctx, new(api.EmptyMessage))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.ListWitnesses(ctx, new(api.EmptyMessage))
 }
 
 // ListWitnessesPaginated returns a paginated list of current witnesses
@@ -36,7 +40,11 @@ func (g *GrpcClient) ListWitnessesPaginatedCtx(ctx context.Context, page int64, 
 	if len(limit) == 1 {
 		useLimit = int64(limit[0])
 	}
-	return g.Client.GetPaginatedNowWitnessList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetPaginatedNowWitnessList(ctx, GetPaginatedMessage(page*useLimit, useLimit))
 }
 
 // CreateWitness upgrade account to network witness
@@ -59,7 +67,11 @@ func (g *GrpcClient) CreateWitnessCtx(ctx context.Context, from, urlStr string) 
 		return nil, err
 	}
 
-	tx, err := g.Client.CreateWitness2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.CreateWitness2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +100,11 @@ func (g *GrpcClient) UpdateWitnessCtx(ctx context.Context, from, urlStr string) 
 	}
 	contract.UpdateUrl = []byte(urlStr)
 
-	tx, err := g.Client.UpdateWitness2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateWitness2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +147,11 @@ func (g *GrpcClient) VoteWitnessAccountCtx(ctx context.Context, from string,
 		}
 	}
 
-	tx, err := g.Client.VoteWitnessAccount2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.VoteWitnessAccount2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +177,11 @@ func (g *GrpcClient) GetWitnessBrokerageCtx(ctx context.Context, witness string)
 		return 0, err
 	}
 
-	result, err := g.Client.GetBrokerageInfo(ctx, GetMessageBytes(addr))
+	w, err := g.wallet()
+	if err != nil {
+		return 0, err
+	}
+	result, err := w.GetBrokerageInfo(ctx, GetMessageBytes(addr))
 	if err != nil {
 		return 0, err
 	}
@@ -184,7 +208,11 @@ func (g *GrpcClient) UpdateBrokerageCtx(ctx context.Context, from string, commis
 		return nil, err
 	}
 
-	tx, err := g.Client.UpdateBrokerage(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateBrokerage(ctx, contract)
 	if err != nil {
 		return nil, err
 	}

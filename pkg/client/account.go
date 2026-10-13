@@ -40,7 +40,11 @@ func (g *GrpcClient) GetAccountCtx(ctx context.Context, addr string) (*core.Acco
 		return nil, err
 	}
 
-	acc, err := g.Client.GetAccount(ctx, account)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	acc, err := w.GetAccount(ctx, account)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +74,11 @@ func (g *GrpcClient) GetRewardsInfoCtx(ctx context.Context, addr string) (int64,
 		return 0, err
 	}
 
-	rewards, err := g.Client.GetRewardInfo(ctx, GetMessageBytes(addrBytes))
+	w, err := g.wallet()
+	if err != nil {
+		return 0, err
+	}
+	rewards, err := w.GetRewardInfo(ctx, GetMessageBytes(addrBytes))
 	if err != nil {
 		return 0, err
 	}
@@ -95,7 +103,11 @@ func (g *GrpcClient) GetAccountNetCtx(ctx context.Context, addr string) (*api.Ac
 		return nil, err
 	}
 
-	return g.Client.GetAccountNet(ctx, account)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	return w.GetAccountNet(ctx, account)
 }
 
 // CreateAccount activate tron account
@@ -118,7 +130,11 @@ func (g *GrpcClient) CreateAccountCtx(ctx context.Context, from, addr string) (*
 		return nil, err
 	}
 
-	tx, err := g.Client.CreateAccount2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.CreateAccount2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +161,11 @@ func (g *GrpcClient) UpdateAccountCtx(ctx context.Context, from, accountName str
 		return nil, err
 	}
 
-	tx, err := g.Client.UpdateAccount2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.UpdateAccount2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -362,7 +382,11 @@ func (g *GrpcClient) WithdrawBalanceCtx(ctx context.Context, from string) (*api.
 		return nil, err
 	}
 
-	tx, err := g.Client.WithdrawBalance2(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.WithdrawBalance2(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
@@ -552,7 +576,11 @@ func (g *GrpcClient) UpdateAccountPermissionCtx(ctx context.Context, from string
 		contract.Witness = witnessPermission
 	}
 
-	tx, err := g.Client.AccountPermissionUpdate(ctx, contract)
+	w, err := g.wallet()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := w.AccountPermissionUpdate(ctx, contract)
 	if err != nil {
 		return nil, err
 	}
