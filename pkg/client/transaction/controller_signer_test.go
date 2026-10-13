@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/fbsobreira/gotron-sdk/pkg/address"
+	"github.com/fbsobreira/gotron-sdk/pkg/client"
 	"github.com/fbsobreira/gotron-sdk/pkg/keystore"
 	"github.com/fbsobreira/gotron-sdk/pkg/pqc"
 	"github.com/fbsobreira/gotron-sdk/pkg/proto/api"
@@ -323,6 +324,7 @@ func TestExecuteTransaction_PQSignerNilClient(t *testing.T) {
 	err := ctrl.ExecuteTransaction()
 	require.Error(t, err)
 	assert.ErrorContains(t, err, "checking post-quantum capability")
+	assert.ErrorIs(t, err, client.ErrNotConnected)
 	assert.True(t, proto.Equal(before, ctrl.tx))
 }
 
