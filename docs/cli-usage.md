@@ -289,10 +289,18 @@ static liboqs):
 CGO_ENABLED=1 go build -tags falcon -o ./bin/tronctl ./cmd/tronctl
 ```
 
-The default release binaries (`tronctl_*` archives, Homebrew, the install script) are built without CGO: they can
+The default release binaries (`tronctl_*` archives, Homebrew, `install.sh`) are built without CGO: they can
 import, list and export FN-DSA-512 keys but cannot create or sign with them. Each release also ships
 `tronctl-pq_*` archives with FN-DSA-512 built in, for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and
-windows/amd64; see [tronctl builds with FN-DSA-512](post-quantum.md#tronctl-builds-with-fn-dsa-512).
+windows/amd64 (`install.sh --pq` installs one); see
+[tronctl builds with FN-DSA-512](post-quantum.md#tronctl-builds-with-fn-dsa-512).
+
+`tronctl upgrade` downloads the release archive for your platform, verifies it against the release's
+`checksums.txt` (SHA-256), checks that the new binary runs and reports the expected version, and then replaces the
+binary in place; any failure leaves the current binary untouched. A `tronctl-pq` build upgrades only to a
+`tronctl-pq` archive and stops with an error when the release has none for its platform. Homebrew builds are told to
+run `brew upgrade tronctl`, and binaries not built from a release (`go install` or `go build`) to run `go install`
+or download a release, instead.
 
 ## Blockchain Commands
 
