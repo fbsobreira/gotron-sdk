@@ -773,8 +773,8 @@ Every GoTRON release ships two sets of `tronctl` archives, both listed in the re
 
 | Archive | FN-DSA-512 keys | Platforms |
 |---|---|---|
-| `tronctl_<version>_<os>_<arch>` (also Homebrew, `go install` and the install script) | import, list, export. **Cannot create or sign** | linux, darwin, windows on amd64 and arm64 |
-| `tronctl-pq_<version>_<os>_<arch>` | create, import, list, export **and sign** | linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64 |
+| `tronctl_<version>_<os>_<arch>` (also Homebrew, `go install` and `install.sh`) | import, list, export. **Cannot create or sign** | linux, darwin, windows on amd64 and arm64 |
+| `tronctl-pq_<version>_<os>_<arch>` (`install.sh --pq`) | create, import, list, export **and sign** | linux/amd64, linux/arm64, darwin/amd64, darwin/arm64, windows/amd64 |
 
 ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN-DSA-512.
 
@@ -791,6 +791,12 @@ ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN
   notice in full.
 - Homebrew installs the default build. To use both, keep the `tronctl-pq` binary under its own name or put it
   earlier on your `PATH`.
+- `curl -fsSL https://gotron.sh/install | sh -s -- --pq` installs `tronctl-pq` (from v0.26.1) after checking the archive
+  against `checksums.txt`.
+- `tronctl upgrade` verifies the release archive against `checksums.txt`, checks that the new binary runs and
+  reports the expected version, and replaces the binary in place. A `tronctl-pq` build stays on `tronctl-pq`: it
+  never installs the default archive over itself, and stops with an error when the release has no `tronctl-pq`
+  archive for its platform (windows/arm64, or a release before v0.26.1).
 
 Download and verify an archive (here linux/amd64; use `shasum -a 256 -c` on macOS):
 

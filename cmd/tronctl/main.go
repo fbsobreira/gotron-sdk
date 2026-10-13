@@ -20,7 +20,11 @@ var (
 )
 
 func init() {
-	if version != "" {
+	// Record whether release ldflags set the version before the build-info
+	// fallback below fills it in: `tronctl upgrade` must not replace a
+	// `go install` binary, whose build info also carries a module version.
+	cmd.ReleaseBuild = version != ""
+	if cmd.ReleaseBuild {
 		return
 	}
 	info, ok := debug.ReadBuildInfo()

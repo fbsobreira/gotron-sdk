@@ -153,15 +153,16 @@ Local commits carry no ticket key (the hook rejects one before the type). The PR
    last run is missing, stale or red, start one with `gh workflow run tronctl-pq.yaml --ref master`
    and wait for it to pass (`gh run watch`).
 2. `git tag v0.X.Y && git push origin v0.X.Y`
-3. GitHub Actions runs tests → GoReleaser builds binaries → creates the GitHub Release → pushes the
-   Homebrew formula. In parallel, `.github/workflows/tronctl-pq.yaml` builds the `tronctl-pq_*`
+3. GitHub Actions runs tests, plus the `tronctl upgrade` tests on Windows (`upgrade-windows.yaml`,
+   which pull requests run only when the updater changes) → GoReleaser builds binaries → creates
+   the GitHub Release → pushes the Homebrew formula. In parallel, `.github/workflows/tronctl-pq.yaml` builds the `tronctl-pq_*`
    archives (FN-DSA-512: `-tags falcon`, static liboqs pinned in `scripts/build-liboqs.sh`) on
    native runners for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and windows/amd64; the
    release job downloads them to `dist-pq/` and GoReleaser attaches them and lists them in
    `checksums.txt`. Any failing target blocks the release. The default `tronctl_*` archives and
    Homebrew stay CGO-free. GoReleaser OSS has no `prebuilt` builder, so these archives are built
    outside GoReleaser.
-   If a `tronctl-pq` job fails on the tag, nothing is published (the release job never starts). Fix
+   If a `tronctl-pq` or `upgrade-windows` job fails on the tag, nothing is published (the release job never starts). Fix
    the cause on master, then delete and re-push the tag (`git push --delete origin v0.X.Y`,
    `git tag -d v0.X.Y`, tag the fixed commit and push again); if it was a flake, re-run the failed
    jobs instead (`gh run rerun <run-id> --failed`).
