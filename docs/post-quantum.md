@@ -821,7 +821,7 @@ ECDSA and ML-DSA-44 work the same in both. Pick `tronctl-pq` only if you need FN
 Download and verify an archive (here linux/amd64; use `shasum -a 256 -c` on macOS):
 
 ```bash
-VERSION=0.26.0   # the release tag without the leading v
+VERSION=0.27.0   # the release tag without the leading v
 ASSET=tronctl-pq_${VERSION}_linux_amd64.tar.gz
 BASE=https://github.com/fbsobreira/gotron-sdk/releases/download/v${VERSION}
 curl -fsSLO "$BASE/$ASSET"
