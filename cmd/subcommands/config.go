@@ -97,11 +97,31 @@ func init() {
 	RootCmd.AddCommand(cmdConfig)
 }
 
+// configErr is the error initConfig hit while locating or creating the config
+// folder. initConfig runs during package init and cannot return it, so
+// RootCmd.PersistentPreRunE returns it before any command runs.
+var configErr error
+
+// resolveConfigDir returns the tronctl config folder, $HOME/.config/tronctl.
+// It is the path tronctl has always used, even when HOME is unset: on Windows,
+// where HOME usually is unset, that is /.config/tronctl at the drive root, and
+// existing configs there must keep loading.
+func resolveConfigDir() string {
+	return os.Getenv("HOME") + "/.config/tronctl"
+}
+
+// initConfig loads the config file, writing the defaults when there is none.
+// If the config folder cannot be located or created it keeps the defaults in
+// memory, so flag registration still works, and records the error in
+// configErr.
 func initConfig() {
-	ConfigDir = os.Getenv("HOME") + "/.config/tronctl"
-	if err := os.MkdirAll(ConfigDir, 0700); err != nil {
-		panic(err.Error())
+	dir := resolveConfigDir()
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		configErr = fmt.Errorf("create the tronctl config folder %s (is $HOME set?): %w", dir, err)
+		config = &Config{Node: defaultNodeAddr, Timeout: defaultTimeout}
+		return
 	}
+	ConfigDir = dir
 	DefaultConfigFile = ConfigDir + "/config.default"
 	var err error
 	config, err = LoadConfig()

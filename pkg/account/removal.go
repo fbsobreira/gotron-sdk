@@ -13,8 +13,18 @@ import (
 // returns when the named account does not exist in the local store.
 var ErrAccountNotFound = errors.New("account not found")
 
+// errNoConfigDir is returned when the keystore folder cannot be resolved, for
+// example a relative config dir with no home directory. It is
+// store.ErrNoConfigDir, so callers can match it with errors.Is.
+var errNoConfigDir = store.ErrNoConfigDir
+
 // RemoveAccount deletes the named account and its keystore files from the local store.
 func RemoveAccount(name string) error {
+	// Never join an empty location with name: RemoveAll would then run
+	// relative to the current directory.
+	if store.DefaultLocation() == "" {
+		return errNoConfigDir
+	}
 	accountExists := store.DoesNamedAccountExist(name)
 
 	if !accountExists {

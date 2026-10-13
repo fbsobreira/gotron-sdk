@@ -16,6 +16,11 @@ import (
 
 // ImportFromPrivateKey imports an ECDSA private key (hex string) into the local keystore under the given name.
 func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
+	// Fail before any name check: without a resolvable keystore folder every
+	// valid name counts as taken, so the generated-name loop would never end.
+	if store.DefaultLocation() == "" {
+		return "", errNoConfigDir
+	}
 	privateKey = strings.TrimPrefix(privateKey, "0x")
 
 	if name == "" {
@@ -48,6 +53,9 @@ func ImportFromPrivateKey(privateKey, name, passphrase string) (string, error) {
 	}
 
 	ks := store.FromAccountName(name)
+	if ks == nil {
+		return "", fmt.Errorf("open keystore for %s: %w", name, errNoConfigDir)
+	}
 	defer ks.Close()
 	defer keys.ZeroPrivateKey(sk)
 	_, err = ks.ImportECDSA(sk.ToECDSA(), passphrase)
@@ -106,6 +114,11 @@ func writeToFile(path string, data string) error {
 
 // ImportKeyStore imports an encrypted keystore JSON file into the local account store.
 func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
+	// Fail before any name check: without a resolvable keystore folder every
+	// valid name counts as taken, so the generated-name loop would never end.
+	if store.DefaultLocation() == "" {
+		return "", errNoConfigDir
+	}
 	keyPath, err := filepath.Abs(keyPath)
 	if err != nil {
 		return "", err
@@ -150,6 +163,10 @@ func ImportKeyStore(keyPath, name, passphrase string) (string, error) {
 	}
 	// create home dir if it doesn't exist
 	store.InitConfigDir()
+	// An empty location would make the path relative to the current directory.
+	if store.DefaultLocation() == "" {
+		return "", errNoConfigDir
+	}
 	newPath := filepath.Join(store.DefaultLocation(), name, filepath.Base(keyPath))
 	err = writeToFile(newPath, string(keyJSON))
 	if err != nil {

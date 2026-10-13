@@ -2,6 +2,7 @@
 package store
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,8 +32,15 @@ func NewStore(configDir string) *Store {
 }
 
 // DefaultStoreInstance creates a Store using the default ~/.tronctl directory.
+// When the home directory cannot be determined, the Store keeps the relative
+// default and every operation that needs the directory reports that error (or,
+// where it cannot return one, does nothing); see the methods of Store.
 func DefaultStoreInstance() *Store {
-	return NewStore(configRoot())
+	root, err := configRoot()
+	if err != nil {
+		return NewStore(getDefaultConfigDir())
+	}
+	return NewStore(root)
 }
 
 // configDir must be read under s.mu. These helpers snapshot it for callers.
@@ -54,36 +62,60 @@ func configRootFromDir(dir string) (string, error) {
 	return filepath.Join(uDir, dir), nil
 }
 
-// mustConfigRoot calls configRootFromDir and panics on error.
-// This is safe because UserHomeDir only fails when HOME is unset,
-// which is detected at startup before any keystore operations.
-func mustConfigRoot(dir string) string {
+// resolveConfigRoot calls configRootFromDir and adds the directory to the
+// error. It fails only for a relative dir when the home directory is unknown
+// ($HOME unset on Unix, %USERPROFILE% on Windows). It never falls back to the
+// current directory: a caller that cannot resolve the root must not touch the
+// filesystem.
+func resolveConfigRoot(dir string) (string, error) {
 	root, err := configRootFromDir(dir)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("resolve config directory %q: %w: %w", dir, ErrNoConfigDir, err)
 	}
-	return root
+	return root, nil
 }
 
-func (s *Store) configAccountsDir() string {
-	return filepath.Join(mustConfigRoot(s.getConfigDir()), c.DefaultConfigAccountAliasesDirName)
+// accountsDir returns the account-keys folder of the Store.
+func (s *Store) accountsDir() (string, error) {
+	root, err := resolveConfigRoot(s.getConfigDir())
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, c.DefaultConfigAccountAliasesDirName), nil
 }
 
-// InitConfigDir creates the account keystore directory if it does not exist.
-func (s *Store) InitConfigDir() {
-	tronCTLDir := s.configAccountsDir()
-	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
-		err = os.MkdirAll(tronCTLDir, 0700)
+// ensureDir creates dir (mode 0700) if it does not exist and prints a failure
+// to stdout, as the void InitConfigDir and SetDefaultLocation always have.
+func ensureDir(dir string) {
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err = os.MkdirAll(dir, 0700)
 		if err != nil {
 			fmt.Printf("create keystore dir error: %v\n", err)
 		}
 	}
 }
 
-// LocalAccounts returns the alias names of all locally stored accounts.
+// InitConfigDir creates the account keystore directory if it does not exist.
+// If the config directory cannot be resolved (a relative directory without a
+// home directory) it creates nothing and prints the error.
+func (s *Store) InitConfigDir() {
+	dir, err := s.accountsDir()
+	if err != nil {
+		fmt.Printf("create keystore dir error: %v\n", err)
+		return
+	}
+	ensureDir(dir)
+}
+
+// LocalAccounts returns the alias names of all locally stored accounts. It
+// returns an empty list when the config directory cannot be resolved.
 func (s *Store) LocalAccounts() []string {
-	files, _ := os.ReadDir(s.configAccountsDir())
 	accounts := []string{}
+	dir, err := s.accountsDir()
+	if err != nil {
+		return accounts
+	}
+	files, _ := os.ReadDir(dir)
 
 	for _, node := range files {
 		if node.IsDir() {
@@ -95,6 +127,9 @@ func (s *Store) LocalAccounts() []string {
 
 var (
 	describe = fmt.Sprintf("%-24s\t\t%23s\n", "NAME", "ADDRESS")
+	// ErrNoConfigDir is wrapped by every error caused by a config folder that
+	// cannot be resolved: a relative config dir with no home directory.
+	ErrNoConfigDir = errors.New("the keystore folder cannot be resolved (is $HOME set?)")
 	// ErrNoUnlockBadPassphrase is returned when an account cannot be unlocked with the given passphrase.
 	ErrNoUnlockBadPassphrase = fmt.Errorf("could not unlock account with passphrase, perhaps need different phrase")
 )
@@ -114,6 +149,7 @@ func (s *Store) DescribeLocalAccounts() {
 }
 
 // DoesNamedAccountExist reports whether an account alias with the given name exists locally.
+// It reports false when the config directory cannot be resolved.
 func (s *Store) DoesNamedAccountExist(name string) bool {
 	return slices.Contains(s.LocalAccounts(), name)
 }
@@ -126,6 +162,10 @@ func (s *Store) AddressFromAccountName(name string) (string, error) {
 		return "", err
 	}
 	ks := s.FromAccountName(name)
+	if ks == nil {
+		_, err := s.accountsDir()
+		return "", err
+	}
 	defer func() {
 		ks.Close()
 		s.Forget(ks)
@@ -182,8 +222,14 @@ func checkLocalAccountName(name string) error {
 // FromAccountName returns a KeyStore loaded from the named account's directory.
 // It does not check name: the caller must validate it with ValidateAccountName
 // first, or a name such as "../x" addresses a directory outside the store.
+// It returns nil when the config directory cannot be resolved (a relative
+// directory without a home directory), so check the result before use.
 func (s *Store) FromAccountName(name string) *keystore.KeyStore {
-	p := filepath.Join(s.configAccountsDir(), name)
+	dir, err := s.accountsDir()
+	if err != nil {
+		return nil
+	}
+	p := filepath.Join(dir, name)
 	s.mu.Lock()
 	ks := s.newKeyStore(p)
 	s.openKeystores[ks] = struct{}{}
@@ -211,25 +257,33 @@ func (s *Store) CloseAll() {
 	s.newKeyStore = keystore.ForPath
 }
 
-// DefaultLocation returns the current default keystore directory path.
+// DefaultLocation returns the current default keystore directory path. It
+// returns "" when the config directory cannot be resolved; do not join the
+// empty string with a name and write to it, which would be relative to the
+// current directory.
 func (s *Store) DefaultLocation() string {
-	return s.configAccountsDir()
+	dir, err := s.accountsDir()
+	if err != nil {
+		return ""
+	}
+	return dir
 }
 
 // SetDefaultLocation updates the config directory and creates the account-keys
 // subdirectory if needed. A relative directory is resolved against the home
-// directory.
+// directory. If that cannot be resolved the directory is still recorded, so
+// later operations fail the same way instead of using the previous one; nothing
+// is created and the error is printed.
 func (s *Store) SetDefaultLocation(directory string) {
-	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	s.mu.Lock()
 	s.configDir = directory
 	s.mu.Unlock()
-	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
-		err = os.MkdirAll(tronCTLDir, 0700)
-		if err != nil {
-			fmt.Printf("create keystore dir error: %v\n", err)
-		}
+	dir, err := s.accountsDir()
+	if err != nil {
+		fmt.Printf("create keystore dir error: %v\n", err)
+		return
 	}
+	ensureDir(dir)
 }
 
 // UnlockedKeystore finds, unlocks, and returns the keystore and account for the given Base58 address.
@@ -237,6 +291,9 @@ func (s *Store) UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *
 	sender, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, nil, fmt.Errorf("address not valid: %s", from)
+	}
+	if _, err := s.accountsDir(); err != nil {
+		return nil, nil, err
 	}
 	ks := s.FromAddress(from)
 	if ks == nil {
@@ -267,29 +324,40 @@ func getDefaultConfigDir() string {
 	return dir
 }
 
-func configRoot() string {
-	return mustConfigRoot(getDefaultConfigDir())
+// configRoot resolves the default config root; see resolveConfigRoot.
+func configRoot() (string, error) {
+	return resolveConfigRoot(getDefaultConfigDir())
 }
 
-func configAccountsDir() string {
-	return filepath.Join(configRoot(), c.DefaultConfigAccountAliasesDirName)
+func accountsDir() (string, error) {
+	root, err := configRoot()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(root, c.DefaultConfigAccountAliasesDirName), nil
 }
 
 // InitConfigDir creates the account keystore directory if it does not exist.
+// If the config directory cannot be resolved (a relative directory without a
+// home directory) it creates nothing and prints the error.
 func InitConfigDir() {
-	tronCTLDir := configAccountsDir()
-	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
-		err = os.MkdirAll(tronCTLDir, 0700)
-		if err != nil {
-			fmt.Printf("create keystore dir error: %v\n", err)
-		}
+	dir, err := accountsDir()
+	if err != nil {
+		fmt.Printf("create keystore dir error: %v\n", err)
+		return
 	}
+	ensureDir(dir)
 }
 
-// LocalAccounts returns the alias names of all locally stored accounts.
+// LocalAccounts returns the alias names of all locally stored accounts. It
+// returns an empty list when the config directory cannot be resolved.
 func LocalAccounts() []string {
-	files, _ := os.ReadDir(configAccountsDir())
 	accounts := []string{}
+	dir, err := accountsDir()
+	if err != nil {
+		return accounts
+	}
+	files, _ := os.ReadDir(dir)
 
 	for _, node := range files {
 		if node.IsDir() {
@@ -313,6 +381,7 @@ func DescribeLocalAccounts() {
 }
 
 // DoesNamedAccountExist reports whether an account alias with the given name exists locally.
+// It reports false when the config directory cannot be resolved.
 func DoesNamedAccountExist(name string) bool {
 	return slices.Contains(LocalAccounts(), name)
 }
@@ -325,6 +394,10 @@ func AddressFromAccountName(name string) (string, error) {
 		return "", err
 	}
 	ks := FromAccountName(name)
+	if ks == nil {
+		_, err := accountsDir()
+		return "", err
+	}
 	defer ks.Close()
 	// FIXME: Assume 1 account per keystore for now
 	for _, account := range ks.Accounts() {
@@ -371,8 +444,14 @@ func SetKeystoreFactory(fn func(string) *keystore.KeyStore) {
 // FromAccountName returns a KeyStore loaded from the named account's directory.
 // It does not check name: the caller must validate it with ValidateAccountName
 // first, or a name such as "../x" addresses a directory outside the store.
+// It returns nil when the config directory cannot be resolved (a relative
+// directory without a home directory), so check the result before use.
 func FromAccountName(name string) *keystore.KeyStore {
-	p := filepath.Join(configAccountsDir(), name)
+	dir, err := accountsDir()
+	if err != nil {
+		return nil
+	}
+	p := filepath.Join(dir, name)
 	keystoreMu.Lock()
 	ks := newKeyStore(p)
 	openKeystores = append(openKeystores, ks)
@@ -392,26 +471,35 @@ func CloseAll() {
 	newKeyStore = keystore.ForPath
 }
 
-// DefaultLocation returns the current default keystore directory path.
+// DefaultLocation returns the current default keystore directory path. It
+// returns "" when the config directory cannot be resolved; do not join the
+// empty string with a name and write to it, which would be relative to the
+// current directory.
 func DefaultLocation() string {
-	return configAccountsDir()
+	dir, err := accountsDir()
+	if err != nil {
+		return ""
+	}
+	return dir
 }
 
 // SetDefaultLocation sets the config root, the folder that holds the
 // account-keys and pq-keys folders, and creates its account-keys folder if
 // needed. A relative directory is resolved against the home directory, not
-// the current one (tronctl makes --ks-dir absolute before calling it).
+// the current one (tronctl makes --ks-dir absolute before calling it). If
+// that cannot be resolved the directory is still recorded, so later
+// operations fail the same way instead of using the previous one; nothing is
+// created and the error is printed.
 func SetDefaultLocation(directory string) {
-	tronCTLDir := filepath.Join(mustConfigRoot(directory), c.DefaultConfigAccountAliasesDirName)
 	keystoreMu.Lock()
 	c.DefaultConfigDirName = directory
 	keystoreMu.Unlock()
-	if _, err := os.Stat(tronCTLDir); os.IsNotExist(err) {
-		err = os.MkdirAll(tronCTLDir, 0700)
-		if err != nil {
-			fmt.Printf("create keystore dir error: %v\n", err)
-		}
+	dir, err := accountsDir()
+	if err != nil {
+		fmt.Printf("create keystore dir error: %v\n", err)
+		return
 	}
+	ensureDir(dir)
 }
 
 // UnlockedKeystore finds, unlocks, and returns the keystore and account for the given Base58 address.
@@ -419,6 +507,9 @@ func UnlockedKeystore(from, passphrase string) (*keystore.KeyStore, *keystore.Ac
 	sender, err := address.Base58ToAddress(from)
 	if err != nil {
 		return nil, nil, fmt.Errorf("address not valid: %s", from)
+	}
+	if _, err := accountsDir(); err != nil {
+		return nil, nil, err
 	}
 	ks := FromAddress(from)
 	if ks == nil {

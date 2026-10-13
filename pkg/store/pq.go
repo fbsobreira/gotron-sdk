@@ -107,8 +107,10 @@ func pqKeysDirIn(root string) string {
 	return filepath.Join(root, c.DefaultConfigPQKeysDirName)
 }
 
-func (s *Store) root() string {
-	return mustConfigRoot(s.getConfigDir())
+// root resolves the config root of the Store. It fails only for a relative
+// config directory when the home directory is unknown; see resolveConfigRoot.
+func (s *Store) root() (string, error) {
+	return resolveConfigRoot(s.getConfigDir())
 }
 
 // nameExistsIn reports whether name is taken in account-keys or pq-keys
@@ -209,27 +211,39 @@ func readPQAccount(dir, name string) (PQAccount, error) {
 }
 
 func pqAccountsIn(root string) ([]PQAccount, error) {
+	accounts, _, err := scanPQAccountsIn(root)
+	return accounts, err
+}
+
+func scanPQAccountsIn(root string) ([]PQAccount, []UnreadablePQAccount, error) {
 	pqDir := pqKeysDirIn(root)
 	entries, err := os.ReadDir(pqDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []PQAccount{}, nil
+			return []PQAccount{}, []UnreadablePQAccount{}, nil
 		}
-		return nil, fmt.Errorf("read %s: %w", pqDir, err)
+		return nil, nil, fmt.Errorf("read %s: %w", pqDir, err)
 	}
 	accounts := []PQAccount{}
+	unreadable := []UnreadablePQAccount{}
 	for _, e := range entries {
-		if !e.IsDir() || ValidateAccountName(e.Name()) != nil {
+		if !e.IsDir() {
+			continue
+		}
+		if err := ValidateAccountName(e.Name()); err != nil {
+			unreadable = append(unreadable, UnreadablePQAccount{Name: e.Name(), Err: err})
 			continue
 		}
 		acct, err := readPQAccount(filepath.Join(pqDir, e.Name()), e.Name())
 		if err != nil {
+			unreadable = append(unreadable, UnreadablePQAccount{Name: e.Name(), Err: err})
 			continue
 		}
 		accounts = append(accounts, acct)
 	}
 	sort.Slice(accounts, func(i, j int) bool { return accounts[i].Name < accounts[j].Name })
-	return accounts, nil
+	sort.Slice(unreadable, func(i, j int) bool { return unreadable[i].Name < unreadable[j].Name })
+	return accounts, unreadable, nil
 }
 
 // notADirectory is the error for a pq-keys/<name> entry that is not a real
@@ -481,14 +495,33 @@ func DecryptPQKey(acct PQAccount, password string) (pqc.PrivateKey, error) {
 	return k, nil
 }
 
+// UnreadablePQAccount is a folder in pq-keys that ScanPQAccounts could not
+// read as an account: its name is not a valid account name, or it does not
+// hold exactly one readable keystore with a supported scheme and a valid
+// address. Err says why. It never holds key material.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+type UnreadablePQAccount struct {
+	// Name is the folder name.
+	Name string
+	// Err is the reason the folder is not an account.
+	Err error
+}
+
 // --- Store methods ---
 
 // PQKeysDir returns the post-quantum keystore folder, <configRoot>/pq-keys.
-// It is not created until the first key is stored.
+// It is not created until the first key is stored. It returns "" when the
+// config directory cannot be resolved (a relative directory without a home
+// directory); do not join the empty string with a name and write to it.
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) PQKeysDir() string {
-	return pqKeysDirIn(s.root())
+	root, err := s.root()
+	if err != nil {
+		return ""
+	}
+	return pqKeysDirIn(root)
 }
 
 // NameExists reports whether name is used by an ECDSA account (account-keys)
@@ -496,24 +529,52 @@ func (s *Store) PQKeysDir() string {
 // use it instead of DoesNamedAccountExist, which only checks account-keys.
 // An invalid name always reports false, so callers should check it with
 // ValidateAccountName first. Any entry counts, including a plain file or a
-// symlink, and a stat error other than "not exist" counts as taken.
+// symlink, and a stat error other than "not exist" counts as taken. So does a
+// valid name when the config directory cannot be resolved (a relative
+// directory without a home directory): the name cannot be shown to be free, so
+// a caller that checks before creating stops there.
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) NameExists(name string) bool {
-	return nameExistsIn(s.root(), name)
+	root, err := s.root()
+	if err != nil {
+		return ValidateAccountName(name) == nil
+	}
+	return nameExistsIn(root, name)
 }
 
 // PQAccounts lists the stored post-quantum accounts, sorted by name. Only the
 // clear scheme and address fields are read; nothing is decrypted. Entries that
 // are not folders, and folders that do not hold exactly one readable keystore
-// with a supported scheme and a valid address, are skipped without an error
-// (use PQAccountByName to see why one is unreadable). The error is non-nil
-// only when the pq-keys folder exists but cannot be read; a missing folder
-// yields an empty list.
+// with a supported scheme and a valid address, are skipped without an error;
+// use ScanPQAccounts to be told which folders were skipped and why. The error
+// is non-nil only when the pq-keys folder exists but cannot be read, or the
+// config directory cannot be resolved (a relative directory without a home
+// directory); a missing folder yields an empty list.
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) PQAccounts() ([]PQAccount, error) {
-	return pqAccountsIn(s.root())
+	accounts, _, err := s.ScanPQAccounts()
+	return accounts, err
+}
+
+// ScanPQAccounts lists the stored post-quantum accounts like PQAccounts, and
+// also the folders of pq-keys that are not usable accounts: a folder with an
+// invalid account name, or one that does not hold exactly one readable
+// keystore with a supported scheme and a valid address. Both lists are sorted
+// by name. Plain files and symlinks in pq-keys (for example a .DS_Store) are
+// ignored. Only the clear scheme and address fields are read; nothing is
+// decrypted and the unreadable entries carry no key material. The error is
+// non-nil only when the pq-keys folder exists but cannot be read, or the
+// config directory cannot be resolved; a missing folder yields empty lists.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+func (s *Store) ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error) {
+	root, err := s.root()
+	if err != nil {
+		return nil, nil, err
+	}
+	return scanPQAccountsIn(root)
 }
 
 // PQAccountByName returns the post-quantum account stored under name. A name
@@ -524,7 +585,11 @@ func (s *Store) PQAccounts() ([]PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) PQAccountByName(name string) (PQAccount, error) {
-	return pqAccountByNameIn(s.root(), name)
+	root, err := s.root()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return pqAccountByNameIn(root, name)
 }
 
 // PQAccountByAddress returns the post-quantum account with the Base58
@@ -532,7 +597,11 @@ func (s *Store) PQAccountByName(name string) (PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) PQAccountByAddress(addr string) (PQAccount, error) {
-	return pqAccountByAddressIn(s.root(), addr)
+	root, err := s.root()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return pqAccountByAddressIn(root, addr)
 }
 
 // ImportPQKeystore stores a wallet-cli post-quantum keystore under name. The
@@ -552,7 +621,11 @@ func (s *Store) PQAccountByAddress(addr string) (PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) ImportPQKeystore(name string, keystoreJSON []byte, password string) (PQAccount, error) {
-	return importPQKeystoreIn(s.root(), name, keystoreJSON, password)
+	root, err := s.root()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return importPQKeystoreIn(root, name, keystoreJSON, password)
 }
 
 // SavePQKey encrypts k with password (see pqc.EncryptKeystore for scryptN
@@ -564,7 +637,11 @@ func (s *Store) ImportPQKeystore(name string, keystoreJSON []byte, password stri
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) SavePQKey(name string, k pqc.PrivateKey, password string, scryptN, scryptP int) (PQAccount, error) {
-	return savePQKeyIn(s.root(), name, k, password, scryptN, scryptP)
+	root, err := s.root()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return savePQKeyIn(root, name, k, password, scryptN, scryptP)
 }
 
 // DecryptPQKey decrypts acct's keystore; see the package-level DecryptPQKey.
@@ -582,7 +659,11 @@ func (s *Store) DecryptPQKey(acct PQAccount, password string) (pqc.PrivateKey, e
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func (s *Store) RemovePQAccount(name string) error {
-	return removePQAccountIn(s.root(), name)
+	root, err := s.root()
+	if err != nil {
+		return err
+	}
+	return removePQAccountIn(root, name)
 }
 
 // --- Package-level functions (default config root) ---
@@ -593,7 +674,11 @@ func (s *Store) RemovePQAccount(name string) error {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func PQKeysDir() string {
-	return pqKeysDirIn(configRoot())
+	root, err := configRoot()
+	if err != nil {
+		return ""
+	}
+	return pqKeysDirIn(root)
 }
 
 // NameExists reports whether name is used in account-keys or pq-keys; see
@@ -603,14 +688,31 @@ func PQKeysDir() string {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func NameExists(name string) bool {
-	return nameExistsIn(configRoot(), name)
+	root, err := configRoot()
+	if err != nil {
+		return ValidateAccountName(name) == nil
+	}
+	return nameExistsIn(root, name)
 }
 
 // PQAccounts lists the stored post-quantum accounts; see Store.PQAccounts.
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func PQAccounts() ([]PQAccount, error) {
-	return pqAccountsIn(configRoot())
+	accounts, _, err := ScanPQAccounts()
+	return accounts, err
+}
+
+// ScanPQAccounts lists the stored post-quantum accounts and the unusable
+// folders of pq-keys; see Store.ScanPQAccounts.
+//
+// Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
+func ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error) {
+	root, err := configRoot()
+	if err != nil {
+		return nil, nil, err
+	}
+	return scanPQAccountsIn(root)
 }
 
 // PQAccountByName returns the post-quantum account stored under name; see
@@ -618,7 +720,11 @@ func PQAccounts() ([]PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func PQAccountByName(name string) (PQAccount, error) {
-	return pqAccountByNameIn(configRoot(), name)
+	root, err := configRoot()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return pqAccountByNameIn(root, name)
 }
 
 // PQAccountByAddress returns the post-quantum account with the Base58
@@ -626,7 +732,11 @@ func PQAccountByName(name string) (PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func PQAccountByAddress(addr string) (PQAccount, error) {
-	return pqAccountByAddressIn(configRoot(), addr)
+	root, err := configRoot()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return pqAccountByAddressIn(root, addr)
 }
 
 // ImportPQKeystore stores a wallet-cli post-quantum keystore under name; see
@@ -634,7 +744,11 @@ func PQAccountByAddress(addr string) (PQAccount, error) {
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func ImportPQKeystore(name string, keystoreJSON []byte, password string) (PQAccount, error) {
-	return importPQKeystoreIn(configRoot(), name, keystoreJSON, password)
+	root, err := configRoot()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return importPQKeystoreIn(root, name, keystoreJSON, password)
 }
 
 // SavePQKey encrypts and stores k under name; see Store.SavePQKey. The caller
@@ -642,7 +756,11 @@ func ImportPQKeystore(name string, keystoreJSON []byte, password string) (PQAcco
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func SavePQKey(name string, k pqc.PrivateKey, password string, scryptN, scryptP int) (PQAccount, error) {
-	return savePQKeyIn(configRoot(), name, k, password, scryptN, scryptP)
+	root, err := configRoot()
+	if err != nil {
+		return PQAccount{}, err
+	}
+	return savePQKeyIn(root, name, k, password, scryptN, scryptP)
 }
 
 // RemovePQAccount deletes the post-quantum account folder pq-keys/<name>;
@@ -650,5 +768,9 @@ func SavePQKey(name string, k pqc.PrivateKey, password string, scryptN, scryptP 
 //
 // Experimental: TIP-899 post-quantum support is a draft (Nile only) and may change.
 func RemovePQAccount(name string) error {
-	return removePQAccountIn(configRoot(), name)
+	root, err := configRoot()
+	if err != nil {
+		return err
+	}
+	return removePQAccountIn(root, name)
 }
