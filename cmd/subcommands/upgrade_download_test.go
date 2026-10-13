@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -113,20 +114,26 @@ func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { retu
 // TestDownloadAsset_ResponseAfterStallIsRejected covers a response that
 // completes after the stall timer cancelled the request: a server can answer
 // the cancellation with a clean, empty or truncated response, and the
-// transport may still hand it back. The download must fail as stalled.
+// transport may still hand it back. The download must fail as stalled. A body
+// with data matters too: reading it restarts the stall timer, so the timer
+// alone no longer shows that it fired.
 func TestDownloadAsset_ResponseAfterStallIsRejected(t *testing.T) {
-	setIdleTimeout(t, 100*time.Millisecond)
-	c := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-		<-r.Context().Done()
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader("")),
-			Request:    r,
-		}, nil
-	})}
+	for _, body := range []string{"", "late bytes"} {
+		t.Run(fmt.Sprintf("body %q", body), func(t *testing.T) {
+			setIdleTimeout(t, 100*time.Millisecond)
+			c := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				<-r.Context().Done()
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Body:       io.NopCloser(strings.NewReader(body)),
+					Request:    r,
+				}, nil
+			})}
 
-	_, err := downloadAsset(context.Background(), c, "https://example.invalid/a.tar.gz", 1<<20)
-	require.ErrorIs(t, err, errDownloadStalled)
+			_, err := downloadAsset(context.Background(), c, "https://example.invalid/a.tar.gz", 1<<20)
+			require.ErrorIs(t, err, errDownloadStalled)
+		})
+	}
 }
 
 func TestDownloadAsset_CallerCancelIsNotAStall(t *testing.T) {
