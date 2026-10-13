@@ -645,10 +645,12 @@ func PQSignatures(tx *core.Transaction) ([]PQSignatureInfo, error)
 ##### `github.com/fbsobreira/gotron-sdk/pkg/txcore`
 
 ```go
-// CheckPQSchemes asks the node once per distinct scheme on tx.PqAuthSig and returns an error
-// wrapping ErrPQSchemeDisabled for one that is off. Call it before broadcasting a transaction
-// signed outside txcore.Send. A transaction with no PQ signatures needs no prober.
-func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction) error
+// CheckPQSchemes asks the node once per distinct scheme on tx.PqAuthSig, then once per pending
+// scheme not already asked, and returns an error wrapping ErrPQSchemeDisabled for one that is
+// off. Before signing, pass the scheme you will sign with as pending; after signing outside
+// txcore.Send, call it before broadcasting. A pending scheme this SDK does not know wraps
+// pqc.ErrUnsupportedScheme. With nothing to ask it needs no prober.
+func CheckPQSchemes(ctx context.Context, p PQProber, tx *core.Transaction, pending ...core.PQScheme) error
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/pqc`
@@ -668,6 +670,12 @@ func MaxAuthSigSize(scheme core.PQScheme) (int, error)
 // EstimateBandwidth is the bandwidth the node charges for tx: its size without Ret, plus 64
 // bytes per contract, plus MaxAuthSigSize for each pending (not yet added) PQ signature.
 func EstimateBandwidth(tx *core.Transaction, pending ...core.PQScheme) (int64, error)
+
+// OwnerAndPermission returns the owner_address, permission_id and type of tx's single contract:
+// the account and permission the node checks the signatures against. It fails closed on anything
+// but exactly one contract whose parameter matches its type and has a valid owner_address (a
+// ShieldedTransferContract is an error).
+func OwnerAndPermission(tx *core.Transaction) (owner address.Address, permissionID int32, contractType core.Transaction_Contract_ContractType, err error)
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/store`
@@ -676,6 +684,10 @@ func EstimateBandwidth(tx *core.Transaction, pending ...core.PQScheme) (int64, e
 // ScanPQAccounts is PQAccounts plus the wallets it could not read, each with the reason.
 func ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error)
 func (s *Store) ScanPQAccounts() ([]PQAccount, []UnreadablePQAccount, error)
+
+// UnlockedKeystore errors wrap ErrKeystoreNotFound when the address has no ECDSA keystore, and
+// keystore.ErrDecrypt with ErrNoUnlockBadPassphrase when the passphrase is wrong.
+var ErrKeystoreNotFound = errors.New("account not found in the local keystore")
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/client`
@@ -703,10 +715,10 @@ func (c PQCapabilities) Allows(scheme core.PQScheme) bool
 // into the maps UpdateAccountPermissionCtx takes, so a key can be added without losing
 // operations. It refuses an operation bit with no name, an active id out of order, and an
 // active with an empty bitmap.
-// An account with no stored owner or active permission (created before multi-sign and never
-// updated) gives ErrNoStoredPermissions: the node applies implicit defaults that cannot be read
-// back, so build the update yourself (owner: threshold 1, the account address at weight 1; one
-// active named "active", id 2, threshold 1, the chain's getActiveDefaultOperations).
+// An account that has never had permissions stored (created before multi-sign, at genesis, or by
+// a contract, and never updated) gives ErrNoStoredPermissions: build its update yourself (owner:
+// threshold 1, the account address at weight 1; at least one active, with operations copied from
+// a recently created account, since no API exposes the default).
 // Custom owner and witness permission names are not kept (UpdateAccountPermission always writes
 // "owner" and "witness"); everything else is.
 func PermissionUpdateMaps(acc *core.Account) (owner map[string]interface{}, witness map[string]interface{}, actives []map[string]interface{}, err error)
@@ -715,6 +727,21 @@ var ErrNoStoredPermissions = errors.New("account has no stored owner or active p
 
 // PermissionOperations decodes a 32-byte operations bitmap into contract-type names.
 func PermissionOperations(bitmap []byte) (map[string]bool, error)
+
+// PermissionAllows reports whether perm may sign a contract of type ct: an Owner permission
+// always, an Active one when its 32-byte bitmap has bit ct, anything else never. It tests only
+// that bit, so a bit this SDK cannot name yet does not matter.
+func PermissionAllows(perm *core.Permission, ct core.Transaction_Contract_ContractType) bool
+
+// SigningPermission returns (a copy of) the permission java-tron checks a transaction's
+// signatures against: id 0 the stored owner, or the implicit owner (own address, threshold 1)
+// when none is stored; id 1 never (ErrNoSigningPermission); id 2 and up the stored Active
+// permission with that id, never synthesized. A nil or empty account wraps ErrAccountNotFound;
+// an invalid address with no stored owner wraps ErrInvalidAddress. Check key weights against
+// Threshold, and the contract type with PermissionAllows.
+func SigningPermission(acc *core.Account, permissionID int32) (*core.Permission, error)
+
+var ErrNoSigningPermission = errors.New("no permission with that id can sign a transaction")
 ```
 
 ##### `github.com/fbsobreira/gotron-sdk/pkg/keystore`
