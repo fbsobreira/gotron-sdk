@@ -19,6 +19,9 @@ Report them privately through GitHub:
 (the repository's **Security** tab, then **Report a vulnerability**). The report is not public:
 only you, the maintainers and anyone invited to work on the fix can see it.
 
+If you can't use GitHub advisories, email
+[**security@gotron.sh**](mailto:security@gotron.sh) instead.
+
 Please include:
 
 - the affected package, command or file, and the version or commit;
